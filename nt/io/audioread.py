@@ -23,4 +23,4 @@ def audioread(path, offset=0.0, duration=None):
         >>> signal = audioread(path, offset=0, duration=1)
     """
     x = librosa.load(path, sr=16000, mono=False, offset=offset, duration=duration)
-    return x
+    return x[0]
