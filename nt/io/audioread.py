@@ -1,28 +1,26 @@
-import numpy as np
-import wave
-import struct
+import librosa
 
-def read_wav(filename, start_frame=None, number_of_frames=None):
+def audioread(path, offset=0.0, duration=None):
     """
     Reads a wav file, converts it to 32 bit float values and reshapes accoring to the number of channels.
+    Now, this is a wrapper of librosa with our common defaults.
+
+    :param path: Absolute or relative file path to audio file.
+    :type: String.
+    :param offset: Begin of loaded audio.
+    :type: Scalar in seconds.
+    :param duration: Duration of loaded audio.
+    :type: Scalar in seconds.
+    :return:
+
+    .. admonition:: Example
+        Only path provided:
+        >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
+        >>> signal = audioread(path)
+
+        Say you load audio examples from a very long audio, you can provide a start position and a duration in seconds.
+        >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
+        >>> signal = audioread(path, offset=0, duration=1)
     """
-    wav_file_handle = wave.open(filename)
-    
-    if start_frame is not None:
-        wav_file_handle.setpos(start_frame)
-
-    if number_of_frames is None:
-        number_of_frames = wav_file_handle.getnframes()
-
-    audio_raw = wav_file_handle.readframes(number_of_frames)
-    
-    # sample_width = wav_file_handle.getsampwidth()
-    # print(sample_width)
-    # print(len(audio_raw))
-    # print(wav_file_handle.getparams())
-
-    audio_data = np.array(struct.unpack('<' + wav_file_handle.getnchannels()*(number_of_frames)*"h", audio_raw),
-                          dtype=np.float32)
-    audio_data /= np.iinfo(np.int16).max
-    audio_data = audio_data.reshape((wav_file_handle.getnchannels(), -1))
-    return audio_data
+    x = librosa.load(path, sr=16000, mono=False, offset=offset, duration=duration)
+    return x
