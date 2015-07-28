@@ -1,12 +1,12 @@
 """
-This module deals with all sorts of audio input and output.
+This module deals with all sorts of acoustic features and transforms.
 """
 
-from nt.transform import filter
-from nt.transform import fbank
+#from nt.transform import filter
+#from nt.transform import fbank
 # from nt.transform import mfcc
 # from nt.transform import ssc
-from nt.transform import mod_stft
+#from nt.transform import stft
 
 # filter = filter
 # fbank = fbank.fbank
@@ -17,9 +17,11 @@ from nt.transform import mod_stft
 #
 # ssc = ssc.ssc
 #
-stft = mod_stft.stft
-# istft = stft.istft
-# stft_to_spectrogram = stft.stft_to_spectrogram
-# plot_spectrogram = stft.plot_spectrogram
-# plot_stft = stft.plot_stft
-# spectrogram_to_energy_per_frame = stft.spectrogram_to_energy_per_frame
+#istft = nt.transform.stft.istft
+#stft_to_spectrogram = nt.transform.stft.stft_to_spectrogram
+#plot_spectrogram = nt.transform.stft.plot_spectrogram
+#plot_stft = nt.transform.stft.plot_stft
+#spectrogram_to_energy_per_frame = nt.transform.stft.spectrogram_to_energy_per_frame
+#stft2 = gespenst.stft
+
+#stft_module = stft
