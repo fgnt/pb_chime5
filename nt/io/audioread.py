@@ -42,6 +42,7 @@ def getparams(path):
     Returns parameters of wav file.
 
     :param path: Absolute or relative file path to audio file.
+    :type: String.
     :return: Named tuple with attributes (nchannels, sampwidth, framerate, nframes, comptype, compname)
     """
     with wave.open(path, 'r') as wave_file:
