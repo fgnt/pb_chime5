@@ -9,6 +9,6 @@ from nt.transform.module_stft import plot_stft
 from nt.transform.module_stft import spectrogram_to_energy_per_frame
 from nt.transform.module_filter import preemphasis
 from nt.transform.module_fbank import fbank
-from nt.transform.module_filter import preemphasis
+from nt.transform.module_filter import offcomp
 from nt.transform.module_mfcc import mfcc
 from nt.transform.module_ssc import ssc
