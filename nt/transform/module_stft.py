@@ -196,7 +196,8 @@ def plot_spectrogram(spectrogram, limits=None):
     """
     Plots a spectrogram from a spectrogram (power) as input.
 
-    :param spectrogram: Real valued power spectrum.
+    :param spectrogram: Real valued power spectrum
+        with shape (frames, frequencies).
     :param limits: Color limits for clipping purposes.
     :return: None
     """
