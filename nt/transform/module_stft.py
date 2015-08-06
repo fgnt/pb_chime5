@@ -54,8 +54,8 @@ def stft(time_signal, size=1024, shift=256,
     else:
         window = window(window_length)
         window = np.pad(window, (0, size-window_length), mode='constant')
-
-    return np.array([rfft(window*time_signal[i:i+size]) for i in range_object])
+    windowed = np.array([(window*time_signal[i:i+size]) for i in range_object])
+    return rfft(windowed)
 
 
 def _samples_to_stft_frames(samples, size, shift):
