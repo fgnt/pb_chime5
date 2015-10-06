@@ -13,8 +13,61 @@ COLORMAP = sns.diverging_palette(220, 20, n=7, as_cmap=True)
 
 from numpy.fft import rfft, irfft
 
+import string
+from nt.utils.numpy_utils import segment_axis
 
-def stft(time_signal, size=1024, shift=256,
+
+def stft(time_signal, time_dim=None, size=1024, shift=256,
+        window=signal.blackman, fading=True, window_length=None):
+    """
+    Calculates the short time Fourier transformation of a multi channel multi
+    speaker time signal. It is able to add additional zeros for fade-in and
+    fade out and should yield an STFT signal which allows perfect reconstruction.
+
+    :param time_signal: multi channel time signal.
+    :param time_dim: Scalar dim of time. Default: None means the biggest dimension
+    :param size: Scalar FFT-size.
+    :param shift: Scalar FFT-shift. Typically shift is a fraction of size.
+    :param window: Window function handle.
+    :param fading: Pads the signal with zeros for better reconstruction.
+    :param window_length: Sometimes one desires to use a shorter window than
+        the fft size. In that case, the window is padded with zeros.
+        The default is to use the fft-size as a window size.
+    :return: Single channel complex STFT signal
+        with dimensions frames times size/2+1.
+    """
+    if time_dim is None:
+        time_dim = np.argmax(time_signal.shape)
+
+    # Pad with zeros to have enough samples for the window function to fade.
+    if fading is True:
+        pad = [(0, 0)]*time_signal.ndim
+        pad[time_dim] = [size-shift, size-shift]
+        time_signal = np.pad(time_signal, pad, mode='constant')
+
+    # Pad with trailing zeros, to have an integral number of frames.
+    frames = _samples_to_stft_frames(time_signal.shape[time_dim], size, shift)
+    samples = _stft_frames_to_samples(frames, size, shift)
+    pad = [(0, 0)]*time_signal.ndim
+    pad[time_dim] = [0, samples - time_signal.shape[time_dim]]
+    time_signal = np.pad(time_signal, pad, mode='constant')
+
+    if window_length is None:
+        window = window(size)
+    else:
+        window = window(window_length)
+        window = np.pad(window, (0, size-window_length), mode='constant')
+
+    time_signal_seg = segment_axis(time_signal, size, size-shift, axis=time_dim)
+
+    letters = string.ascii_lowercase
+    mapping = letters[:time_signal_seg.ndim]+','+letters[time_dim+1]+'->'+letters[:time_signal_seg.ndim]
+
+    # ToDo: Implement this more memory efficient
+    return rfft(np.einsum(mapping, time_signal_seg, window), axis=time_dim+1)
+
+
+def stft_single_channel(time_signal, size=1024, shift=256,
          window=signal.blackman, fading=True, window_length=None):
     """
     Calculates the short time Fourier transformation of a single channel time
