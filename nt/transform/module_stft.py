@@ -188,6 +188,41 @@ def _biorthogonal_window(analysis_window, shift):
     synthesis_window = analysis_window / sum_of_squares / fft_size
     return synthesis_window
 
+def istft_loop(stft_signal, time_dim=-2, freq_dim=-1):
+
+    def convert_for_mat_loopy(tensor, mat_dim_one, mat_dim_two):
+        ndim = tensor.ndim
+        shape = tensor.shape
+        mat_dim_one %= ndim
+        mat_dim_two %= ndim
+        perm = [x for x in range(ndim) if x not in (mat_dim_one, mat_dim_two)] + [mat_dim_one, mat_dim_two]
+        tensor = tensor.transpose(perm)
+        return np.reshape(tensor, (-1, shape[mat_dim_one], shape[mat_dim_two]))
+
+    def reconstruct_mat_loopy(tensor, dim_one, dim_two, shape):
+        ndim = len(shape)
+        dim_one %= ndim
+        dim_two %= ndim
+        newShape = [shape[x] for x in range(ndim) if x not in (dim_one, dim_two)] + [shape[dim_one], shape[dim_two]]
+        tensor = np.reshape(tensor, newShape)
+        perm = list(range(ndim-2))
+        if dim_one > dim_two:
+            perm.insert(dim_two, -1)
+            perm.insert(dim_one, -2)
+        else:
+            perm.insert(dim_one, -2)
+            perm.insert(dim_two, -1)
+        return tensor.transpose(perm)
+
+    shape = stft_signal.shape
+    stft_signal = convert_for_mat_loopy(stft_signal, time_dim, freq_dim)
+
+    time_signal = np.array([istft(stft_signal[i, :, :]) for i in range(stft_signal.shape[0])])
+    shape = list(shape)
+    shape[time_dim] = 1
+    shape[freq_dim] = time_signal.shape[1]
+    time_signal = reconstruct_mat_loopy(np.expand_dims(time_signal, axis=-2), time_dim, freq_dim, shape)
+    return np.squeeze(time_signal, axis=time_dim)
 
 def istft(stft_signal, size=1024, shift=256,
           window=signal.blackman, fading=True, window_length=None):
