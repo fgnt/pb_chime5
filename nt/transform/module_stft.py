@@ -130,7 +130,7 @@ def _stft_frames_to_samples(frames, size, shift):
     :param shift: Hop in samples.
     :return: Number of samples in time domain.
     """
-    return frames * shift + size - shift
+    return int(frames * shift + size - shift)
 
 
 def _biorthogonal_window_loopy(analysis_window, shift):
