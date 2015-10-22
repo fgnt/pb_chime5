@@ -2,6 +2,7 @@
 This file contains the STFT function and related helper functions.
 """
 import numpy as np
+from math import ceil
 import scipy
 
 from scipy import signal
@@ -119,7 +120,8 @@ def _samples_to_stft_frames(samples, size, shift):
     :param shift: Hop in samples.
     :return: Number of STFT frames.
     """
-    return np.ceil((samples - size + shift) / shift)
+    # I changed this from np.ceil to math.ceil, to yield an integer result.
+    return ceil((samples - size + shift) / shift)
 
 
 def _stft_frames_to_samples(frames, size, shift):
