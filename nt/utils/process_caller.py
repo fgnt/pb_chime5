@@ -49,8 +49,9 @@ def run_processes(cmds, sleep_time=0.1, ignore_return_code=False):
         if code != 0 and not ignore_return_code:
             raise EnvironmentError(txt)
         if code != 0 and ignore_return_code:
-            warn('Returncode for command {} was {} but is ignored'.format(
-                cmds[idx], code))
+            warn('Returncode for command {} was {} but is ignored.\n'
+                 'Stderr: {}'.format(
+                cmds[idx], code, stderr[idx]))
         if DEBUG_MODE:
             print(txt)
 
