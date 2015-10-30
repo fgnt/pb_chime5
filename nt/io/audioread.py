@@ -3,6 +3,14 @@ This module deals with all sorts of audio input and output.
 """
 import librosa
 import wave
+import inspect
+from os import path, remove
+import tempfile
+#import nt.utils.process_caller as pc
+import subprocess
+
+
+UTILS_DIR = path.join(path.dirname(path.abspath(inspect.getfile(inspect.currentframe()))), 'utils')
 
 def audioread(path, offset=0.0, duration=None, sample_rate=16000):
     """
@@ -36,6 +44,22 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
                           offset=offset,
                           duration=duration)
     return signal[0]
+
+def read_nist_wsj(path):
+    """
+    Converts a nist/sphere file of wsj and reads it with audioread.
+
+    :param path: file path to audio file.
+    :return:
+    """
+    tmp_file = tempfile.NamedTemporaryFile(delete=False)
+    #cmd = "{}/sph2pipe '-f' 'wav' {path} {dest_file}]".format(UTILS_DIR, path = path, dest_file = tmp_file.name)
+    dir = "{}/sph2pipe".format(UTILS_DIR)
+    subprocess.Popen([dir , '-f', 'wav', path, tmp_file.name])
+    #pc.run_processes(cmd, ignore_return_code=True)
+    signal = audioread(tmp_file.name)
+    remove(tmp_file.name)
+    return signal
 
 def getparams(path):
     """
