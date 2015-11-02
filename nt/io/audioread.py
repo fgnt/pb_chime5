@@ -53,7 +53,7 @@ def read_nist_wsj(path):
     :return:
     """
     tmp_file = tempfile.NamedTemporaryFile(delete=False)
-    cmd = "{}/sph2pipe -f wav {path} {dest_file}]".format(
+    cmd = "{}/sph2pipe -f wav {path} {dest_file}".format(
         UTILS_DIR, path = path, dest_file = tmp_file.name)
     dir = "{}/sph2pipe".format(UTILS_DIR)
     #subprocess.Popen([dir , '-f', 'wav', path, tmp_file.name])
