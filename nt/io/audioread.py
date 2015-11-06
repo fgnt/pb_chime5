@@ -30,11 +30,13 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
 
     .. admonition:: Example
         Only path provided:
+
         >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
         >>> signal = audioread(path)
 
         Say you load audio examples from a very long audio, you can provide a
         start position and a duration in seconds.
+
         >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
         >>> signal = audioread(path, offset=0, duration=1)
     """
