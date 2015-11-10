@@ -11,7 +11,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     """Generate a new array that chops the given array along the given axis into overlapping frames.
 
     example:
-    >>> segment_axis(arange(10), 4, 2)
+    >>> segment_axis(np.arange(10), 4, 2)
     array([[0, 1, 2, 3],
            [2, 3, 4, 5],
            [4, 5, 6, 7],
