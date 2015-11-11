@@ -340,6 +340,5 @@ def get_stft_center_frequencies(size=1024, sample_rate=16000):
     :param sample_rate: Scalar sample frequency in Hertz.
     :return: Array of all relevant center frequencies
     """
-    # TODO: Is this actually the correct center frequency? How is it defined? Denkfehler?
     frequency_index = numpy.arange(0, size/2 + 1)
     return frequency_index * sample_rate / size
