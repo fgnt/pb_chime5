@@ -5,6 +5,7 @@ import threading
 int16_max = numpy.iinfo(numpy.int16).max
 int16_min = numpy.iinfo(numpy.int16).min
 
+
 def audiowrite(data, path, samplerate=16000, normalize=False, threaded=True):
     """ Write the audio data ``data`` to the wav file ``path``
 
