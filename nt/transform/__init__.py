@@ -4,8 +4,6 @@ This module deals with all sorts of acoustic features and transforms.
 from nt.transform.module_stft import stft
 from nt.transform.module_stft import istft
 from nt.transform.module_stft import stft_to_spectrogram
-from nt.transform.module_stft import plot_spectrogram
-from nt.transform.module_stft import plot_stft
 from nt.transform.module_stft import spectrogram_to_energy_per_frame
 from nt.transform.module_filter import preemphasis
 from nt.transform.module_fbank import fbank
