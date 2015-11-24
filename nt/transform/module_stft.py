@@ -282,40 +282,6 @@ def stft_to_spectrogram(stft_signal):
     return spectrogram
 
 
-def plot_spectrogram(spectrogram, limits=None):
-    """
-    Plots a spectrogram from a spectrogram (power) as input.
-
-    :param spectrogram: Real valued power spectrum
-        with shape (frames, frequencies).
-    :param limits: Color limits for clipping purposes.
-    :return: None
-    """
-    if limits is None:
-        limits = (numpy.min(spectrogram), numpy.max(spectrogram))
-
-    plt.imshow(numpy.clip(numpy.log10(spectrogram).T, limits[0], limits[1]),
-               interpolation='none', origin='lower', cmap=COLORMAP)
-    plt.grid(False)
-    plt.xlabel('Time frame')
-    plt.ylabel('Frequency bin')
-    cbar = plt.colorbar()
-    cbar.set_label('Energy / dB')
-    plt.show()
-
-
-def plot_stft(stft_signal, limits=None):
-    """
-    Plots a spectrogram from an stft signal as input. This is a wrapper of the
-    plot function for spectrograms.
-
-    :param stft_signal: Complex valued stft signal.
-    :param limits: Color limits for clipping purposes.
-    :return: None
-    """
-    plot_spectrogram(stft_to_spectrogram(stft_signal), limits)
-
-
 def spectrogram_to_energy_per_frame(spectrogram):
     """
     The energy per frame is sometimes used as an additional feature to the MFCC
