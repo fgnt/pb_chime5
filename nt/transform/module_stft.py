@@ -40,7 +40,7 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
         time_dim = numpy.argmax(time_signal.shape)
 
     # Pad with zeros to have enough samples for the window function to fade.
-    if fading is True:
+    if fading:
         pad = [(0, 0)]*time_signal.ndim
         pad[time_dim] = [size-shift, size-shift]
         time_signal = numpy.pad(time_signal, pad, mode='constant')
@@ -90,7 +90,7 @@ def stft_single_channel(time_signal, size=1024, shift=256,
     assert len(time_signal.shape) == 1
 
     # Pad with zeros to have enough samples for the window function to fade.
-    if fading is True:
+    if fading:
         time_signal = numpy.pad(time_signal, size-shift, mode='constant')
 
     # Pad with trailing zeros, to have an integral number of frames.
