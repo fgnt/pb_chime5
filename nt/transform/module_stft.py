@@ -7,7 +7,6 @@ import scipy
 
 from scipy import signal
 
-import pylab as plt
 import seaborn as sns
 sns.set_palette("deep", desat=.6)
 COLORMAP = sns.diverging_palette(220, 20, n=7, as_cmap=True)
