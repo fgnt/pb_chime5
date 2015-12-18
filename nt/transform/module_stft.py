@@ -18,14 +18,16 @@ from nt.utils.numpy_utils import segment_axis
 
 
 def stft(time_signal, time_dim=None, size=1024, shift=256,
-        window=signal.blackman, fading=True, window_length=None):
+         window=signal.blackman, fading=True, window_length=None):
     """
     Calculates the short time Fourier transformation of a multi channel multi
     speaker time signal. It is able to add additional zeros for fade-in and
-    fade out and should yield an STFT signal which allows perfect reconstruction.
+    fade out and should yield an STFT signal which allows perfect
+    reconstruction.
 
     :param time_signal: multi channel time signal.
-    :param time_dim: Scalar dim of time. Default: None means the biggest dimension
+    :param time_dim: Scalar dim of time.
+        Default: None means the biggest dimension
     :param size: Scalar FFT-size.
     :param shift: Scalar FFT-shift. Typically shift is a fraction of size.
     :param window: Window function handle.
@@ -58,13 +60,16 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
         window = window(window_length)
         window = numpy.pad(window, (0, size-window_length), mode='constant')
 
-    time_signal_seg = segment_axis(time_signal, size, size-shift, axis=time_dim)
+    time_signal_seg = segment_axis(time_signal, size,
+                                   size-shift, axis=time_dim)
 
     letters = string.ascii_lowercase
-    mapping = letters[:time_signal_seg.ndim]+','+letters[time_dim+1]+'->'+letters[:time_signal_seg.ndim]
+    mapping = letters[:time_signal_seg.ndim] + ',' + letters[time_dim + 1] \
+        + '->' + letters[:time_signal_seg.ndim]
 
     # ToDo: Implement this more memory efficient
-    return rfft(numpy.einsum(mapping, time_signal_seg, window), axis=time_dim+1)
+    return rfft(numpy.einsum(mapping, time_signal_seg, window),
+                axis=time_dim + 1)
 
 
 def stft_single_channel(time_signal, size=1024, shift=256,
@@ -99,7 +104,8 @@ def stft_single_channel(time_signal, size=1024, shift=256,
     time_signal = numpy.pad(time_signal,
                          (0, samples - len(time_signal)), mode='constant')
 
-    # The range object contains the sample index of the beginning of each frame.
+    # The range object contains the sample index
+    # of the beginning of each frame.
     range_object = range(0, len(time_signal) - size + shift, shift)
 
     if window_length is None:
@@ -107,7 +113,8 @@ def stft_single_channel(time_signal, size=1024, shift=256,
     else:
         window = window(window_length)
         window = numpy.pad(window, (0, size-window_length), mode='constant')
-    windowed = numpy.array([(window*time_signal[i:i+size]) for i in range_object])
+    windowed = numpy.array([(window*time_signal[i:i+size])
+                            for i in range_object])
     return rfft(windowed)
 
 
@@ -196,17 +203,22 @@ def istft_loop(stft_signal, time_dim=-2, freq_dim=-1):
         shape = tensor.shape
         mat_dim_one %= ndim
         mat_dim_two %= ndim
-        perm = [x for x in range(ndim) if x not in (mat_dim_one, mat_dim_two)] + [mat_dim_one, mat_dim_two]
+        perm = [x for x in range(ndim)
+                if x not in (mat_dim_one, mat_dim_two)] \
+            + [mat_dim_one, mat_dim_two]
         tensor = tensor.transpose(perm)
-        return numpy.reshape(tensor, (-1, shape[mat_dim_one], shape[mat_dim_two]))
+        return numpy.reshape(tensor,
+                             (-1, shape[mat_dim_one], shape[mat_dim_two]))
 
     def reconstruct_mat_loopy(tensor, dim_one, dim_two, shape):
         ndim = len(shape)
         dim_one %= ndim
         dim_two %= ndim
-        newShape = [shape[x] for x in range(ndim) if x not in (dim_one, dim_two)] + [shape[dim_one], shape[dim_two]]
-        tensor = numpy.reshape(tensor, newShape)
-        perm = list(range(ndim-2))
+        new_shape = [shape[x] for x in range(ndim)
+                     if x not in (dim_one, dim_two)] \
+            + [shape[dim_one], shape[dim_two]]
+        tensor = numpy.reshape(tensor, new_shape)
+        perm = list(range(ndim - 2))
         if dim_one > dim_two:
             perm.insert(dim_two, -1)
             perm.insert(dim_one, -2)
@@ -218,11 +230,13 @@ def istft_loop(stft_signal, time_dim=-2, freq_dim=-1):
     shape = stft_signal.shape
     stft_signal = convert_for_mat_loopy(stft_signal, time_dim, freq_dim)
 
-    time_signal = numpy.array([istft(stft_signal[i, :, :]) for i in range(stft_signal.shape[0])])
+    time_signal = numpy.array([istft(stft_signal[i, :, :])
+                               for i in range(stft_signal.shape[0])])
     shape = list(shape)
     shape[time_dim] = 1
     shape[freq_dim] = time_signal.shape[1]
-    time_signal = reconstruct_mat_loopy(numpy.expand_dims(time_signal, axis=-2), time_dim, freq_dim, shape)
+    time_signal = reconstruct_mat_loopy(
+        numpy.expand_dims(time_signal, axis=-2), time_dim, freq_dim, shape)
     return numpy.squeeze(time_signal, axis=time_dim)
 
 def istft(stft_signal, size=1024, shift=256,
@@ -254,7 +268,7 @@ def istft(stft_signal, size=1024, shift=256,
     window = _biorthogonal_window_loopy(window, shift)
 
     # Why? Line created by Hai, Lukas does not know, why it exists.
-    window = window * size
+    window *= size
 
     time_signal = scipy.zeros(stft_signal.shape[0] * shift + size - shift)
 
@@ -284,7 +298,7 @@ def stft_to_spectrogram(stft_signal):
 def spectrogram_to_energy_per_frame(spectrogram):
     """
     The energy per frame is sometimes used as an additional feature to the MFCC
-    features. Here, it is caluclated from the power spectrum.
+    features. Here, it is calculated from the power spectrum.
 
     :param spectrogram: Real valued power spectrum.
     :return: Real valued energy per frame.
