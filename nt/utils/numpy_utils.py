@@ -1,11 +1,11 @@
 import warnings
-
+import chainer
 import numpy as np
+import collections
 
 """
 From http://wiki.scipy.org/Cookbook/SegmentAxis
 """
-
 
 def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     """Generate a new array that chops the given array along the given axis into overlapping frames.
@@ -106,3 +106,20 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
                                                                       axis + 1:]
         return np.ndarray.__new__(np.ndarray, strides=newstrides,
                                   shape=newshape, buffer=a, dtype=a.dtype)
+
+def to_ndarray(self, data, copy=True):
+        if copy:
+            cp = lambda x: np.copy(x)
+        else:
+            cp = lambda x: x
+        if isinstance(data, chainer.Variable):
+            return cp(data.num)
+        elif isinstance(data, np.ndarray):
+            return cp(data)
+        elif isinstance(data, float):
+            return data
+        elif isinstance(data, collections.Iterable):
+            return np.asarray(data)
+        else:
+            raise ValueError('Unknown type of data {}. Cannot add to list'
+                             .format(type(data)))
