@@ -107,7 +107,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
         return np.ndarray.__new__(np.ndarray, strides=newstrides,
                                   shape=newshape, buffer=a, dtype=a.dtype)
 
-def to_ndarray(self, data, copy=True):
+def to_ndarray(data, copy=True):
         if copy:
             cp = lambda x: np.copy(x)
         else:
