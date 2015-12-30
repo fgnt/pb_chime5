@@ -2,6 +2,7 @@ import warnings
 import chainer
 import numpy as np
 import collections
+import numbers
 
 """
 From http://wiki.scipy.org/Cookbook/SegmentAxis
@@ -116,7 +117,7 @@ def to_ndarray(data, copy=True):
             return cp(data.num)
         elif isinstance(data, np.ndarray):
             return cp(data)
-        elif isinstance(data, float):
+        elif isinstance(data, numbers.Number):
             return data
         elif isinstance(data, collections.Iterable):
             return np.asarray(data)
