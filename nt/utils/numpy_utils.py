@@ -9,32 +9,31 @@ From http://wiki.scipy.org/Cookbook/SegmentAxis
 """
 
 def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
-    """Generate a new array that chops the given array along the given axis into overlapping frames.
+    """ Generate a new array that chops the given array along the given axis into overlapping frames.
 
-    example:
+    :param a: The array to segment
+    :param length: The length of each frame
+    :param overlap: The number of array elements by which the frames should overlap
+    :param axis: The axis to operate on; if None, act on the flattened array
+    :param end: What to do with the last frame, if the array is not evenly
+        divisible into pieces. Options are:
+        * 'cut'   Simply discard the extra values
+        * 'wrap'  Copy values from the beginning of the array
+        * 'pad'   Pad with a constant value
+    :param endvalue: The value to use for end='pad'
+    :return:
+
+    The array is not copied unless necessary (either because it is
+    unevenly strided and being flattened or because end is set to
+    'pad' or 'wrap').
+
+    Example
+    -------
     >>> segment_axis(np.arange(10), 4, 2)
     array([[0, 1, 2, 3],
            [2, 3, 4, 5],
            [4, 5, 6, 7],
            [6, 7, 8, 9]])
-
-    arguments:
-    a       The array to segment
-    length  The length of each frame
-    overlap The number of array elements by which the frames should overlap
-    axis    The axis to operate on; if None, act on the flattened array
-    end     What to do with the last frame, if the array is not evenly
-            divisible into pieces. Options are:
-
-            'cut'   Simply discard the extra values
-            'wrap'  Copy values from the beginning of the array
-            'pad'   Pad with a constant value
-
-    endvalue    The value to use for end='pad'
-
-    The array is not copied unless necessary (either because it is 
-    unevenly strided and being flattened or because end is set to 
-    'pad' or 'wrap').
     """
 
     if axis is None:
