@@ -234,6 +234,7 @@ def istft_loop(stft_signal, time_dim=-2, freq_dim=-1):
         numpy.expand_dims(time_signal, axis=-2), time_dim, freq_dim, shape)
     return numpy.squeeze(time_signal, axis=time_dim)
 
+
 def istft(stft_signal, size=1024, shift=256,
           window=signal.blackman, fading=True, window_length=None):
     """
