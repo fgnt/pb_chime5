@@ -123,3 +123,24 @@ def to_ndarray(data, copy=True):
         else:
             raise ValueError('Unknown type of data {}. Cannot add to list'
                              .format(type(data)))
+
+def tbf_to_tbchw(x, window_size, step_width, pad_mode='symmetric',
+                 pad_kwargs=None):
+    """ Transfroms data from TxBxF format to TxBxCxHxW format
+
+    The
+    :param x: Data to be transformed
+    :param window_size: Size of the window
+    :param step_width: Step width for window
+    :param pad_mode: Mode for padding. See :numpy.pad for details
+    :param pad_kwargs: Kwargs for pad call
+    :return: Transformed data
+    """
+    if pad_kwargs is None:
+        pad_kwargs = dict()
+    x = np.pad(x,
+               ((window_size//2, window_size//2), (0, 0), (0, 0)),
+               mode=pad_mode, **pad_kwargs)
+    return segment_axis(
+            x, window_size, window_size-step_width,
+            axis=0, end='wrap').transpose(0, 2, 3, 1)[:, :, None, :, :]
