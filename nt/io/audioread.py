@@ -9,11 +9,13 @@ import tempfile
 import nt.utils.process_caller as pc
 
 
-UTILS_DIR = path.join(
-    path.dirname(path.abspath(inspect.getfile(inspect.currentframe()))), 'utils')
+UTILS_DIR = path.join(path.dirname(path.abspath(
+        inspect.getfile(inspect.currentframe()))), 'utils')
+
 
 def audioread(path, offset=0.0, duration=None, sample_rate=16000):
     """
+    Reads a wav file, converts it to 32 bit float values and reshapes accoring
     Reads a wav file, converts it to 32 bit float values and reshapes accoring
     to the number of channels.
     Now, this is a wrapper of librosa with our common defaults.
@@ -47,6 +49,7 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
                           duration=duration)
     return signal[0]
 
+
 def read_nist_wsj(path):
     """
     Converts a nist/sphere file of wsj and reads it with audioread.
@@ -58,11 +61,12 @@ def read_nist_wsj(path):
     cmd = "{}/sph2pipe -f wav {path} {dest_file}".format(
         UTILS_DIR, path = path, dest_file = tmp_file.name)
     dir = "{}/sph2pipe".format(UTILS_DIR)
-    #subprocess.Popen([dir , '-f', 'wav', path, tmp_file.name])
+    # subprocess.Popen([dir , '-f', 'wav', path, tmp_file.name])
     pc.run_processes(cmd, ignore_return_code=False)
     signal = audioread(tmp_file.name)
     remove(tmp_file.name)
     return signal
+
 
 def getparams(path):
     """
@@ -70,7 +74,8 @@ def getparams(path):
 
     :param path: Absolute or relative file path to audio file.
     :type: String.
-    :return: Named tuple with attributes (nchannels, sampwidth, framerate, nframes, comptype, compname)
+    :return: Named tuple with attributes (nchannels, sampwidth, framerate,
+    nframes, comptype, compname)
     """
     with wave.open(path, 'r') as wave_file:
         return wave_file.getparams()
