@@ -6,7 +6,7 @@ int16_max = numpy.iinfo(numpy.int16).max
 int16_min = numpy.iinfo(numpy.int16).min
 
 
-def audiowrite(data, path, samplerate=16000, normalize=False, threaded=True):
+def audiowrite(data, path, sample_rate=16000, normalize=False, threaded=True):
     """ Write the audio data ``data`` to the wav file ``path``
 
     The file can be written in a threaded mode. In this case, the writing
@@ -15,7 +15,7 @@ def audiowrite(data, path, samplerate=16000, normalize=False, threaded=True):
 
     :param data: A numpy array with the audio data
     :param path: The wav file the data should be written to
-    :param samplerate: Samplerate of the audio data
+    :param sample_rate: Sample rate of the audio data
     :param normalize: Normalize the audio first so that the values are within
         the range of [INTMIN, INTMAX]. E.g. no clipping occurs
     :param threaded: If true, the write process will be started as a separate
@@ -39,9 +39,10 @@ def audiowrite(data, path, samplerate=16000, normalize=False, threaded=True):
     data = data.astype(numpy.int16)
 
     if threaded:
-        threading.Thread(target=wav_write, args=(path, samplerate, data)).start()
+        threading.Thread(target=wav_write, args=(path, sample_rate, data)
+                         ).start()
     else:
-        wav_write(path, samplerate, data)
+        wav_write(path, sample_rate, data)
 
     return sample_to_clip
 
