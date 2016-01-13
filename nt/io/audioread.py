@@ -30,7 +30,7 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
     :type: scalar in number of samples per second
     :return:
 
-    .. admonition:: Example
+    .. admonition:: Example:
         Only path provided:
 
         >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
