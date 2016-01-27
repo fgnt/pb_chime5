@@ -35,17 +35,20 @@ def run_processes(cmds, sleep_time=0.1, ignore_return_code=False):
         stdout[i], stderr[i] = p.communicate()
         return_codes[i] = p.returncode
 
+    raise_error_txt = ''
     for idx, code in enumerate(return_codes):
         txt = 'Command {} returned with return code {}.\n' \
                 'Stdout: {}\n' \
                 'Stderr: {}'.format(cmds[idx], code, stdout[idx], stderr[idx])
         if code != 0 and not ignore_return_code:
-            raise EnvironmentError(txt)
+            raise_error_txt += txt + '\n'
         if code != 0 and ignore_return_code:
             warn('Returncode for command {} was {} but is ignored.\n'
                  'Stderr: {}'.format(
                 cmds[idx], code, stderr[idx]))
         if DEBUG_MODE:
             print(txt)
+    if raise_error_txt != '':
+        raise EnvironmentError(raise_error_txt)
 
     return stdout, stderr, return_codes
