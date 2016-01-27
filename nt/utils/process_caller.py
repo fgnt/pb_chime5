@@ -25,22 +25,15 @@ def run_processes(cmds, sleep_time=0.1, ignore_return_code=False):
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
                               shell=True,
-                              universal_newlines=True) for
-             cmd in cmds]
-    states = np.ones(len(pipes), dtype=np.bool)
+                              universal_newlines=True) for cmd in cmds]
     return_codes = len(cmds) * [None]
     stdout = len(cmds) * [None]
     stderr = len(cmds) * [None]
 
     # Recover output as the processes finish
-    while states.any():
-        for i, p in enumerate(pipes):
-            if states[i] == True and p.poll() is not None:
-                states[i] = False
-                return_codes[i] = p.poll()
-                stdout[i] = p.stdout.readlines()
-                stderr[i] = p.stderr.readlines()
-        sleep(sleep_time)
+    for i, p in enumerate(pipes):
+        stdout[i], stderr[i] = p.communicate()
+        return_codes[i] = p.returncode
 
     for idx, code in enumerate(return_codes):
         txt = 'Command {} returned with return code {}.\n' \
