@@ -3,7 +3,7 @@ import os
 
 class DataDir(str):
     """
-    Append string class with join, for easyer calling.
+    Append string class with join, for easier calling.
 
     Example:
 
@@ -29,10 +29,22 @@ class DataDir(str):
         return os.path.join(self, *args)
 
 
-testing = DataDir(os.getenv('NT_TESTING_DIR', '/net/storage/python_unittest_data'))
-timit = DataDir(os.getenv('NT_TIMIT_DIR', '/net/speechdb/timit'))
-database_jsons = DataDir(os.getenv('NT_DATABASE_JSONS_DIR', '/net/storage/database_jsons'))
-chime = DataDir(os.getenv('NT_CHIME_DIR', '/net/ssd/2015/chime'))
+testing = DataDir(os.getenv(
+    'NT_TESTING_DIR',
+    '/net/storage/python_unittest_data'
+))
+timit = DataDir(os.getenv(
+    'NT_TIMIT_DIR',
+    '/net/speechdb/timit'
+))
+database_jsons = DataDir(os.getenv(
+    'NT_DATABASE_JSONS_DIR',
+    '/net/storage/database_jsons'
+))
+chime = DataDir(os.getenv(
+    'NT_CHIME_DIR',
+    '/net/ssd/2015/chime'
+))
 
 if __name__ == "__main__":
     import doctest
