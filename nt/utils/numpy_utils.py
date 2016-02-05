@@ -160,6 +160,6 @@ def pad_zeros_to(array, to):
     :return: Padded array
     """
     array = np.array(array)
-    result = np.zeros_like(to)
-    result[:array.size] = array
+    result = np.zeros((len(to),), dtype=array.dtype)
+    result[:array.shape[0]] = array
     return result
