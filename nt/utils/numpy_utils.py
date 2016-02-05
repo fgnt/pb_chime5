@@ -8,6 +8,7 @@ import numbers
 From http://wiki.scipy.org/Cookbook/SegmentAxis
 """
 
+
 def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     """ Generate a new array that chops the given array along the given axis into overlapping frames.
 
@@ -107,6 +108,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
         return np.ndarray.__new__(np.ndarray, strides=newstrides,
                                   shape=newshape, buffer=a, dtype=a.dtype)
 
+
 def to_ndarray(data, copy=True):
         if copy:
             cp = lambda x: np.copy(x)
@@ -123,6 +125,7 @@ def to_ndarray(data, copy=True):
         else:
             raise ValueError('Unknown type of data {}. Cannot add to list'
                              .format(type(data)))
+
 
 def tbf_to_tbchw(x, left_context, right_context, step_width,
                  pad_mode='symmetric', pad_kwargs=None):
@@ -146,3 +149,17 @@ def tbf_to_tbchw(x, left_context, right_context, step_width,
     return segment_axis(
             x, window_size, window_size-step_width,
             axis=0, end='wrap').transpose(0, 2, 3, 1)[:, :, None, :, :]
+
+
+def pad_zeros_to(array, to):
+    """ One dimensional padding with zeros to the size of the target array
+
+    :param array: Input array which will be part of the result
+    :param to: Target array. Its size will be used to determine the size of the
+        return array.
+    :return: Padded array
+    """
+    array = np.array(array)
+    result = np.zeros_like(to)
+    result[:array.size] = array
+    return result
