@@ -151,7 +151,7 @@ def tbf_to_tbchw(x, left_context, right_context, step_width,
             axis=0, end='wrap').transpose(0, 2, 3, 1)[:, :, None, :, :]
 
 
-def pad_zeros_to(array, to):
+def pad_to(array, to, constant_value=0):
     """ One dimensional padding with zeros to the size of the target array
 
     :param array: Input array which will be part of the result
@@ -160,6 +160,6 @@ def pad_zeros_to(array, to):
     :return: Padded array
     """
     array = np.array(array)
-    result = np.zeros((len(to),), dtype=array.dtype)
+    result = constant_value * np.ones((len(to),), dtype=array.dtype)
     result[:array.shape[0]] = array
     return result
