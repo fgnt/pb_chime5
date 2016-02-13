@@ -131,7 +131,15 @@ def tbf_to_tbchw(x, left_context, right_context, step_width,
                  pad_mode='symmetric', pad_kwargs=None):
     """ Transfroms data from TxBxF format to TxBxCxHxW format
 
-    The
+    The abbreviations stand for:
+
+    T: Time frames
+    B: Batch size
+    F: Feature size
+    C: Channel (almost always 1)
+    H: Height of the convolution filter
+    W: Width of the convolution filter
+
     :param x: Data to be transformed
     :param left_context: Context size left to current frame
     :param right_context: Context size right to current frame
