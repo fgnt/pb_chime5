@@ -127,6 +127,31 @@ def to_ndarray(data, copy=True):
                              .format(type(data)))
 
 
+def stack_context(X, left_context=0, right_context=0, step_width=1):
+    """ Stack TxBxF format with left and right context.
+
+    There is a notebook, which illustrates this feature with many details in
+    the example notebooks repository.
+
+    :param X: Data with TxBxF format.
+    :param left_context: Length of left context.
+    :param right_context: Length of right context.
+    :param step_width: Step width.
+    :return: Stacked features with symmetric padding and head and tail.
+    """
+    X_stacked = tbf_to_tbchw(
+        X,
+        left_context=left_context,
+        right_context=right_context,
+        step_width=step_width
+    )[:, :, 0, :]
+
+    T, B, F, W = X_stacked.shape
+    X_stacked = X_stacked.reshape(T, B, F*W)
+
+    return X_stacked
+
+
 def tbf_to_tbchw(x, left_context, right_context, step_width,
                  pad_mode='symmetric', pad_kwargs=None):
     """ Transfroms data from TxBxF format to TxBxCxHxW format
