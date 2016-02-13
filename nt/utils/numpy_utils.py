@@ -144,7 +144,7 @@ def stack_context(X, left_context=0, right_context=0, step_width=1):
         left_context=left_context,
         right_context=right_context,
         step_width=step_width
-    )[:, :, 0, :]
+    )[:, :, 0, :].transpose((0, 1, 3, 2))
 
     T, B, F, W = X_stacked.shape
     X_stacked = X_stacked.reshape(T, B, F*W)
