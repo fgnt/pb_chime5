@@ -5,6 +5,7 @@ from nt.transform.module_stft import stft
 from nt.transform.module_stft import istft
 from nt.transform.module_stft import stft_to_spectrogram
 from nt.transform.module_stft import spectrogram_to_energy_per_frame
+from nt.transform.module_stft import get_stft_center_frequencies
 from nt.transform.module_filter import preemphasis
 from nt.transform.module_filter import inverse_preemphasis
 from nt.transform.module_fbank import fbank
