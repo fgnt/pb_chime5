@@ -196,3 +196,46 @@ def pad_to(array, to, constant_value=0):
     result = constant_value * np.ones((len(to),), dtype=array.dtype)
     result[:array.shape[0]] = array
     return result
+
+
+def _only_reshape(array, operation):
+    source, target = operation.split('->')
+    source = source.split()
+    target = target.split()
+
+    input_shape = {key: array.shape[index] for index, key in enumerate(source)}
+
+    output_shape = []
+    for t in target:
+        product = 1
+        if not t == '1':
+            t = t.split('*')
+            for t_ in t:
+                product *= input_shape[t_]
+        output_shape.append(product)
+
+    return array.reshape(output_shape)
+
+
+def _only_transposition(array, operation):
+    return np.einsum(operation.replace(' ', ''), array)
+
+
+def reshape(array, operation):
+    """ This is an experimental version of a generalized reshape.
+
+    See test cases for examples.
+
+    :param array:
+    :param operation:
+    :return:
+    """
+    operation = operation.replace(',', ' ')
+    new_operation = operation.replace('1', ' ').replace('*', ' ')
+    reshaped_array = _only_transposition(array, new_operation)
+
+    source = new_operation.split('->')[1]
+    target = operation.split('->')[1]
+    new_operation2 = '->'.join([source, target])
+
+    return _only_reshape(reshaped_array, new_operation2)
