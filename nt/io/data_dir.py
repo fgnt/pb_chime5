@@ -49,7 +49,7 @@ chime = DataDir(os.getenv(
 
 kaldi_root = DataDir(os.getenv(
     'KALDI_ROOT',
-    '/Users/jahn/kaldi'
+    '/net/ssd/software/kaldi'
 ))
 
 if __name__ == "__main__":
