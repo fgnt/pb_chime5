@@ -42,7 +42,6 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
         >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
         >>> signal = audioread(path, offset=0, duration=1)
     """
-    print('hello')
     signal = librosa.load(path,
                           sr=sample_rate,
                           mono=False,
