@@ -2,11 +2,13 @@ from time import sleep
 import subprocess
 import numpy as np
 from warnings import warn
+import os
 
 DEBUG_MODE = False
+DEFAULT_ENV = os.environ.copy()
 
-
-def run_processes(cmds, sleep_time=0.1, ignore_return_code=False):
+def run_processes(cmds, sleep_time=0.1, ignore_return_code=False,
+                  environment=DEFAULT_ENV):
     """ Starts multiple processes, waits and returns the outputs when available
 
     :param cmd: A list with the commands to call
@@ -25,7 +27,8 @@ def run_processes(cmds, sleep_time=0.1, ignore_return_code=False):
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
                               shell=True,
-                              universal_newlines=True) for cmd in cmds]
+                              universal_newlines=True,
+                              env=environment) for cmd in cmds]
     return_codes = len(cmds) * [None]
     stdout = len(cmds) * [None]
     stderr = len(cmds) * [None]
