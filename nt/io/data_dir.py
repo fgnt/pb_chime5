@@ -37,6 +37,7 @@ timit = DataDir(os.getenv(
     'NT_TIMIT_DIR',
     '/net/speechdb/timit'
 ))
+
 database_jsons = DataDir(os.getenv(
     'NT_DATABASE_JSONS_DIR',
     '/net/storage/database_jsons'
@@ -44,6 +45,11 @@ database_jsons = DataDir(os.getenv(
 chime = DataDir(os.getenv(
     'NT_CHIME_DIR',
     '/net/ssd/2015/chime'
+))
+
+kaldi_root = DataDir(os.getenv(
+    'KALDI_ROOT',
+    '/Users/jahn/kaldi'
 ))
 
 if __name__ == "__main__":
