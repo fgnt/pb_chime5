@@ -239,3 +239,20 @@ def reshape(array, operation):
     new_operation2 = '->'.join([source, target])
 
     return _only_reshape(reshaped_array, new_operation2)
+
+
+def add_context(data, left_context=0, right_context=0, step=1,
+                cnn_features=False, deltas_as_channel=False):
+        if cnn_features:
+            data = tbf_to_tbchw(data, left_context, right_context, step,
+                            pad_mode='constant',
+                            pad_kwargs=dict(constant_values=(0,)))
+            if deltas_as_channel:
+                feature_size = data.shape[3] // 3
+                data = np.concatenate(
+                    [data[:, :, :, i * feature_size:(i + 1) * feature_size, :]
+                     for i in range(3)], axis=2)
+        else:
+            data = stack_context(data, left_context=left_context,
+                                 right_context=right_context, step_width=step)
+        return data
