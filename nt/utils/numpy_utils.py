@@ -181,7 +181,7 @@ def tbf_to_tbchw(x, left_context, right_context, step_width,
     window_size = left_context+right_context+1
     return segment_axis(
             x, window_size, window_size-step_width,
-            axis=0, end='wrap').transpose(0, 2, 3, 1)[:, :, None, :, :]
+            axis=0, end='cut').transpose(0, 2, 3, 1)[:, :, None, :, :]
 
 
 def pad_to(array, to, constant_value=0):
