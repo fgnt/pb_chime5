@@ -8,7 +8,7 @@ DEBUG_MODE = False
 DEFAULT_ENV = os.environ.copy()
 
 def run_processes(cmds, sleep_time=0.1, ignore_return_code=False,
-                  environment=DEFAULT_ENV):
+                  environment=DEFAULT_ENV, warn_on_ignore=True):
     """ Starts multiple processes, waits and returns the outputs when available
 
     :param cmd: A list with the commands to call
@@ -45,7 +45,7 @@ def run_processes(cmds, sleep_time=0.1, ignore_return_code=False,
                 'Stderr: {}'.format(cmds[idx], code, stdout[idx], stderr[idx])
         if code != 0 and not ignore_return_code:
             raise_error_txt += txt + '\n'
-        if code != 0 and ignore_return_code:
+        if code != 0 and ignore_return_code and warn_on_ignore:
             warn('Returncode for command {} was {} but is ignored.\n'
                  'Stderr: {}'.format(
                 cmds[idx], code, stderr[idx]))
