@@ -68,7 +68,8 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
 
 
 def stft_single_channel(time_signal, size=1024, shift=256,
-         window=signal.blackman, fading=True, window_length=None):
+                        window=signal.blackman,
+                        fading=True, window_length=None):
     """
     Calculates the short time Fourier transformation of a single channel time
     signal. It is able to add additional zeros for fade-in and fade out and
@@ -97,7 +98,7 @@ def stft_single_channel(time_signal, size=1024, shift=256,
     frames = _samples_to_stft_frames(len(time_signal), size, shift)
     samples = _stft_frames_to_samples(frames, size, shift)
     time_signal = numpy.pad(time_signal,
-                         (0, samples - len(time_signal)), mode='constant')
+                            (0, samples - len(time_signal)), mode='constant')
 
     # The range object contains the sample index
     # of the beginning of each frame.
@@ -139,7 +140,7 @@ def _stft_frames_to_samples(frames, size, shift):
 def _biorthogonal_window_loopy(analysis_window, shift):
     """
     This version of the synthesis calculation is as close as possible to the
-    Matlab impelementation in terms of variable names.
+    Matlab implementation in terms of variable names.
 
     The results are equal.
 
@@ -190,6 +191,7 @@ def _biorthogonal_window(analysis_window, shift):
     sum_of_squares = numpy.kron(numpy.ones(number_of_shifts), sum_of_squares)
     synthesis_window = analysis_window / sum_of_squares / fft_size
     return synthesis_window
+
 
 def istft_loop(stft_signal, time_dim=-2, freq_dim=-1):
 
@@ -283,7 +285,7 @@ def stft_to_spectrogram(stft_signal):
     Calculates the power spectrum (spectrogram) of an stft signal.
     The output is guaranteed to be real.
 
-    :param stft: Complex STFT signal with dimensions
+    :param stft_signal: Complex STFT signal with dimensions
         #time_frames times #frequency_bins.
     :return: Real spectrogram with same dimensions as input.
     """
