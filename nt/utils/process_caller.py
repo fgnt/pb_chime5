@@ -8,22 +8,31 @@ DEBUG_MODE = False
 DEFAULT_ENV = os.environ.copy()
 
 def run_processes(cmds, sleep_time=0.1, ignore_return_code=False,
-                  environment=DEFAULT_ENV, warn_on_ignore=True):
+                  environment=DEFAULT_ENV, warn_on_ignore=True,
+                  inputs=None):
     """ Starts multiple processes, waits and returns the outputs when available
 
     :param cmd: A list with the commands to call
     :param sleep_time: Intervall to poll the running processes (in seconds)
     :param ignore_return_code: If true, ignores non zero return codes.
         Otherwise an exception is thrown.
+    :param environment:
+    :param warn_on_ignore:
+    :param inputs: A list with the text inputs to be piped to the called commands
     :return: Stdout, Stderr and return code for each process
     """
 
     # Ensure its a list if a single command is passed
     cmds = cmds if isinstance(cmds, list) else [cmds]
+    if inputs is None:
+        inputs = len(cmds) * [None]
+    else:
+        inputs = inputs if isinstance(inputs, list) else [inputs]
 
     if DEBUG_MODE:
         [print('Calling: {}'.format(cmd)) for cmd in cmds]
     pipes = [subprocess.Popen(cmd,
+                              stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
                               shell=True,
@@ -35,7 +44,7 @@ def run_processes(cmds, sleep_time=0.1, ignore_return_code=False,
 
     # Recover output as the processes finish
     for i, p in enumerate(pipes):
-        stdout[i], stderr[i] = p.communicate()
+        stdout[i], stderr[i] = p.communicate(inputs[i])
         return_codes[i] = p.returncode
 
     raise_error_txt = ''
