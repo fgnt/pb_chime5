@@ -152,6 +152,25 @@ def stack_context(X, left_context=0, right_context=0, step_width=1):
     return X_stacked
 
 
+def split_complex_features(X):
+    """ Split a complex valued input array into two stacked real parts.
+
+    :param variable: Complex input array with T times B times F features
+    :return: Real output array with T times B times 2*F features
+    """
+    return np.concatenate((np.asarray(X.real), np.asarray(X.imag)), axis=2)
+
+
+def merge_complex_features(X):
+    """ Merge a two stacked real parts into a complex array.
+
+    :param variable: Real input array with T times B times 2*F features
+    :return: Complex input array with T times B times F features
+    """
+    bins = X.shape[-1]
+    return X[:, :, :bins//2] + 1j * X[:, :, bins//2:]
+
+
 def tbf_to_tbchw(x, left_context, right_context, step_width,
                  pad_mode='symmetric', pad_kwargs=None):
     """ Transfroms data from TxBxF format to TxBxCxHxW format
