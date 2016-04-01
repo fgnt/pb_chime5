@@ -152,6 +152,36 @@ def stack_context(X, left_context=0, right_context=0, step_width=1):
     return X_stacked
 
 
+def unstack_context(X, mode, left_context=0, right_context=0, step_width=1):
+    """ Unstacks stacked features.
+
+    This only works in special cases. Right now, only mode='center'
+    is supported. It will return just the center frame and drop the remaining
+    parts.
+
+    Other options are related to combining overlapping context frames.
+
+    :param X: Stacked features (or output of your network)
+    :param X: mode
+    :param left_context: Length of left context.
+    :param right_context: Length of right context.
+    :param step_width: Step width.
+    :return: Data with TxBxF format.
+    """
+
+    assert step_width == 1
+    context_length = left_context + 1 + right_context
+    assert X.shape[2] % context_length == 0
+    F = X.shape[2] // context_length
+
+    if mode == 'center':
+        return X[:, :, left_context*F:(left_context+1)*F]
+    else:
+        NotImplementedError(
+            'All other unstack methods are not yet implemented.'
+        )
+
+
 def split_complex_features(X):
     """ Split a complex valued input array into two stacked real parts.
 
