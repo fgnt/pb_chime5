@@ -293,6 +293,17 @@ def stft_to_spectrogram(stft_signal):
     return spectrogram
 
 
+def spectrogram(time_signal, *args, **kwargs):
+    """ Thin wrapper of stft with power spectrum calculation.
+
+    :param time_signal:
+    :param args:
+    :param kwargs:
+    :return:
+    """
+    return stft_to_spectrogram(stft(time_signal, *args, **kwargs))
+
+
 def spectrogram_to_energy_per_frame(spectrogram):
     """
     The energy per frame is sometimes used as an additional feature to the MFCC
