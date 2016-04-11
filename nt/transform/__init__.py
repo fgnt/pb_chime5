@@ -12,6 +12,9 @@ from nt.transform.module_fbank import fbank
 from nt.transform.module_filter import offset_compensation
 from nt.transform.module_mfcc import mfcc, mfcc_velocity_acceleration
 from nt.transform.module_ssc import ssc
+from nt.transform.module_bark_fbank import bark_fbank
+from nt.transform.module_rastaplp import rasta_plp
+from nt.transform.module_ams import ams
 import numpy as np
 
 
