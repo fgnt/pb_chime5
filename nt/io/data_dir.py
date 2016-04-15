@@ -14,6 +14,8 @@ class DataDir(str):
         '/net/a/b'
         >>> data_dir
         '/net'
+        >>> data_dir / 'b' / 'c'
+        '/net/b/c'
         >>> os.path.join(data_dir, '2')
         '/net/2'
         >>> data_dir('2')
@@ -27,6 +29,10 @@ class DataDir(str):
 
     def __call__(self, *args):
         return os.path.join(self, *args)
+
+    def __div__(self, other):
+        return DataDir(os.path.join(self, other))
+    __truediv__ = __div__
 
 
 testing = DataDir(os.getenv(
