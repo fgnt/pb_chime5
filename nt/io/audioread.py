@@ -7,6 +7,7 @@ import inspect
 from os import path, remove
 import tempfile
 import nt.utils.process_caller as pc
+import numpy as np
 
 
 UTILS_DIR = path.join(path.dirname(path.abspath(
@@ -67,6 +68,17 @@ def read_nist_wsj(path):
     remove(tmp_file.name)
     return signal
 
+
+def read_raw(path, dtype=np.dtype('<i2')):
+    """
+    Reads raw data (tidigits data)
+
+    :param path: file path to audio file
+    :param dtype: datatype, default: int16, little-endian
+    :return: numpy array with audio samples
+    """
+    with open(path, 'rb') as f:
+        return np.fromfile(f, dtype=dtype)
 
 def getparams(path):
     """
