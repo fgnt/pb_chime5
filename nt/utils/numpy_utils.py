@@ -291,17 +291,22 @@ def reshape(array, operation):
 
 
 def add_context(data, left_context=0, right_context=0, step=1,
-                cnn_features=False, deltas_as_channel=False):
+                cnn_features=False, deltas_as_channel=False,
+                num_deltas=2, sequence_output=True):
         if cnn_features:
             data = tbf_to_tbchw(data, left_context, right_context, step,
                             pad_mode='constant',
                             pad_kwargs=dict(constant_values=(0,)))
             if deltas_as_channel:
-                feature_size = data.shape[3] // 3
+                feature_size = data.shape[3] // (1+num_deltas)
                 data = np.concatenate(
                     [data[:, :, :, i * feature_size:(i + 1) * feature_size, :]
-                     for i in range(3)], axis=2)
+                     for i in range(1+num_deltas)], axis=2)
         else:
             data = stack_context(data, left_context=left_context,
                                  right_context=right_context, step_width=step)
+            if not sequence_output:
+                data = np.concatenate(
+                    [data[:, i, ...].reshape((-1, data.shape[-1])) for
+                     i in range(data.shape[1])], axis=0)
         return data
