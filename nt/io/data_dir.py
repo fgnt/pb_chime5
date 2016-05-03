@@ -43,7 +43,10 @@ timit = DataDir(os.getenv(
     'NT_TIMIT_DIR',
     '/net/speechdb/timit'
 ))
-
+tidigits = DataDir(os.getenv(
+    'NT_TIDIGITS_DIR',
+    '/net/speechdb/tidigits'
+))
 database_jsons = DataDir(os.getenv(
     'NT_DATABASE_JSONS_DIR',
     '/net/storage/database_jsons'
