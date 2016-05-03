@@ -289,7 +289,7 @@ def stft_to_spectrogram(stft_signal):
         #time_frames times #frequency_bins.
     :return: Real spectrogram with same dimensions as input.
     """
-    spectrogram = numpy.abs(stft_signal * numpy.conjugate(stft_signal))
+    spectrogram = stft_signal.real**2 + stft_signal.imag**2
     return spectrogram
 
 
