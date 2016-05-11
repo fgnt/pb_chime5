@@ -24,8 +24,9 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
     :param time_dim: Scalar dim of time.
         Default: None means the biggest dimension
     :param size: Scalar FFT-size.
-    :param shift: Scalar FFT-shift. Typically shift is a fraction of size.
-    :param window: Window function handle.
+    :param shift: Scalar FFT-shift, the step between successive frames in
+        samples. Typically shift is a fraction of size.
+    :param window: Window function handle. Default is blackman window.
     :param fading: Pads the signal with zeros for better reconstruction.
     :param window_length: Sometimes one desires to use a shorter window than
         the fft size. In that case, the window is padded with zeros.
