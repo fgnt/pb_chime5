@@ -256,7 +256,7 @@ def istft(stft_signal, size=1024, shift=256,
     :return: Single channel complex STFT signal
     :return: Single channel time signal.
     """
-    assert stft_signal.shape[1] == size // 2 + 1
+    assert stft_signal.shape[1] == size // 2 + 1, str(stft_signal.shape)
 
     if window_length is None:
         window = window(size)
