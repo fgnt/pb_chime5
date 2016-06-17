@@ -2,6 +2,7 @@
 This file contains the STFT function and related helper functions.
 """
 import numpy
+np = numpy
 from math import ceil
 import scipy
 
@@ -10,6 +11,7 @@ from numpy.fft import rfft, irfft
 
 import string
 from nt.utils.numpy_utils import segment_axis
+from nt.utils.numpy_utils import roll_zeropad
 
 
 def stft(time_signal, time_dim=None, size=1024, shift=256,
@@ -165,6 +167,10 @@ def _biorthogonal_window_loopy(analysis_window, shift):
 
     sum_of_squares = numpy.kron(numpy.ones(number_of_shifts), sum_of_squares)
     synthesis_window = analysis_window / sum_of_squares / fft_size
+
+    # Why? Line created by Hai, Lukas does not know, why it exists.
+    synthesis_window *= fft_size
+    
     return synthesis_window
 
 
@@ -191,8 +197,40 @@ def _biorthogonal_window(analysis_window, shift):
             = numpy.sum(analysis_window[analysis_index] ** 2)
     sum_of_squares = numpy.kron(numpy.ones(number_of_shifts), sum_of_squares)
     synthesis_window = analysis_window / sum_of_squares / fft_size
+
+    # Why? Line created by Hai, Lukas does not know, why it exists.
+    synthesis_window *= fft_size
+
     return synthesis_window
 
+
+def _biorthogonal_window_brute_force(analysis_window, shift):
+    """
+    The biorthogonal window (synthesis_window) must verify the criterion:
+        synthesis_window * analysis_window plus it's shifts must be one.
+        1 == sum m from -inf to inf over (synthesis_window(n - mB) * analysis_window(n - mB))
+        B ... shift
+        n ... time index
+        m ... shift index
+
+    :param analysis_window:
+    :param shift:
+    :return:
+    """
+    size = len(analysis_window)
+
+    influence_width = (size - 1) // shift
+
+    denominator = np.zeros_like(analysis_window)
+
+    analysis_window_square = analysis_window ** 2
+    for i in range(-influence_width, influence_width + 1):
+        denominator += roll_zeropad(analysis_window_square, shift * i)
+
+    synthesis_window = analysis_window / denominator
+    return synthesis_window
+
+_biorthogonal_window_fastest = _biorthogonal_window_brute_force
 
 def istft_loop(stft_signal, time_dim=-2, freq_dim=-1):
 
@@ -237,7 +275,6 @@ def istft_loop(stft_signal, time_dim=-2, freq_dim=-1):
         numpy.expand_dims(time_signal, axis=-2), time_dim, freq_dim, shape)
     return numpy.squeeze(time_signal, axis=time_dim)
 
-
 def istft(stft_signal, size=1024, shift=256,
           window=signal.blackman, fading=True, window_length=None):
     """
@@ -264,10 +301,7 @@ def istft(stft_signal, size=1024, shift=256,
         window = window(window_length)
         window = numpy.pad(window, (0, size-window_length), mode='constant')
 
-    window = _biorthogonal_window_loopy(window, shift)
-
-    # Why? Line created by Hai, Lukas does not know, why it exists.
-    window *= size
+    window = _biorthogonal_window_fastest(window, shift)
 
     time_signal = scipy.zeros(stft_signal.shape[0] * shift + size - shift)
 
