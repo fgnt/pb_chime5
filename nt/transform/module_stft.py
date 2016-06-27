@@ -15,7 +15,8 @@ from nt.utils.numpy_utils import roll_zeropad
 
 
 def stft(time_signal, time_dim=None, size=1024, shift=256,
-         window=signal.blackman, fading=True, window_length=None):
+         window=signal.blackman, fading=True, window_length=None,
+         kaldi_dims=False):
     """
     Calculates the short time Fourier transformation of a multi channel multi
     speaker time signal. It is able to add additional zeros for fade-in and
@@ -33,6 +34,8 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
     :param window_length: Sometimes one desires to use a shorter window than
         the fft size. In that case, the window is padded with zeros.
         The default is to use the fft-size as a window size.
+    :param kaldi_dims: No padding or fading.
+        Size is 1 + ((nsamp - frame_length) / frame_shift)
     :return: Single channel complex STFT signal
         with dimensions frames times size/2+1.
     """
@@ -40,17 +43,18 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
         time_dim = numpy.argmax(time_signal.shape)
 
     # Pad with zeros to have enough samples for the window function to fade.
-    if fading:
+    if fading and not kaldi_dims:
         pad = [(0, 0)]*time_signal.ndim
         pad[time_dim] = [size-shift, size-shift]
         time_signal = numpy.pad(time_signal, pad, mode='constant')
 
     # Pad with trailing zeros, to have an integral number of frames.
-    frames = _samples_to_stft_frames(time_signal.shape[time_dim], size, shift)
-    samples = _stft_frames_to_samples(frames, size, shift)
-    pad = [(0, 0)]*time_signal.ndim
-    pad[time_dim] = [0, samples - time_signal.shape[time_dim]]
-    time_signal = numpy.pad(time_signal, pad, mode='constant')
+    if not kaldi_dims:
+        frames = _samples_to_stft_frames(time_signal.shape[time_dim], size, shift)
+        samples = _stft_frames_to_samples(frames, size, shift)
+        pad = [(0, 0)]*time_signal.ndim
+        pad[time_dim] = [0, samples - time_signal.shape[time_dim]]
+        time_signal = numpy.pad(time_signal, pad, mode='constant')
 
     if window_length is None:
         window = window(size)
@@ -64,6 +68,14 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
     letters = string.ascii_lowercase
     mapping = letters[:time_signal_seg.ndim] + ',' + letters[time_dim + 1] \
         + '->' + letters[:time_signal_seg.ndim]
+
+    if kaldi_dims:
+        nsamp = time_signal.shape[time_dim]
+        frames = time_signal_seg.shape[time_dim]
+        expected_frames = 1 + ((nsamp - size) // shift)
+        if frames != expected_frames:
+            raise ValueError('Expected {} frames, got {}'.format(
+                expected_frames, frames))
 
     # ToDo: Implement this more memory efficient
     return rfft(numpy.einsum(mapping, time_signal_seg, window),
