@@ -16,8 +16,8 @@ def run_processes(cmds, sleep_time=0.1, ignore_return_code=False,
     :param sleep_time: Intervall to poll the running processes (in seconds)
     :param ignore_return_code: If true, ignores non zero return codes.
         Otherwise an exception is thrown.
-    :param environment:
-    :param warn_on_ignore:
+    :param environment: environment (e.g. path variable) for commands
+    :param warn_on_ignore: warn if return code is ignored but non zero
     :param inputs: A list with the text inputs to be piped to the called commands
     :return: Stdout, Stderr and return code for each process
     """
