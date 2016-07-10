@@ -39,6 +39,7 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
     :return: Single channel complex STFT signal
         with dimensions frames times size/2+1.
     """
+    # TODO: This automatism should be discussed and in my opinion removed (L)
     if time_dim is None:
         time_dim = numpy.argmax(time_signal.shape)
 
