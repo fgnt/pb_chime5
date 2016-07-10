@@ -2,7 +2,7 @@
 This module deals with all sorts of acoustic features and transforms.
 """
 from nt.transform.module_stft import stft, spectrogram
-from nt.transform.module_stft import istft
+from nt.transform.module_stft import istft, istft_loop
 from nt.transform.module_stft import stft_to_spectrogram
 from nt.transform.module_stft import spectrogram_to_energy_per_frame
 from nt.transform.module_stft import get_stft_center_frequencies
