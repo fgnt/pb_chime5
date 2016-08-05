@@ -80,6 +80,7 @@ def read_raw(path, dtype=np.dtype('<i2')):
     with open(path, 'rb') as f:
         return np.fromfile(f, dtype=dtype)
 
+
 def getparams(path):
     """
     Returns parameters of wav file.
