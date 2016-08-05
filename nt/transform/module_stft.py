@@ -136,7 +136,7 @@ def _biorthogonal_window_loopy(analysis_window, shift):
 
     # Why? Line created by Hai, Lukas does not know, why it exists.
     synthesis_window *= fft_size
-    
+
     return synthesis_window
 
 
@@ -198,7 +198,7 @@ def _biorthogonal_window_brute_force(analysis_window, shift,
         denominator += roll_zeropad(analysis_window_square, shift * i)
 
     if use_amplitude:
-        1 / denominator
+        synthesis_window = 1 / denominator
     else:
         synthesis_window = analysis_window / denominator
     return synthesis_window
