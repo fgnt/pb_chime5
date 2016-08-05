@@ -170,7 +170,8 @@ def _biorthogonal_window(analysis_window, shift):
     return synthesis_window
 
 
-def _biorthogonal_window_brute_force(analysis_window, shift):
+def _biorthogonal_window_brute_force(analysis_window, shift,
+                                     use_amplitude=False):
     """
     The biorthogonal window (synthesis_window) must verify the criterion:
         synthesis_window * analysis_window plus it's shifts must be one.
@@ -189,11 +190,17 @@ def _biorthogonal_window_brute_force(analysis_window, shift):
 
     denominator = np.zeros_like(analysis_window)
 
-    analysis_window_square = analysis_window ** 2
+    if use_amplitude:
+        analysis_window_square = analysis_window
+    else:
+        analysis_window_square = analysis_window ** 2
     for i in range(-influence_width, influence_width + 1):
         denominator += roll_zeropad(analysis_window_square, shift * i)
 
-    synthesis_window = analysis_window / denominator
+    if use_amplitude:
+        1 / denominator
+    else:
+        synthesis_window = analysis_window / denominator
     return synthesis_window
 
 
@@ -245,7 +252,9 @@ def istft_loop(stft_signal, time_dim=-2, freq_dim=-1):
 
 
 def istft(stft_signal, size=1024, shift=256,
-          window=signal.blackman, fading=True, window_length=None):
+          window=signal.blackman, fading=True, window_length=None,
+          use_amplitude_for_biorthogonal_window=False,
+          disable_sythesis_window=False):
     """
     Calculated the inverse short time Fourier transform to exactly reconstruct
     the time signal.
@@ -274,7 +283,10 @@ def istft(stft_signal, size=1024, shift=256,
     else:
         window = window(window_length)
         window = np.pad(window, (0, size-window_length), mode='constant')
-    window = _biorthogonal_window_fastest(window, shift)
+    window = _biorthogonal_window_fastest(window, shift,
+                                          use_amplitude_for_biorthogonal_window)
+    if disable_sythesis_window:
+        window = np.ones_like(window)
 
     time_signal = scipy.zeros(stft_signal.shape[0] * shift + size - shift)
 
