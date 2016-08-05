@@ -250,6 +250,11 @@ def istft(stft_signal, size=1024, shift=256,
     Calculated the inverse short time Fourier transform to exactly reconstruct
     the time signal.
 
+    ..note::
+        Be careful if you make modifications in the frequency domain (e.g.
+        beamforming) because the synthesis window is calculated according to the
+        unmodified! analysis window.
+
     :param stft_signal: Single channel complex STFT signal
         with dimensions frames times size/2+1.
     :param size: Scalar FFT-size.
@@ -269,7 +274,6 @@ def istft(stft_signal, size=1024, shift=256,
     else:
         window = window(window_length)
         window = np.pad(window, (0, size-window_length), mode='constant')
-
     window = _biorthogonal_window_fastest(window, shift)
 
     time_signal = scipy.zeros(stft_signal.shape[0] * shift + size - shift)
