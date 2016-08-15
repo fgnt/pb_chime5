@@ -205,6 +205,8 @@ def tbf_to_tbchw(x, left_context, right_context, step_width,
                  pad_mode='symmetric', pad_kwargs=None):
     """ Transfroms data from TxBxF format to TxBxCxHxW format
 
+    This is only relevant for training a neural network in frames mode.
+
     The abbreviations stand for:
 
     T: Time frames
