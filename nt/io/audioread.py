@@ -16,8 +16,7 @@ UTILS_DIR = path.join(path.dirname(path.abspath(
 
 def audioread(path, offset=0.0, duration=None, sample_rate=16000):
     """
-    Reads a wav file, converts it to 32 bit float values and reshapes accoring
-    Reads a wav file, converts it to 32 bit float values and reshapes accoring
+    Reads a wav file, converts it to 32 bit float values and reshapes according
     to the number of channels.
     Now, this is a wrapper of librosa with our common defaults.
 
