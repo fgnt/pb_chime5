@@ -281,6 +281,10 @@ def reshape(array, operation):
     :param operation:
     :return:
     """
+    # TODO: Allow this special case: reshape(n, '1 d t -> t d') (with squeeze)
+
+    # Make it possible to write without spaces
+    operation = ' '.join([c for c in operation]).replace('- >', '->')
     operation = operation.replace(',', ' ')
     new_operation = operation.replace('1', ' ').replace('*', ' ')
     reshaped_array = _only_transposition(array, new_operation)
