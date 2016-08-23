@@ -249,10 +249,18 @@ def pad_to(array, to, constant_value=0):
     return result
 
 
-def _only_reshape(array, operation):
-    source, target = operation.split('->')
-    source = source.split()
-    target = target.split()
+def _normalize(op):
+    op = op.replace(',', '')
+    op = op.replace(' ', '')
+    op = ' '.join(c for c in op)
+    op = op.replace(' * ', '*')
+    op = op.replace('- >', '->')
+    return op
+
+
+def _only_reshape(array, source, target):
+    source = ' '.join(c for c in source).replace(' * ', '*').split()
+    target = ' '.join(c for c in target).replace(' * ', '*').split()
 
     input_shape = {key: array.shape[index] for index, key in enumerate(source)}
 
@@ -268,10 +276,6 @@ def _only_reshape(array, operation):
     return array.reshape(output_shape)
 
 
-def _only_transposition(array, operation):
-    return np.einsum(operation.replace(' ', ''), array)
-
-
 def reshape(array, operation):
     """ This is an experimental version of a generalized reshape.
 
@@ -281,19 +285,15 @@ def reshape(array, operation):
     :param operation:
     :return:
     """
-    # TODO: Allow this special case: reshape(n, '1 d t -> t d') (with squeeze)
+    operation = _normalize(operation)
+    transposition_operation = operation.replace('1', '').replace('*', '')
+    array = np.einsum(transposition_operation, array)
 
-    # Make it possible to write without spaces
-    operation = ' '.join([c for c in operation]).replace('- >', '->')
-    operation = operation.replace(',', ' ')
-    new_operation = operation.replace('1', ' ').replace('*', ' ')
-    reshaped_array = _only_transposition(array, new_operation)
 
-    source = new_operation.split('->')[1]
-    target = operation.split('->')[1]
-    new_operation2 = '->'.join([source, target])
+    source = transposition_operation.split('->')[-1]
+    target = operation.split('->')[-1]
 
-    return _only_reshape(reshaped_array, new_operation2)
+    return _only_reshape(array, source, target)
 
 
 def add_context(data, left_context=0, right_context=0, step=1,
