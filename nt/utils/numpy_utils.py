@@ -51,15 +51,15 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     if l < length or (l - length) % (length - overlap):
         if l > length:
             roundup = length + (1 + (l - length) // (length - overlap)) * (
-            length - overlap)
+                length - overlap)
             rounddown = length + ((l - length) // (length - overlap)) * (
-            length - overlap)
+                length - overlap)
         else:
             roundup = length
             rounddown = 0
         assert rounddown < l < roundup
         assert roundup == rounddown + (length - overlap) or (
-        roundup == length and rounddown == 0)
+            roundup == length and rounddown == 0)
         a = a.swapaxes(-1, axis)
 
         if end == 'cut':
@@ -110,21 +110,21 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
 
 
 def to_ndarray(data, copy=True):
-        if copy:
-            cp = lambda x: np.copy(x)
-        else:
-            cp = lambda x: x
-        if isinstance(data, chainer.Variable):
-            return cp(data.num)
-        elif isinstance(data, np.ndarray):
-            return cp(data)
-        elif isinstance(data, numbers.Number):
-            return data
-        elif isinstance(data, collections.Iterable):
-            return np.asarray(data)
-        else:
-            raise ValueError('Unknown type of data {}. Cannot add to list'
-                             .format(type(data)))
+    if copy:
+        cp = lambda x: np.copy(x)
+    else:
+        cp = lambda x: x
+    if isinstance(data, chainer.Variable):
+        return cp(data.num)
+    elif isinstance(data, np.ndarray):
+        return cp(data)
+    elif isinstance(data, numbers.Number):
+        return data
+    elif isinstance(data, collections.Iterable):
+        return np.asarray(data)
+    else:
+        raise ValueError('Unknown type of data {}. Cannot add to list'
+                         .format(type(data)))
 
 
 def stack_context(X, left_context=0, right_context=0, step_width=1):
@@ -147,7 +147,7 @@ def stack_context(X, left_context=0, right_context=0, step_width=1):
     )[:, :, 0, :].transpose((0, 1, 3, 2))
 
     T, B, F, W = X_stacked.shape
-    X_stacked = X_stacked.reshape(T, B, F*W)
+    X_stacked = X_stacked.reshape(T, B, F * W)
 
     return X_stacked
 
@@ -175,7 +175,7 @@ def unstack_context(X, mode, left_context=0, right_context=0, step_width=1):
     F = X.shape[2] // context_length
 
     if mode == 'center':
-        return X[:, :, left_context*F:(left_context+1)*F]
+        return X[:, :, left_context * F:(left_context + 1) * F]
     else:
         NotImplementedError(
             'All other unstack methods are not yet implemented.'
@@ -198,7 +198,7 @@ def merge_complex_features(X):
     :return: Complex input array with T times B times F features
     """
     bins = X.shape[-1]
-    return X[:, :, :bins//2] + 1j * X[:, :, bins//2:]
+    return X[:, :, :bins // 2] + 1j * X[:, :, bins // 2:]
 
 
 def tbf_to_tbchw(x, left_context, right_context, step_width,
@@ -229,10 +229,10 @@ def tbf_to_tbchw(x, left_context, right_context, step_width,
     x = np.pad(x,
                ((left_context, right_context), (0, 0), (0, 0)),
                mode=pad_mode, **pad_kwargs)
-    window_size = left_context+right_context+1
+    window_size = left_context + right_context + 1
     return segment_axis(
-            x, window_size, window_size-step_width,
-            axis=0, end='cut').transpose(0, 2, 3, 1)[:, :, None, :, :]
+        x, window_size, window_size - step_width,
+        axis=0, end='cut').transpose(0, 2, 3, 1)[:, :, None, :, :]
 
 
 def pad_to(array, to, constant_value=0):
@@ -259,9 +259,7 @@ def _normalize(op):
 
 
 def _only_reshape(array, source, target):
-    source = ' '.join(c for c in source).replace(' * ', '*').split()
-    target = ' '.join(c for c in target).replace(' * ', '*').split()
-
+    source, target = source.split(), target.replace(' * ', '*').split()
     input_shape = {key: array.shape[index] for index, key in enumerate(source)}
 
     output_shape = []
@@ -280,16 +278,26 @@ def reshape(array, operation):
     """ This is an experimental version of a generalized reshape.
 
     See test cases for examples.
-
-    :param array:
-    :param operation:
-    :return:
     """
     operation = _normalize(operation)
-    transposition_operation = operation.replace('1', '').replace('*', '')
+
+    if '*' in operation.split('->')[0]:
+        raise NotImplementedError(
+            'Unflatten operation not supported by design. '
+            'Actual values for dimensions are not available to this function.'
+        )
+
+    # Initial squeeze
+    squeeze_operation = operation.split('->')[0].split()
+    for axis, op in reversed(list(enumerate(squeeze_operation))):
+        if op == '1':
+            array = np.squeeze(array, axis=axis)
+
+    # Transpose
+    transposition_operation = operation.replace('1', ' ').replace('*', ' ')
     array = np.einsum(transposition_operation, array)
 
-
+    # Final reshape
     source = transposition_operation.split('->')[-1]
     target = operation.split('->')[-1]
 
@@ -299,23 +307,23 @@ def reshape(array, operation):
 def add_context(data, left_context=0, right_context=0, step=1,
                 cnn_features=False, deltas_as_channel=False,
                 num_deltas=2, sequence_output=True):
-        if cnn_features:
-            data = tbf_to_tbchw(data, left_context, right_context, step,
+    if cnn_features:
+        data = tbf_to_tbchw(data, left_context, right_context, step,
                             pad_mode='constant',
                             pad_kwargs=dict(constant_values=(0,)))
-            if deltas_as_channel:
-                feature_size = data.shape[3] // (1+num_deltas)
-                data = np.concatenate(
-                    [data[:, :, :, i * feature_size:(i + 1) * feature_size, :]
-                     for i in range(1+num_deltas)], axis=2)
-        else:
-            data = stack_context(data, left_context=left_context,
-                                 right_context=right_context, step_width=step)
-            if not sequence_output:
-                data = np.concatenate(
-                    [data[:, i, ...].reshape((-1, data.shape[-1])) for
-                     i in range(data.shape[1])], axis=0)
-        return data
+        if deltas_as_channel:
+            feature_size = data.shape[3] // (1 + num_deltas)
+            data = np.concatenate(
+                [data[:, :, :, i * feature_size:(i + 1) * feature_size, :]
+                 for i in range(1 + num_deltas)], axis=2)
+    else:
+        data = stack_context(data, left_context=left_context,
+                             right_context=right_context, step_width=step)
+        if not sequence_output:
+            data = np.concatenate(
+                [data[:, i, ...].reshape((-1, data.shape[-1])) for
+                 i in range(data.shape[1])], axis=0)
+    return data
 
 
 # http://stackoverflow.com/a/3153267
@@ -401,11 +409,12 @@ def roll_zeropad(a, shift, axis=None):
         res = np.zeros_like(a)
     elif shift < 0:
         shift += n
-        zeros = np.zeros_like(a.take(np.arange(n-shift), axis))
-        res = np.concatenate((a.take(np.arange(n-shift,n), axis), zeros), axis)
+        zeros = np.zeros_like(a.take(np.arange(n - shift), axis))
+        res = np.concatenate((a.take(np.arange(n - shift, n), axis), zeros),
+                             axis)
     else:
-        zeros = np.zeros_like(a.take(np.arange(n-shift,n), axis))
-        res = np.concatenate((zeros, a.take(np.arange(n-shift), axis)), axis)
+        zeros = np.zeros_like(a.take(np.arange(n - shift, n), axis))
+        res = np.concatenate((zeros, a.take(np.arange(n - shift), axis)), axis)
     if reshape:
         return res.reshape(a.shape)
     else:
