@@ -295,7 +295,16 @@ def reshape(array, operation):
 
     # Transpose
     transposition_operation = operation.replace('1', ' ').replace('*', ' ')
-    array = np.einsum(transposition_operation, array)
+    try:
+        array = np.einsum(transposition_operation, array)
+    except ValueError as e:
+        msg = 'op: {}, shape: {}'.format(transposition_operation,
+                                         np.shape(array))
+        if len(e.args) == 1:
+            e.args = (e.args[0]+'\n\n'+msg,)
+        else:
+            print(msg)
+        raise
 
     # Final reshape
     source = transposition_operation.split('->')[-1]
