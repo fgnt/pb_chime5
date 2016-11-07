@@ -26,7 +26,8 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
     :type: Scalar in seconds.
     :param duration: Duration of loaded audio.
     :type: Scalar in seconds.
-    :param sample_rate: Sample rate of audio
+    :param sample_rate: Resamples utterances to given value. None = native
+        sample rate.
     :type: scalar in number of samples per second
     :return:
 
@@ -51,20 +52,22 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
     return signal[0]
 
 
-def read_nist_wsj(path):
+def read_nist_wsj(path, sample_rate=16000):
     """
     Converts a nist/sphere file of wsj and reads it with audioread.
 
     :param path: file path to audio file.
+    :param sample_rate: Resamples utterances to given value. None = native
+        sample rate.
     :return:
     """
     tmp_file = tempfile.NamedTemporaryFile(delete=False)
     cmd = "{}/sph2pipe -f wav {path} {dest_file}".format(
-        UTILS_DIR, path = path, dest_file = tmp_file.name)
+        UTILS_DIR, path=path, dest_file=tmp_file.name)
     dir = "{}/sph2pipe".format(UTILS_DIR)
     # subprocess.Popen([dir , '-f', 'wav', path, tmp_file.name])
     pc.run_processes(cmd, ignore_return_code=False)
-    signal = audioread(tmp_file.name)
+    signal = audioread(tmp_file.name, sample_rate)
     remove(tmp_file.name)
     return signal
 
