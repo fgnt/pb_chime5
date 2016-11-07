@@ -67,7 +67,7 @@ def read_nist_wsj(path, sample_rate=16000):
     dir = "{}/sph2pipe".format(UTILS_DIR)
     # subprocess.Popen([dir , '-f', 'wav', path, tmp_file.name])
     pc.run_processes(cmd, ignore_return_code=False)
-    signal = audioread(tmp_file.name, sample_rate)
+    signal = audioread(tmp_file.name, sample_rate=sample_rate)
     remove(tmp_file.name)
     return signal
 
