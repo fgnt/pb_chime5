@@ -207,7 +207,12 @@ def _biorthogonal_window_brute_force(analysis_window, shift,
 _biorthogonal_window_fastest = _biorthogonal_window_brute_force
 
 
-def istft_loop(stft_signal, time_dim=-2, freq_dim=-1, window=signal.blackman):
+def istft_loop(
+        stft_signal,
+        size=1024, shift=256,
+        time_dim=-2, freq_dim=-1,
+        window=signal.blackman
+):
 
     def convert_for_mat_loopy(tensor, mat_dim_one, mat_dim_two):
         ndim = tensor.ndim
@@ -242,7 +247,7 @@ def istft_loop(stft_signal, time_dim=-2, freq_dim=-1, window=signal.blackman):
     stft_signal = convert_for_mat_loopy(stft_signal, time_dim, freq_dim)
 
     time_signal = np.array([istft(
-        stft_signal[i, :, :], window=window
+        stft_signal[i, :, :], window=window, size=size, shift=shift
     ) for i in range(stft_signal.shape[0])])
     shape = list(shape)
     shape[time_dim] = 1
