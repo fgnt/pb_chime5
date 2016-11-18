@@ -5,6 +5,7 @@ There is special focus on audio, but there are also some convenience imports
 i.e. for load_json() and similar functions.
 
 The file path is called `path` just as it has been done in audioread.
+
 """
 from nt.io import audioread
 from nt.io import play
@@ -47,7 +48,7 @@ def load_json(path, internal_path='/'):
         content = json.load(fid)
 
     internal_path = str(internal_path)
-    for key in internal_path.split('/'):
+    for key in internal_path.strip('/').split('/')[1:]:
         content = content[key]
 
     return content
