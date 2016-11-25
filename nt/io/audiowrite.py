@@ -27,7 +27,7 @@ def audiowrite(data, path, sample_rate=16000, normalize=False, threaded=True):
     if normalize:
         if not data.dtype.kind == 'f':
             data = data.astype(numpy.float)
-        data /= numpy.max(numpy.abs(data))
+        data /= numpy.max(numpy.max(numpy.abs(data)), 1e-6)
 
     if data.dtype.kind == 'f':
         data *= int16_max
