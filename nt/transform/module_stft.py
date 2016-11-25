@@ -65,7 +65,6 @@ def stft(
         window = np.pad(window, (0, size-window_length), mode='constant')
 
     time_signal_seg = segment_axis(time_signal, size, size - shift, axis=axis)
-
     letters = string.ascii_lowercase
     mapping = letters[:time_signal_seg.ndim] + ',' + letters[axis + 1] \
         + '->' + letters[:time_signal_seg.ndim]
