@@ -3,6 +3,7 @@ This module deals with all sorts of audio input and output.
 """
 import librosa
 import wave
+from io import BytesIO
 import inspect
 from os import path, remove
 import tempfile
@@ -95,3 +96,19 @@ def getparams(path):
     """
     with wave.open(path, 'r') as wave_file:
         return wave_file.getparams()
+
+
+def read_from_byte_string(byte_string, dtype=np.dtype('<i2')):
+    """ Parses a bytes string, i.e. a raw read of a wav file
+
+    :param byte_string: input bytes string
+    :param dtype: dtype used to decode the audio data
+    :return: np.ndarray with audio data with channels x samples
+    """
+    wav_file = wave.openfp(BytesIO(byte_string))
+    channels = wav_file.getnchannels()
+    interleaved_audio_data = np.frombuffer(
+        wav_file.readframes(wav_file.getnframes()), dtype=dtype)
+    audio_data = np.array([interleaved_audio_data[ch::channels] for ch in range(channels)])
+    audio_data = audio_data.astype(np.float32) / np.max(audio_data)
+    return audio_data
