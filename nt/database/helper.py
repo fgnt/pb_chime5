@@ -128,20 +128,21 @@ def traverse_to_dict(data, path, delimiter='/'):
     return cur_dict
 
 
-def get_available_channels(data):
+def get_available_channels(flist):
     """ Returns all available channels in the format *type/channel_no*
+    inferred from the first utterance.
 
-    :param data: A dictionary with ids as keys and file lists as values
-    :type data: dict
+    :param flist: A dictionary with ids as keys and file lists as values
+    :type flist: dict
 
     :return: A list of available channels
     """
 
-    utt = list(data.keys())[0]
+    utt = list(flist.keys())[0]
     channels = list()
-    for src in data[utt]:
-        if type(data[utt][src]) is dict:
-            for ch in data[utt][src]:
+    for src in flist[utt]:
+        if type(flist[utt][src]) is dict:
+            for ch in flist[utt][src]:
                 channels.append('{src}/{ch}'.format(src=src, ch=ch))
         else:
             channels.append(src)
