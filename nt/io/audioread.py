@@ -9,6 +9,8 @@ from os import path, remove
 import tempfile
 import nt.utils.process_caller as pc
 import numpy as np
+import glob
+from pathlib import Path
 
 
 UTILS_DIR = path.join(path.dirname(path.abspath(
@@ -44,6 +46,9 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
         >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
         >>> signal = audioread(path, offset=0, duration=1)
     """
+
+    if isinstance(path, Path):
+        path = str(path)
 
     signal = librosa.load(path,
                           sr=sample_rate,
@@ -81,6 +86,10 @@ def read_raw(path, dtype=np.dtype('<i2')):
     :param dtype: datatype, default: int16, little-endian
     :return: numpy array with audio samples
     """
+
+    if isinstance(path, Path):
+        path = str(path)
+
     with open(path, 'rb') as f:
         return np.fromfile(f, dtype=dtype)
 
