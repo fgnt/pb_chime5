@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 import os
+import pathlib
 
 
 def mkdir_p(path):
@@ -8,6 +9,9 @@ def mkdir_p(path):
     :param path: path to create
     :return: None
     """
+    if isinstance(path, pathlib.Path):
+        path = str(path)
+
     try:
         os.makedirs(path)
     except FileExistsError:
