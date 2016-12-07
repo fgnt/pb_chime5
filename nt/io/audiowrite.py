@@ -1,6 +1,7 @@
 import numpy
 from scipy.io.wavfile import write as wav_write
 import threading
+from pathlib import Path
 
 int16_max = numpy.iinfo(numpy.int16).max
 int16_min = numpy.iinfo(numpy.int16).min
@@ -22,6 +23,10 @@ def audiowrite(data, path, sample_rate=16000, normalize=False, threaded=True):
         thread
     :return: The number of clipped samples
     """
+
+    if isinstance(path, Path):
+        path = str(path)
+
     data = data.copy()
 
     if normalize:
