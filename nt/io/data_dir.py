@@ -35,7 +35,8 @@ chime = Path(os.getenv(
 ))
 kaldi_root = Path(os.getenv(
     'KALDI_ROOT',
-    '/net/ssd/software/kaldi'
+    '/net/ssd/jheymann/software/kaldi_latest'
+    #'/net/ssd/software/kaldi'
 ))
 
 
