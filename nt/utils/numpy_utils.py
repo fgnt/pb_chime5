@@ -35,6 +35,21 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
            [2, 3, 4, 5],
            [4, 5, 6, 7],
            [6, 7, 8, 9]])
+    >>> segment_axis(np.arange(5).reshape(5), 4, 3, axis=0)
+    array([[0, 1, 2, 3],
+           [1, 2, 3, 4]])
+    >>> segment_axis(np.arange(10).reshape(2, 5), 4, 3, axis=-1)
+    array([[[0, 1, 2, 3],
+            [1, 2, 3, 4]],
+    <BLANKLINE>
+           [[5, 6, 7, 8],
+            [6, 7, 8, 9]]])
+    >>> segment_axis(np.arange(10).reshape(5, 2).T, 4, 3, axis=1)
+    array([[[0, 2, 4, 6],
+            [2, 4, 6, 8]],
+    <BLANKLINE>
+           [[1, 3, 5, 7],
+            [3, 5, 7, 9]]])
     """
 
     if axis is None:
@@ -78,19 +93,23 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
         a = a.swapaxes(-1, axis)
 
     l = a.shape[axis]
-    if l == 0: raise ValueError(
-        "Not enough data points to segment array in 'cut' mode; "
-        "try 'pad' or 'wrap'")
+    if l == 0:
+        raise ValueError(
+            "Not enough data points to segment array in 'cut' mode; "
+            "try 'pad' or 'wrap'")
     assert l >= length
     assert (l - length) % (length - overlap) == 0
     n = 1 + (l - length) // (length - overlap)
+
+    axis = axis % a.ndim  # force axis >= 0
+
     s = a.strides[axis]
     newshape = a.shape[:axis] + (n, length) + a.shape[axis + 1:]
     newstrides = a.strides[:axis] + ((length - overlap) * s, s) + a.strides[
                                                                   axis + 1:]
-
     if not a.flags.contiguous:
         a = a.copy()
+        s = a.strides[axis]
         newstrides = a.strides[:axis] + ((length - overlap) * s, s) + a.strides[
                                                                       axis + 1:]
         return np.ndarray.__new__(np.ndarray, strides=newstrides,
