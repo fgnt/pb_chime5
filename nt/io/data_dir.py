@@ -38,7 +38,10 @@ kaldi_root = Path(os.getenv(
     '/net/ssd/jheymann/software/kaldi_latest'
     #'/net/ssd/software/kaldi'
 ))
-
+merl_mixtures = Path(os.getenv(
+    'NT_MERL_MIXTURES_DIR',
+    '/net/storage/db/merl_speaker_mixtures'
+))
 
 if __name__ == "__main__":
     import doctest
