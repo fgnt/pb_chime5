@@ -19,7 +19,7 @@ testing = Path(os.getenv(
 ))
 timit = Path(os.getenv(
     'NT_TIMIT_DIR',
-    '/net/speechdb/timit'
+    '/net/storage/db/timit'
 ))
 tidigits = Path(os.getenv(
     'NT_TIDIGITS_DIR',
