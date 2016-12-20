@@ -42,6 +42,10 @@ merl_mixtures = Path(os.getenv(
     'NT_MERL_MIXTURES_DIR',
     '/net/storage/db/merl_speaker_mixtures'
 ))
+german_speechdata = Path(os.getenv(
+    'NT_GERMAN_SPEECHDATA_DIR',
+    '/net/storage/jheymann/speech_db/german-speechdata-package-v2/'
+))
 
 if __name__ == "__main__":
     import doctest
