@@ -50,6 +50,10 @@ noisex92 = Path(os.getenv(
     'NT_NoiseX_92_DIR',
     '/net/storage/db/NoiseX_92'
 ))
+wsj = Path(os.getenv(
+    'NT_WSJ_DIR',
+    '/net/storage/db/wsj'
+))
 
 if __name__ == "__main__":
     import doctest
