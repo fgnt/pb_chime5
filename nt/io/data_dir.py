@@ -23,7 +23,7 @@ timit = Path(os.getenv(
 ))
 tidigits = Path(os.getenv(
     'NT_TIDIGITS_DIR',
-    '/net/speechdb/tidigits'
+    '/net/storage/db/tidigits'
 ))
 database_jsons = Path(os.getenv(
     'NT_DATABASE_JSONS_DIR',
