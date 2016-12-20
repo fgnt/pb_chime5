@@ -36,7 +36,7 @@ chime = Path(os.getenv(
 kaldi_root = Path(os.getenv(
     'KALDI_ROOT',
     '/net/ssd/jheymann/software/kaldi_latest'
-    #'/net/ssd/software/kaldi'
+    # '/net/ssd/software/kaldi'
 ))
 merl_mixtures = Path(os.getenv(
     'NT_MERL_MIXTURES_DIR',
@@ -45,6 +45,10 @@ merl_mixtures = Path(os.getenv(
 german_speechdata = Path(os.getenv(
     'NT_GERMAN_SPEECHDATA_DIR',
     '/net/storage/jheymann/speech_db/german-speechdata-package-v2/'
+))
+noisex92 = Path(os.getenv(
+    'NT_NoiseX_92_DIR',
+    '/net/storage/db/NoiseX_92'
 ))
 
 if __name__ == "__main__":
