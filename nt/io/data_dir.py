@@ -19,11 +19,11 @@ testing = Path(os.getenv(
 ))
 timit = Path(os.getenv(
     'NT_TIMIT_DIR',
-    '/net/storage/db/timit'
+    '/net/db/timit'
 ))
 tidigits = Path(os.getenv(
     'NT_TIDIGITS_DIR',
-    '/net/storage/db/tidigits'
+    '/net/db/tidigits'
 ))
 database_jsons = Path(os.getenv(
     'NT_DATABASE_JSONS_DIR',
@@ -40,7 +40,7 @@ kaldi_root = Path(os.getenv(
 ))
 merl_mixtures = Path(os.getenv(
     'NT_MERL_MIXTURES_DIR',
-    '/net/storage/db/merl_speaker_mixtures'
+    '/net/db/merl_speaker_mixtures'
 ))
 german_speechdata = Path(os.getenv(
     'NT_GERMAN_SPEECHDATA_DIR',
@@ -48,11 +48,11 @@ german_speechdata = Path(os.getenv(
 ))
 noisex92 = Path(os.getenv(
     'NT_NoiseX_92_DIR',
-    '/net/storage/db/NoiseX_92'
+    '/net/db/NoiseX_92'
 ))
 wsj = Path(os.getenv(
     'NT_WSJ_DIR',
-    '/net/storage/db/wsj'
+    '/net/db/wsj'
 ))
 dcase = Path(os.getenv(
     'NT_DCASE_DIR',
