@@ -54,6 +54,10 @@ wsj = Path(os.getenv(
     'NT_WSJ_DIR',
     '/net/storage/db/wsj'
 ))
+dcase = Path(os.getenv(
+    'NT_DCASE_DIR',
+    '/home/parora/Documents/DCASE/DCASE 2016/'
+))
 matlab_toolbox = Path(os.getenv(
     'MATLAB_TOOLBOX_DIR',
     '/net/ssd/software/matlab_toolbox'
