@@ -66,6 +66,10 @@ matlab_license = Path(os.getenv(
     'MATLAB_LICENSE',
     '/opt/MATLAB/R2016b_studis/licenses/network.lic'
 ))
+language_model = Path(os.getenv(
+    'LANGUAGE_MODEL',
+    '/net/storage/jheymann/__share/ldrude/2016/2016-05-10_lm'
+))
 
 if __name__ == "__main__":
     import doctest
