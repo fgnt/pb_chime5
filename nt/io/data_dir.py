@@ -29,9 +29,13 @@ database_jsons = Path(os.getenv(
     'NT_DATABASE_JSONS_DIR',
     '/net/storage/database_jsons'
 ))
-chime = Path(os.getenv(
-    'NT_CHIME_DIR',
-    '/net/ssd/2015/chime'
+chime_3 = Path(os.getenv(
+    'NT_CHIME_3_DIR',
+    '/net/db/chime3'
+))
+chime_4 = Path(os.getenv(
+    'NT_CHIME_4_DIR',
+    '/net/db/chime4'
 ))
 kaldi_root = Path(os.getenv(
     'KALDI_ROOT',
