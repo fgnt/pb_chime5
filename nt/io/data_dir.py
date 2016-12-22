@@ -54,6 +54,18 @@ wsj = Path(os.getenv(
     'NT_WSJ_DIR',
     '/net/storage/db/wsj'
 ))
+matlab_toolbox = Path(os.getenv(
+    'MATLAB_TOOLBOX_DIR',
+    '/net/ssd/software/matlab_toolbox'
+))
+matlab_r2015a = Path(os.getenv(
+    'MATLAB_R2015a',
+    '/net/ssd/software/MATLAB/R2015a'
+))
+matlab_license = Path(os.getenv(
+    'MATLAB_LICENSE',
+    '/opt/MATLAB/R2016b_studis/licenses/network.lic'
+))
 
 if __name__ == "__main__":
     import doctest
