@@ -15,7 +15,7 @@ from nt.utils.numpy_utils import roll_zeropad
 
 def stft(
         time_signal, size=1024, shift=256, axis=None, window=signal.blackman,
-        fading=True, window_length=None, kaldi_dims=False
+        fading=True, window_length=None, kaldi_dims=False, detrend=False
 ):
     """
     Calculates the short time Fourier transformation of a multi channel multi
@@ -37,6 +37,10 @@ def stft(
         The default is to use the fft-size as a window size.
     :param kaldi_dims: No padding or fading.
         Size is 1 + ((nsamp - frame_length) / frame_shift).
+    :param detrend: Detrends segments before FFT. If ``type == 'linear'``,
+        the result of a linear least-squares fit is subtracted.
+        If ``type == 'constant'``, only the mean is subtracted. Defaults to False.
+    :type detrend: str or bool, optional
     :return: Single channel complex STFT signal with dimensions
         AA x ... x AZ x T' times size/2+1 times BA x ... x BZ.
     """
@@ -68,6 +72,11 @@ def stft(
     letters = string.ascii_lowercase
     mapping = letters[:time_signal_seg.ndim] + ',' + letters[axis + 1] \
         + '->' + letters[:time_signal_seg.ndim]
+
+    if detrend not in ['linear', 'l', 'constant', 'c', False]:
+        raise ValueError("Detrend type must be 'linear', 'constant' or False.")
+    elif isinstance(detrend, str):
+        time_signal_seg = signal.detrend(time_signal_seg, type=detrend, axis=axis+1)
 
     if kaldi_dims:
         nsamp = time_signal.shape[axis]
