@@ -47,7 +47,14 @@ def audiowrite(data, path, sample_rate=16000, normalize=False, threaded=True):
         threading.Thread(target=wav_write, args=(path, sample_rate, data)
                          ).start()
     else:
-        wav_write(path, sample_rate, data)
+        try:
+            wav_write(path, sample_rate, data)
+        except Exception:  #_struct.error
+            if data.ndim == 2:
+                assert data.shape[1] < 20, \
+                    "channels bigger than 20 looks wrong. " \
+                    "Maybe you must call audiowrite(data.T, ...)"
+            raise
 
     return sample_to_clip
 
