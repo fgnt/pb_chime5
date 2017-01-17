@@ -12,7 +12,10 @@
 import os
 from pathlib import Path
 
-
+ami = Path(os.getenv(
+    'NT_AMI_DIR',
+    '/net/db/ami'
+))
 testing = Path(os.getenv(
     'NT_TESTING_DIR',
     '/net/storage/python_unittest_data'
