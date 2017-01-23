@@ -138,6 +138,9 @@ def get_available_channels(flist):
     :return: A list of available channels
     """
 
+    if len(flist) == 0:
+        return list()
+
     utt = list(flist.keys())[0]
     channels = list()
     for src in flist[utt]:
