@@ -65,7 +65,7 @@ def segment_axis_v2(x, length, shift, axis=-1,
     shape = list(x.shape)
     del shape[axis]
     shape.insert(axis, (x.shape[axis] + shift - length) // shift)
-    shape.insert(axis+1, length)
+    shape.insert(axis + 1, length)
 
     strides = list(x.strides)
     strides.insert(axis, shift * strides[axis])
