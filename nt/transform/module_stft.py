@@ -80,7 +80,7 @@ def stft_v2(
 
     if sym_window:
         # https://github.com/scipy/scipy/issues/4551
-        window = window(window_length+1)[:-1]
+        window = window(window_length + 1)[:-1]
     else:
         window = window(window_length)
 
@@ -138,7 +138,7 @@ def stft(
 
     # Pad with zeros to have enough samples for the window function to fade.
     if fading and not kaldi_dims:
-        pad = [(0, 0)]*time_signal.ndim
+        pad = [(0, 0)] * time_signal.ndim
         pad[axis] = [size - shift, size - shift]
         time_signal = np.pad(time_signal, pad, mode='constant')
 
