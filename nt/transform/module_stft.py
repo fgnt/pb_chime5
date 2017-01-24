@@ -9,8 +9,96 @@ from scipy import signal
 from numpy.fft import rfft, irfft
 
 import string
-from nt.utils.numpy_utils import segment_axis
+from nt.utils.numpy_utils import segment_axis, segment_axis_v2
 from nt.utils.numpy_utils import roll_zeropad
+
+
+def stft_v2(
+        time_signal,
+        size: int=1024,
+        shift: int=256,
+        axis=None,
+        window=signal.blackman,
+        window_length=None,
+        *,
+        fading: bool=True,
+        detrend=False,
+        pad: bool=True,
+        sym_window: bool=True
+):
+    """ !!! WIP !!!
+    ToDo: Discuss new stft:
+     - sym_window need literature
+     - fading why it is better?
+     - use zero padding from rfft instead padding window
+     - detrend need literature
+     - should pad have more degrees of freedom?
+
+    Calculates the short time Fourier transformation of a multi channel multi
+    speaker time signal. It is able to add additional zeros for fade-in and
+    fade out and should yield an STFT signal which allows perfect
+    reconstruction.
+
+    :param time_signal: Multi channel time signal with dimensions
+        AA x ... x AZ x T x BA x ... x BZ.
+    :param size: Scalar FFT-size.
+    :param shift: Scalar FFT-shift, the step between successive frames in
+        samples. Typically shift is a fraction of size.
+    :param axis: Scalar axis of time.
+        Default: None means the biggest dimension.
+    :param window: Window function handle. Default is blackman window.
+    :param fading: Pads the signal with zeros for better reconstruction.
+    :param window_length: Sometimes one desires to use a shorter window than
+        the fft size. In that case, the window is padded with zeros.
+        The default is to use the fft-size as a window size.
+    :param detrend: Detrends segments before FFT. If ``type == 'linear'``,
+        the result of a linear least-squares fit is subtracted.
+        If ``type == 'constant'``, only the mean is subtracted. Defaults to False.
+    :type detrend: str or bool, optional
+    :param pad: If true zero pad the signal to match the shape, else cut
+    :param sym_window: symmetric or periotic window. Assume window is periodic.
+        Since the implementation of the windows in scipy.signal have a curious
+        behaviour for odd window_length. Use window(len+1)[:-1]. Since is equal
+        to the behaviour of MATLAB.
+    :return: Single channel complex STFT signal with dimensions
+        AA x ... x AZ x T' times size/2+1 times BA x ... x BZ.
+    """
+    time_signal = np.array(time_signal)
+
+    # TODO: This automatism should be discussed and in my opinion removed (L)
+    if axis is None:
+        axis = np.argmax(time_signal.shape)
+
+    if window_length is None:
+        window_length = size
+
+    # Pad with zeros to have enough samples for the window function to fade.
+    if fading:
+        pad_width = np.zeros((time_signal.ndim, 2), dtype=np.int)
+        pad_width[axis, :] = window_length - shift
+        time_signal = np.pad(time_signal, pad_width, mode='constant')
+
+    if sym_window:
+        # https://github.com/scipy/scipy/issues/4551
+        window = window(window_length+1)[:-1]
+    else:
+        window = window(window_length)
+
+    time_signal_seg = segment_axis_v2(time_signal, window_length,
+                                      shift=shift, axis=axis, pad=pad)
+
+    if detrend not in ['linear', 'l', 'constant', 'c', False]:
+        raise ValueError("Detrend type must be 'linear', 'constant' or False.")
+    elif isinstance(detrend, str):
+        time_signal_seg = signal.detrend(time_signal_seg,
+                                         type=detrend, axis=axis + 1)
+
+    letters = string.ascii_lowercase[:time_signal_seg.ndim]
+    mapping = letters + ',' + letters[axis + 1] + '->' + letters
+
+    # ToDo: Implement this more memory efficient
+    return rfft(np.einsum(mapping, time_signal_seg, window),
+                n=size, axis=axis + 1)
 
 
 def stft(
