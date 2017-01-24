@@ -4,11 +4,84 @@ import numpy as np
 import collections
 import numbers
 
+
+def segment_axis_v2(x, length, shift, axis=-1,
+                    pad=False, pad_mode='constant', pad_value=0):
+    """ !!! WIP !!!
+    Generate a new array that chops the given array along the given axis
+    into overlapping frames.
+
+    :param x: The array to segment
+    :param length: The length of each frame
+    :param shift: The number of array elements by which the frames should shift
+    :param axis: The axis to operate on
+    :param pad: True -> pad, False -> cut
+    :param pad_mode: see numpy.pad
+    :param pad_value: The value to pad
+    :return:
+
+    >>> segment_axis_v2(np.arange(10), 4, 2)
+    array([[0, 1, 2, 3],
+           [2, 3, 4, 5],
+           [4, 5, 6, 7],
+           [6, 7, 8, 9]])
+    >>> segment_axis_v2(np.arange(5).reshape(5), 4, 1, axis=0)
+    array([[0, 1, 2, 3],
+           [1, 2, 3, 4]])
+    >>> segment_axis_v2(np.arange(5).reshape(5), 4, 2, axis=0)
+    array([[0, 1, 2, 3]])
+    >>> segment_axis_v2(np.arange(5).reshape(5), 4, 2, axis=0, pad=True)
+    array([[0, 1, 2, 3],
+           [2, 3, 4, 0],
+           [4, 0, 0, 0]])
+    >>> segment_axis_v2(np.arange(10).reshape(2, 5), 4, 1, axis=-1)
+    array([[[0, 1, 2, 3],
+            [1, 2, 3, 4]],
+    <BLANKLINE>
+           [[5, 6, 7, 8],
+            [6, 7, 8, 9]]])
+    >>> segment_axis_v2(np.arange(10).reshape(5, 2).T, 4, 1, axis=1)
+    array([[[0, 2, 4, 6],
+            [2, 4, 6, 8]],
+    <BLANKLINE>
+           [[1, 3, 5, 7],
+            [3, 5, 7, 9]]])
+    >>> a = np.arange(5).reshape(5)
+    >>> b = segment_axis_v2(a, 4, 2, axis=0)
+    >>> a += 1  # a and b point to the same memory
+    >>> b
+    array([[1, 2, 3, 4]])
+    """
+
+    axis = axis % x.ndim
+
+    if pad is True:
+        if (x.shape[axis] + shift - length) % shift != 0:
+            npad = np.zeros([x.ndim, 2], dtype=np.int)
+            npad[axis, 1] = length - ((x.shape[axis] + shift - length) % shift)
+            x = np.pad(x, pad_width=npad, mode=pad_mode,
+                       constant_values=pad_value)
+
+    shape = list(x.shape)
+    del shape[axis]
+    shape.insert(axis, (x.shape[axis] + shift - length) // shift)
+    shape.insert(axis+1, length)
+
+    strides = list(x.strides)
+    strides.insert(axis, shift * strides[axis])
+
+    # Alternative to np.ndarray.__new__
+    # I am not sure if np.lib.stride_tricks.as_strided is better.
+    # return np.lib.stride_tricks.as_strided(
+    #     x, shape=shape, strides=strides)
+
+    return np.ndarray.__new__(np.ndarray, strides=strides,
+                              shape=shape, buffer=x, dtype=x.dtype)
+
+
 """
 From http://wiki.scipy.org/Cookbook/SegmentAxis
 """
-
-
 def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     """ Generate a new array that chops the given array along the given axis into overlapping frames.
 
@@ -50,6 +123,11 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     <BLANKLINE>
            [[1, 3, 5, 7],
             [3, 5, 7, 9]]])
+    >>> a = np.arange(5).reshape(5)
+    >>> b = segment_axis(a, 4, 2, axis=0)
+    >>> a += 1  # a and b point to the same memory
+    >>> b
+    array([[1, 2, 3, 4]])
     """
 
     if axis is None:
@@ -320,7 +398,7 @@ def reshape(array, operation):
         msg = 'op: {}, shape: {}'.format(transposition_operation,
                                          np.shape(array))
         if len(e.args) == 1:
-            e.args = (e.args[0]+'\n\n'+msg,)
+            e.args = (e.args[0] + '\n\n' + msg,)
         else:
             print(msg)
         raise
@@ -426,7 +504,8 @@ def roll_zeropad(a, shift, axis=None):
 
     """
     a = np.asanyarray(a)
-    if shift == 0: return a
+    if shift == 0:
+        return a
     if axis is None:
         n = a.size
         reshape = True
