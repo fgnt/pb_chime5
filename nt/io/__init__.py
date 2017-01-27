@@ -36,10 +36,18 @@ def dump_hdf5(data, path):
     )
 
 
-def update_hdf5(data, path):
-    assert isinstance(path, (str, Path))
+def update_hdf5(data, path, prefix='/'):
+    assert isinstance(path, (str, Path, hdf5.h5py.File))
 
-    hdf5.update_hdf5(
-        data,
-        str(path)
-    )
+    if isinstance(path, hdf5.h5py.File):
+        hdf5.update_hdf5(
+            data,
+            path,
+            path=prefix
+        )
+    else:
+        hdf5.update_hdf5(
+            data,
+            str(path),
+            path=prefix
+        )
