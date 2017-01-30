@@ -65,6 +65,10 @@ dcase = Path(os.getenv(
     'NT_DCASE_DIR',
     '/home/parora/Documents/DCASE/DCASE 2016/'
 ))
+librispeech = Path(os.getenv(
+    'NT_LIBRISPEECH_DIR',
+    '/net/db/LibriSpeech'
+))
 matlab_toolbox = Path(os.getenv(
     'MATLAB_TOOLBOX_DIR',
     '/net/ssd/software/matlab_toolbox'
