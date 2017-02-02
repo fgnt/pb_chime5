@@ -6,7 +6,7 @@ import numbers
 
 
 def segment_axis_v2(x, length, shift, axis=-1,
-                    pad=False, pad_mode='constant', pad_value=0):
+                    end='pad', pad_mode='constant', pad_value=0):
     """ !!! WIP !!!
     Generate a new array that chops the given array along the given axis
     into overlapping frames.
@@ -15,7 +15,7 @@ def segment_axis_v2(x, length, shift, axis=-1,
     :param length: The length of each frame
     :param shift: The number of array elements by which the frames should shift
     :param axis: The axis to operate on
-    :param pad: True -> pad, False -> cut
+    :param end: 'pad' -> pad, None -> assert, 'cut' -> cut
     :param pad_mode: see numpy.pad
     :param pad_value: The value to pad
     :return:
@@ -55,12 +55,21 @@ def segment_axis_v2(x, length, shift, axis=-1,
 
     axis = axis % x.ndim
 
-    if pad is True:
+    if end == 'pad':
         if (x.shape[axis] + shift - length) % shift != 0:
             npad = np.zeros([x.ndim, 2], dtype=np.int)
             npad[axis, 1] = length - ((x.shape[axis] + shift - length) % shift)
             x = np.pad(x, pad_width=npad, mode=pad_mode,
                        constant_values=pad_value)
+    elif end == None:
+        assert (x.shape[axis] + shift - length) % shift == 0, \
+            '{} = x.shape[axis]({}) + shift({}) - length({})) % shift({})' \
+            ''.format((x.shape[axis] + shift - length) % shift,
+                      x.shape[axis], shift, length, shift)
+    elif end == 'cut':
+        pass
+    else:
+        raise ValueError(end)
 
     shape = list(x.shape)
     del shape[axis]
