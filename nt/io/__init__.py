@@ -7,6 +7,7 @@ i.e. for load_json() and similar functions.
 The file path is called `path` just as it has been done in ``audioread``.
 The path should either be a ``pathlib.Path`` object or a string.
 """
+import pickle
 from pathlib import Path
 
 from nt.io import audioread
@@ -16,7 +17,8 @@ from nt.io.json import load_json, dump_json
 
 __all__ = [
     'load_json', 'dump_json',
-    'load_hdf5', 'dump_hdf5', 'update_hdf5'
+    'load_hdf5', 'dump_hdf5', 'update_hdf5',
+    'load_pickle', 'dump_pickle',
 ]
 
 
@@ -51,3 +53,17 @@ def update_hdf5(data, path, prefix='/'):
             str(path),
             path=prefix
         )
+
+
+def load_pickle(path):
+    assert isinstance(path, (str, Path))
+    path = Path(path)
+    with path.open('rb') as f:
+        return pickle.load(f)
+
+
+def dump_pickle(data, path):
+    assert isinstance(path, (str, Path))
+    path = Path(path)
+    with path.open('wb') as f:
+        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
