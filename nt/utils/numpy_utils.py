@@ -61,7 +61,7 @@ def segment_axis_v2(x, length, shift, axis=-1,
             npad[axis, 1] = length - ((x.shape[axis] + shift - length) % shift)
             x = np.pad(x, pad_width=npad, mode=pad_mode,
                        constant_values=pad_value)
-    elif end == None:
+    elif end is None:
         assert (x.shape[axis] + shift - length) % shift == 0, \
             '{} = x.shape[axis]({}) + shift({}) - length({})) % shift({})' \
             ''.format((x.shape[axis] + shift - length) % shift,
