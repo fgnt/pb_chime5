@@ -357,7 +357,7 @@ def istft_loop(
 def istft_v2(
         stft_signal, size=1024, shift=256,
         window=signal.blackman, fading=True, window_length=None,
-        sym_window: bool = False,
+        sym_window: bool=False,
         use_amplitude_for_biorthogonal_window=False,
         disable_sythesis_window=False):
     """
@@ -381,7 +381,9 @@ def istft_v2(
     :return: Single channel complex STFT signal
     :return: Single channel time signal.
     """
-    assert stft_signal.shape[1] == size // 2 + 1, str(stft_signal.shape)
+    stft_signal = np.array(stft_signal)
+
+    assert stft_signal.shape[-1] == size // 2 + 1, str(stft_signal.shape)
     assert window_length is None, 'window_length is currently not supported'
 
     if window_length is None:
@@ -415,7 +417,7 @@ def istft_v2(
     # Compensate fade-in and fade-out
     if fading:
         time_signal = time_signal[
-                      size - shift:len(time_signal) - (size - shift)]
+                      ..., size - shift:len(time_signal) - (size - shift)]
 
     return time_signal
 
