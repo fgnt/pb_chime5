@@ -23,6 +23,7 @@ def audiowrite(data, path, sample_rate=16000, normalize=False, threaded=True):
         thread
     :return: The number of clipped samples
     """
+    assert data.dtype.kind == 'f', (data.shape, data.dtype)
 
     if isinstance(path, Path):
         path = str(path)
