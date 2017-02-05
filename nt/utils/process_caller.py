@@ -9,7 +9,7 @@ DEFAULT_ENV = os.environ.copy()
 
 def run_processes(cmds, sleep_time=0.1, ignore_return_code=False,
                   environment=DEFAULT_ENV, warn_on_ignore=True,
-                  inputs=None):
+                  inputs=None, *, cwd=None, shell=True):
     """ Starts multiple processes, waits and returns the outputs when available
 
     :param cmd: A list with the commands to call
@@ -21,6 +21,7 @@ def run_processes(cmds, sleep_time=0.1, ignore_return_code=False,
     :param inputs: A list with the text inputs to be piped to the called commands
     :return: Stdout, Stderr and return code for each process
     """
+    # ToDo: remove sleep_time
 
     # Ensure its a list if a single command is passed
     cmds = cmds if isinstance(cmds, list) else [cmds]
@@ -35,8 +36,9 @@ def run_processes(cmds, sleep_time=0.1, ignore_return_code=False,
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
-                              shell=True,
+                              shell=shell,
                               universal_newlines=True,
+                              cwd=cwd,
                               env=environment) for cmd in cmds]
     return_codes = len(cmds) * [None]
     stdout = len(cmds) * [None]
