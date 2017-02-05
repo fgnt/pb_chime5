@@ -417,7 +417,7 @@ def istft_v2(
     # Compensate fade-in and fade-out
     if fading:
         time_signal = time_signal[
-                      ..., size - shift:len(time_signal) - (size - shift)]
+            ..., size - shift:len(time_signal) - (size - shift)]
 
     return time_signal
 
