@@ -40,7 +40,9 @@ def audiowrite(data, path, sample_rate=16000, normalize=False, threaded=True):
 
     sample_to_clip = np.sum(data > int16_max)
     if sample_to_clip > 0:
-        print('Warning, clipping {} samples'.format(sample_to_clip))
+        print('Warning, clipping {} sample{}.'.format(
+            sample_to_clip, '' if sample_to_clip == 1 else 's'
+            ))
     data = np.clip(data, int16_min, int16_max)
     data = data.astype(np.int16)
 
