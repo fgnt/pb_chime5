@@ -1,8 +1,9 @@
 import warnings
-import chainer
 import numpy as np
 import collections
 import numbers
+
+import chainer
 
 
 def segment_axis_v2(x, length, shift, axis=-1,
@@ -10,6 +11,8 @@ def segment_axis_v2(x, length, shift, axis=-1,
     """ !!! WIP !!!
     Generate a new array that chops the given array along the given axis
     into overlapping frames.
+
+    Note: if end='pad' the return is maybe a copy
 
     :param x: The array to segment
     :param length: The length of each frame
@@ -28,9 +31,9 @@ def segment_axis_v2(x, length, shift, axis=-1,
     >>> segment_axis_v2(np.arange(5).reshape(5), 4, 1, axis=0)
     array([[0, 1, 2, 3],
            [1, 2, 3, 4]])
-    >>> segment_axis_v2(np.arange(5).reshape(5), 4, 2, axis=0)
+    >>> segment_axis_v2(np.arange(5).reshape(5), 4, 2, axis=0, end='cut')
     array([[0, 1, 2, 3]])
-    >>> segment_axis_v2(np.arange(5).reshape(5), 4, 2, axis=0, pad=True)
+    >>> segment_axis_v2(np.arange(5).reshape(5), 4, 2, axis=0, end='pad')
     array([[0, 1, 2, 3],
            [2, 3, 4, 0],
            [4, 0, 0, 0]])
@@ -46,8 +49,20 @@ def segment_axis_v2(x, length, shift, axis=-1,
     <BLANKLINE>
            [[1, 3, 5, 7],
             [3, 5, 7, 9]]])
+    >>> segment_axis_v2(np.asfortranarray(np.arange(10).reshape(2, 5)), 4, 1, axis=1)
+    array([[[0, 1, 2, 3],
+            [1, 2, 3, 4]],
+    <BLANKLINE>
+           [[5, 6, 7, 8],
+            [6, 7, 8, 9]]])
+    >>> segment_axis_v2(np.arange(8).reshape(2, 2, 2).transpose(1, 2, 0), 2, 1, axis=0, end='cut')
+    array([[[[0, 4],
+             [1, 5]],
+    <BLANKLINE>
+            [[2, 6],
+             [3, 7]]]])
     >>> a = np.arange(5).reshape(5)
-    >>> b = segment_axis_v2(a, 4, 2, axis=0)
+    >>> b = segment_axis_v2(a, 4, 2, axis=0, end='cut')
     >>> a += 1  # a and b point to the same memory
     >>> b
     array([[1, 2, 3, 4]])
@@ -83,14 +98,22 @@ def segment_axis_v2(x, length, shift, axis=-1,
     # I am not sure if np.lib.stride_tricks.as_strided is better.
     # return np.lib.stride_tricks.as_strided(
     #     x, shape=shape, strides=strides)
-
-    return np.ndarray.__new__(np.ndarray, strides=strides,
-                              shape=shape, buffer=x, dtype=x.dtype)
+    try:
+        return np.lib.stride_tricks.as_strided(x, strides=strides, shape=shape)
+        # return np.ndarray.__new__(np.ndarray, strides=strides,
+        #                           shape=shape, buffer=x, dtype=x.dtype)
+    except Exception:
+        print('strides:', x.strides, ' -> ', strides)
+        print('shape:', x.shape, ' -> ', shape)
+        print('flags:', x.flags)
+        raise
 
 
 """
 From http://wiki.scipy.org/Cookbook/SegmentAxis
 """
+
+
 def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     """ Generate a new array that chops the given array along the given axis into overlapping frames.
 
@@ -145,10 +168,12 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
 
     l = a.shape[axis]
 
-    if overlap >= length: raise ValueError(
-        "frames cannot overlap by more than 100%")
-    if overlap < 0 or length <= 0: raise ValueError(
-        "overlap must be nonnegative and length must be positive")
+    if overlap >= length:
+        raise ValueError(
+            "frames cannot overlap by more than 100%")
+    if overlap < 0 or length <= 0:
+        raise ValueError(
+            "overlap must be nonnegative and length must be positive")
 
     if l < length or (l - length) % (length - overlap):
         if l > length:
@@ -193,12 +218,12 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     s = a.strides[axis]
     newshape = a.shape[:axis] + (n, length) + a.shape[axis + 1:]
     newstrides = a.strides[:axis] + ((length - overlap) * s, s) + a.strides[
-                                                                  axis + 1:]
+        axis + 1:]
     if not a.flags.contiguous:
         a = a.copy()
         s = a.strides[axis]
         newstrides = a.strides[:axis] + ((length - overlap) * s, s) + a.strides[
-                                                                      axis + 1:]
+            axis + 1:]
         return np.ndarray.__new__(np.ndarray, strides=newstrides,
                                   shape=newshape, buffer=a, dtype=a.dtype)
 
@@ -210,7 +235,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
         a = a.copy()
         # Shape doesn't change but strides does
         newstrides = a.strides[:axis] + ((length - overlap) * s, s) + a.strides[
-                                                                      axis + 1:]
+            axis + 1:]
         return np.ndarray.__new__(np.ndarray, strides=newstrides,
                                   shape=newshape, buffer=a, dtype=a.dtype)
 
@@ -575,7 +600,7 @@ def labels_to_one_hot(
     zeros = zeros.reshape((categories,) + shape)
 
     if keepdims:
-        zeros = zeros[(slice(None),) * (axis+1) + (0,)]
+        zeros = zeros[(slice(None),) * (axis + 1) + (0,)]
 
     zeros = np.moveaxis(zeros, 0, axis)
 
