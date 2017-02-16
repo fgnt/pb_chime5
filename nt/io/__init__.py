@@ -24,7 +24,7 @@ __all__ = [
 
 def load_hdf5(path, internal_path='/'):
     return hdf5.load_hdf5(
-        str(path),
+        str(Path(path).expanduser()),
         str(internal_path)
     )
 
@@ -34,7 +34,7 @@ def dump_hdf5(data, path):
 
     hdf5.dump_hdf5(
         data,
-        str(path)
+        str(Path(path).expanduser())
     )
 
 
@@ -50,20 +50,20 @@ def update_hdf5(data, path, prefix='/'):
     else:
         hdf5.update_hdf5(
             data,
-            str(path),
+            str(Path(path).expanduser()),
             path=prefix
         )
 
 
 def load_pickle(path):
     assert isinstance(path, (str, Path))
-    path = Path(path)
+    path = Path(path).expanduser()
     with path.open('rb') as f:
         return pickle.load(f)
 
 
 def dump_pickle(data, path):
     assert isinstance(path, (str, Path))
-    path = Path(path)
+    path = Path(path).expanduser()
     with path.open('wb') as f:
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
