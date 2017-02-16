@@ -57,9 +57,17 @@ noisex92 = Path(os.getenv(
     'NT_NoiseX_92_DIR',
     '/net/db/NoiseX_92'
 ))
+reverb = Path(os.getenv(
+    'NT_REVERB_DIR',
+    '/net/db/reverb'
+))
 wsj = Path(os.getenv(
     'NT_WSJ_DIR',
     '/net/db/wsj'
+))
+wsjcam0 = Path(os.getenv(
+    'NT_WSJCAM0_DIR',
+    '/net/db/wsjcam0'
 ))
 dcase = Path(os.getenv(
     'NT_DCASE_DIR',
