@@ -12,13 +12,39 @@
 import os
 from pathlib import Path
 
-ami = Path(os.getenv(
-    'NT_AMI_DIR',
-    '/net/db/ami'
+database_jsons = Path(os.getenv(
+    'NT_DATABASE_JSONS_DIR',
+    '/net/storage/database_jsons'
+))
+db_dir = Path(os.getenv(
+    'NT_DB_DIR',
+    '/net/db'
 ))
 testing = Path(os.getenv(
     'NT_TESTING_DIR',
     '/net/storage/python_unittest_data'
+))
+kaldi_root = Path(os.getenv(
+    'KALDI_ROOT',
+    '/net/ssd/jheymann/software/kaldi_latest'
+    # '/net/ssd/software/kaldi'
+))
+matlab_toolbox = Path(os.getenv(
+    'MATLAB_TOOLBOX_DIR',
+    '/net/ssd/software/matlab_toolbox'
+))
+matlab_r2015a = Path(os.getenv(
+    'MATLAB_R2015a',
+    '/net/ssd/software/MATLAB/R2015a'
+))
+matlab_license = Path(os.getenv(
+    'MATLAB_LICENSE',
+    '/opt/MATLAB/R2016b_studis/licenses/network.lic'
+))
+
+ami = Path(os.getenv(
+    'NT_AMI_DIR',
+    db_dir / 'ami'
 ))
 timit = Path(os.getenv(
     'NT_TIMIT_DIR',
@@ -34,16 +60,11 @@ database_jsons = Path(os.getenv(
 ))
 chime_3 = Path(os.getenv(
     'NT_CHIME_3_DIR',
-    '/net/db/chime3'
+    db_dir / 'chime3'
 ))
 chime_4 = Path(os.getenv(
     'NT_CHIME_4_DIR',
-    '/net/db/chime4'
-))
-kaldi_root = Path(os.getenv(
-    'KALDI_ROOT',
-    '/net/ssd/jheymann/software/kaldi_latest'
-    # '/net/ssd/software/kaldi'
+    db_dir / 'chime4'
 ))
 merl_mixtures = Path(os.getenv(
     'NT_MERL_MIXTURES_DIR',
@@ -55,19 +76,11 @@ german_speechdata = Path(os.getenv(
 ))
 noisex92 = Path(os.getenv(
     'NT_NoiseX_92_DIR',
-    '/net/db/NoiseX_92'
-))
-reverb = Path(os.getenv(
-    'NT_REVERB_DIR',
-    '/net/db/reverb'
+    db_dir / 'NoiseX_92'
 ))
 wsj = Path(os.getenv(
     'NT_WSJ_DIR',
-    '/net/db/wsj'
-))
-wsjcam0 = Path(os.getenv(
-    'NT_WSJCAM0_DIR',
-    '/net/db/wsjcam0'
+    db_dir / 'wsj'
 ))
 dcase = Path(os.getenv(
     'NT_DCASE_DIR',
