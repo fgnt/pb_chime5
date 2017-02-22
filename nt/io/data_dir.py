@@ -72,7 +72,7 @@ merl_mixtures = Path(os.getenv(
 ))
 german_speechdata = Path(os.getenv(
     'NT_GERMAN_SPEECHDATA_DIR',
-    '/net/storage/jheymann/speech_db/german-speechdata-package-v2/'
+    '/net/db/german-speechdata-package-v2/'
 ))
 noisex92 = Path(os.getenv(
     'NT_NoiseX_92_DIR',
