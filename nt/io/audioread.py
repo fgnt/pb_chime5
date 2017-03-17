@@ -11,14 +11,21 @@ import nt.utils.process_caller as pc
 import numpy as np
 import glob
 from pathlib import Path
+import wavefile
 
 
 UTILS_DIR = path.join(path.dirname(path.abspath(
         inspect.getfile(inspect.currentframe()))), 'utils')
 
 
-def audioread(path, offset=0.0, duration=None, sample_rate=16000):
-    """
+def audioread_legacy(path, offset=0.0, duration=None, sample_rate=16000):
+    """ THIS IS DEPRECATED
+
+    ..note::
+        PLEASE USE THE NEW `audioread` FUNCTION. IT IS MUCH FASTER, ESPECIALLY
+        WHEN WORKING WITH LARGE FILES WITH OFFSETS AND DURATION.
+
+
     Reads a wav file, converts it to 32 bit float values and reshapes according
     to the number of channels.
     Now, this is a wrapper of librosa with our common defaults.
@@ -56,6 +63,62 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
                           offset=offset,
                           duration=duration)
     return signal[0]
+
+
+def audioread(path, offset=0.0, duration=None, sample_rate=16000):
+    """
+    Reads a wav file, converts it to 32 bit float values and reshapes according
+    to the number of channels.
+    Now, this is a wrapper of librosa with our common defaults.
+
+    :param path: Absolute or relative file path to audio file.
+    :type: String.
+    :param offset: Begin of loaded audio.
+    :type: Scalar in seconds.
+    :param duration: Duration of loaded audio.
+    :type: Scalar in seconds.
+    :param sample_rate: Resamples utterances to given value. None = native
+        sample rate.
+    :type: scalar in number of samples per second
+    :return:
+
+    .. admonition:: Example:
+        Only path provided:
+
+        >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
+        >>> signal = audioread(path)
+
+        Say you load audio examples from a very long audio, you can provide a
+        start position and a duration in seconds.
+
+        >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
+        >>> signal = audioread(path, offset=0, duration=1)
+    """
+    if isinstance(path, Path):
+        path = str(path)
+
+    with wavefile.WaveReader(path) as wav_reader:
+        channels = wav_reader.channels
+        if sample_rate is None:
+            sample_rate = wav_reader.samplerate
+        if wav_reader.samplerate != sample_rate:
+            raise ValueError(
+                'Requested sampling rate is {} but the audiofile has {}'.format(
+                    sample_rate, wav_reader.samplerate
+                )
+            )
+
+        if duration is None:
+            samples = wav_reader.frames - int(np.round(offset * sample_rate))
+            frames_before = int(np.round(offset * sample_rate))
+        else:
+            samples = int(np.round(duration * sample_rate))
+            frames_before = int(np.round(offset * sample_rate))
+
+        data = np.empty((channels, samples), dtype=np.float32, order='F')
+        wav_reader.seek(frames_before)
+        wav_reader.read(data)
+        return np.squeeze(data)
 
 
 def read_nist_wsj(path, sample_rate=16000):
