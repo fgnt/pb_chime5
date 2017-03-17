@@ -8,7 +8,7 @@ from nt.transform.module_stft import spectrogram_to_energy_per_frame
 from nt.transform.module_stft import get_stft_center_frequencies
 from nt.transform.module_filter import preemphasis
 from nt.transform.module_filter import inverse_preemphasis
-from nt.transform.module_fbank import fbank
+from nt.transform.module_fbank import fbank, logfbank
 from nt.transform.module_filter import offset_compensation
 from nt.transform.module_filter import preemphasis_with_offset_compensation
 from nt.transform.module_mfcc import mfcc, mfcc_velocity_acceleration
