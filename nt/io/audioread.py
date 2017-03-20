@@ -21,9 +21,8 @@ UTILS_DIR = path.join(path.dirname(path.abspath(
 def audioread_legacy(path, offset=0.0, duration=None, sample_rate=16000):
     """ THIS IS DEPRECATED
 
-    ..note::
-        PLEASE USE THE NEW `audioread` FUNCTION. IT IS MUCH FASTER, ESPECIALLY
-        WHEN WORKING WITH LARGE FILES WITH OFFSETS AND DURATION.
+    .. note:: PLEASE USE THE NEW `audioread` FUNCTION. IT IS MUCH FASTER,
+        ESPECIALLY WHEN WORKING WITH LARGE FILES WITH OFFSETS AND DURATION.
 
 
     Reads a wav file, converts it to 32 bit float values and reshapes according
@@ -69,7 +68,15 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
     """
     Reads a wav file, converts it to 32 bit float values and reshapes according
     to the number of channels.
-    Now, this is a wrapper of librosa with our common defaults.
+
+    This function uses the `wavefile` module which in turn uses `libsndfile` to
+    read an audio file. This is much faster than the previous version based on
+    `librosa`, especially if one reads a short segment of a long audio file.
+
+    .. note:: Contrary to the previous version, this one does not implicitly
+        resample the audio if the `sample_rate` parameter differs from the
+        actual sampling rate of the file. Instead, it raises an error.
+
 
     :param path: Absolute or relative file path to audio file.
     :type: String.
@@ -77,8 +84,10 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
     :type: Scalar in seconds.
     :param duration: Duration of loaded audio.
     :type: Scalar in seconds.
-    :param sample_rate: Resamples utterances to given value. None = native
-        sample rate.
+    :param sample_rate: (deprecated) Former audioread did implicit resampling
+        when a different sample rate was given. This raises an error if the
+        `sample_rate` does not match the files sampling rate. `None` accepts
+        any rate.
     :type: scalar in number of samples per second
     :return:
 
@@ -128,6 +137,7 @@ def read_nist_wsj(path, sample_rate=16000):
     :param path: file path to audio file.
     :param sample_rate: Resamples utterances to given value. None = native
         sample rate.
+    :param audioread_function: Function to use to read the resulting audio file
     :return:
     """
     tmp_file = tempfile.NamedTemporaryFile(delete=False)
