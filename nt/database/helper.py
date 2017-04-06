@@ -13,6 +13,10 @@ def print_template():
     """
     print('<root>\n'
           '..<train>\n'
+          '....annotations\n'
+          '......<scenario>\n'
+          '........<utterance_id>\n'
+          '..........nsamples: <nsamples>\n'
           '....<flists>\n'
           '......<file_type> (z.B. wav)\n'
           '..........<scenario> (z.B. tr05_simu, tr05_real...)\n'
