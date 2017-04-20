@@ -14,11 +14,12 @@ from nt.io import audioread
 from nt.io import hdf5
 from nt.io import play
 from nt.io.json import load_json, dump_json
+from nt.io.file_handling import mkdir_p
 
 __all__ = [
     'load_json', 'dump_json',
     'load_hdf5', 'dump_hdf5', 'update_hdf5',
-    'load_pickle', 'dump_pickle',
+    'load_pickle', 'dump_pickle', 'mkdir_p'
 ]
 
 
