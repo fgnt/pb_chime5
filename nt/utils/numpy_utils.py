@@ -35,8 +35,10 @@ def segment_axis_v2(x, length, shift, axis=-1,
     array([[0, 1, 2, 3]])
     >>> segment_axis_v2(np.arange(5).reshape(5), 4, 2, axis=0, end='pad')
     array([[0, 1, 2, 3],
-           [2, 3, 4, 0],
-           [4, 0, 0, 0]])
+           [2, 3, 4, 0]])
+    >>> segment_axis_v2(np.arange(6).reshape(6), 4, 2, axis=0, end='pad')
+    array([[0, 1, 2, 3],
+           [2, 3, 4, 5]])
     >>> segment_axis_v2(np.arange(10).reshape(2, 5), 4, 1, axis=-1)
     array([[[0, 1, 2, 3],
             [1, 2, 3, 4]],
@@ -73,7 +75,7 @@ def segment_axis_v2(x, length, shift, axis=-1,
     if end == 'pad':
         if (x.shape[axis] + shift - length) % shift != 0:
             npad = np.zeros([x.ndim, 2], dtype=np.int)
-            npad[axis, 1] = length - ((x.shape[axis] + shift - length) % shift)
+            npad[axis, 1] = shift - ((x.shape[axis] + shift - length) % shift)
             x = np.pad(x, pad_width=npad, mode=pad_mode,
                        constant_values=pad_value)
     elif end is None:
