@@ -1,3 +1,3 @@
-from nt.database.wsj import WSJ
-from nt.database.ami import AMIDatabase
-from nt.database.timit import Timit
+# DO NOT IMPORT DATASETS HERE BECAUSE IT CAUSES CYCLIC IMPORTS!
+# (And often only one dataset is needed; then importing all datasets is not
+# necessary and should be avoided)
