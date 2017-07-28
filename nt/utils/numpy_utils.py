@@ -3,7 +3,7 @@ import numpy as np
 import collections
 import numbers
 
-import chainer
+# import chainer  # see line 250
 
 
 def segment_axis_v2(x, length, shift, axis=-1,
@@ -247,7 +247,10 @@ def to_ndarray(data, copy=True):
         cp = lambda x: np.copy(x)
     else:
         cp = lambda x: x
-    if isinstance(data, chainer.Variable):
+    # if isinstance(data, chainer.Variable):
+        # return cp(data.num)
+    if 'data' and 'num' in data:  # `data` is instance of `chainer.Variable`.
+        # A bit hacky but keeps dependencies on `chainer` away
         return cp(data.num)
     elif isinstance(data, np.ndarray):
         return cp(data)
