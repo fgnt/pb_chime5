@@ -1,10 +1,18 @@
 """
+The keys file is part of the new database concept 2017.
+
 These are database related keys. Use them in your database JSON.
 
 Please avoid abbreviations and discuss first, before adding new keys.
 """
 SEQ_LEN = 'sequence_length'
 OBS_ID = 'observation_id'  # Replaces mixture ID for multi-speaker scenario.
+
+
+# Dimension prefixes for i.e. observation signal.
+ARRAY = 'a'
+SPEAKER = 's'
+CHANNEL = 'c'
 
 
 # Signals
