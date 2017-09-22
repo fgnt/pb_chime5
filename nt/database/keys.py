@@ -4,7 +4,7 @@ These are database related keys. Use them in your database JSON.
 Please avoid abbreviations and discuss first, before adding new keys.
 """
 SEQ_LEN = 'sequence_length'
-UTT_ID = 'utterance_id'  # Replaces mixture ID for multi-speaker scenario.
+OBS_ID = 'observation_id'  # Replaces mixture ID for multi-speaker scenario.
 
 
 # Signals
@@ -25,3 +25,7 @@ RIR_TAIL = 'rir_tail'
 # Transcription as plain string
 TRANSCRIPTION = 'transcription'
 KALDI_TRANSCRIPTION = 'kaldi_transcription'
+
+
+SPEAKER_ID = 'speaker_id'
+GENDER = 'gender'
