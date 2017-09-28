@@ -25,7 +25,7 @@ def stft_v2(
         detrend=False,
         pad: bool=True,
         sym_window: bool=False
-):
+) -> np.array:
     """ !!! WIP !!!
     ToDo: Discuss new stft:
      - sym_window need literature
