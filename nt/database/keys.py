@@ -34,6 +34,8 @@ RIR_TAIL = 'rir_tail'
 TRANSCRIPTION = 'transcription'
 KALDI_TRANSCRIPTION = 'kaldi_transcription'
 
-
+# Information per observation
 SPEAKER_ID = 'speaker_id'
 GENDER = 'gender'
+START = 'start'
+END = 'end'
