@@ -8,6 +8,99 @@ DEBUG_MODE = False
 DEFAULT_ENV = os.environ.copy()
 
 
+class CalledProcessError(subprocess.CalledProcessError):
+    def __str__(self):
+        # Improve error msg with stdout and stderr
+        return (f'{super().__str__()}\n\n'
+                f'Stdout:\n{self.stdout}\n\n'
+                f'Stderr:\n{self.stderr}')
+
+
+def run_process(
+        cmd,
+        *,
+        shell=None,
+        check=True,
+        environment=None,
+        cwd=None,
+        input=None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True
+):
+    """
+    This is a wrapper around subprocess.run with changed defaults.
+     - stdout and stderr is captured
+     - output is checked
+     - shell is True when cmd is a string
+        - The shell need to split the command
+        - Wildcard support
+        - environment variable support
+     - universal_newlines:
+        - https://stackoverflow.com/a/38182530
+        - Enable text_mode i.e. use strings and not bytes
+
+    ToDo:
+        Add a tee argument and display the stdout and stderr immediately and
+        return the output. Need test for input, example password ask.
+        Inspiration with aysncio: https://stackoverflow.com/a/25755038/5766934
+
+    cmd: str or list of [string, bytes, os.PathLike]
+
+    universal_newlines:
+        stdout will be a string and not a byte array
+    shell:
+        If None, shell is True is cmd is a str else False
+        True: pass command through the shell with "shell" parsing.
+            i.e. wildcards, enviroments variables, etc.
+        False: Directly called, recommended, when cmd is a list, because when
+            for example strings contains whitespaces they are not interpreted.
+
+    # Effect of universal_newlines
+    >>> run_process('echo Hello')
+    CompletedProcess(args='echo Hello', returncode=0, stdout='Hello\\n', stderr='')
+    >>> run_process('echo Hello', universal_newlines=False)
+    CompletedProcess(args='echo Hello', returncode=0, stdout=b'Hello\\n', stderr=b'')
+
+    # Example, where shell=False is usefull
+    >>> run_process(['echo', 'Hello World'])
+    CompletedProcess(args=['echo', 'Hello World'], returncode=0, stdout='Hello World\\n', stderr='')
+    >>> run_process(['echo', 'Hello World'], shell=True)
+    CompletedProcess(args=['echo', 'Hello World'], returncode=0, stdout='\\n', stderr='')
+    >>> run_process(['echo', 'Hello World'], shell=False)
+    CompletedProcess(args=['echo', 'Hello World'], returncode=0, stdout='Hello World\\n', stderr='')
+
+
+    """
+
+    if shell is None:
+        if isinstance(cmd, str):
+            shell = True
+        else:
+            shell = False
+
+    try:
+        return subprocess.run(
+            cmd,
+            input=input,
+            universal_newlines=universal_newlines,
+            shell=shell,
+            stdout=stdout,
+            stderr=stderr,
+            check=check,
+            env=environment,
+            cwd=cwd
+        )
+    except subprocess.CalledProcessError as e:
+        # Improve error msg with stdout and stderr
+        raise CalledProcessError(
+            returncode=e.returncode,
+            cmd=e.cmd,
+            output=e.output,
+            stderr=e.stderr
+        ) from e
+
+
 def run_processes(cmds, sleep_time=None, ignore_return_code=False,
                   environment=DEFAULT_ENV, warn_on_ignore=True,
                   inputs=None, *, cwd=None, shell=True):
