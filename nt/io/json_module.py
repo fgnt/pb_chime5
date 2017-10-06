@@ -11,43 +11,19 @@ from pathlib import Path
 class Encoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer):
-            return self._handle_np_integer(obj)
+            return int(obj)
         elif isinstance(obj, np.floating):
-            return self._handle_np_floating(obj)
+            return float(obj)
         elif str(type(obj)) == "<class 'chainer.variable.Variable'>":
-            return self._handle_chainer_variable(obj)
+            return obj.num.tolist()
         elif isinstance(obj, np.ndarray):
-            return self._handle_np_ndarray(obj)
+            return obj.tolist()
         elif isinstance(obj, bson.objectid.ObjectId):
-            return self._handle_bson_object_id(obj)
+            return str(obj)
         elif isinstance(obj, datetime.datetime):
-            return self._handle_datetime_datetime(obj)
+            return obj.strftime('%Y-%m-%d_%H-%M-%S')
         else:
             return super().default(obj)
-
-    @staticmethod
-    def _handle_np_integer(obj):
-        return int(obj)
-
-    @staticmethod
-    def _handle_np_floating(obj):
-        return float(obj)
-
-    @staticmethod
-    def _handle_chainer_variable(obj):
-        return obj.num.tolist()
-
-    @staticmethod
-    def _handle_np_ndarray(obj):
-        return obj.tolist()
-
-    @staticmethod
-    def _handle_bson_object_id(obj):
-        return str(obj)
-
-    @staticmethod
-    def _handle_datetime_datetime(obj):
-        return obj.strftime('%Y-%m-%d_%H-%M-%S')
 
 
 class SummaryEncoder(Encoder):
@@ -57,12 +33,23 @@ class SummaryEncoder(Encoder):
 
     Example usage:
     >>> import numpy as np
-    >>> example = dict(a=np.random.uniform(size=(3, 4))
+    >>> example = dict(a=np.random.uniform(size=(3, 4)))
     >>> print(json.dumps(example, cls=SummaryEncoder, indent=2))
+    {
+      "a": "ndarray: shape (3, 4), dtype float64"
+    }
+
+    alternative:
+    >>> np.set_string_function(lambda a: f'array(shape={a.shape}, dtype={a.dtype})')
+    >>> example
+    {'a': array(shape=(3, 4), dtype=float64)}
     """
-    @staticmethod
-    def _handle_np_ndarray(obj):
-        return 'ndarray: shape {}, dtype {}'.format(obj.shape, obj.dtype)
+
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return 'ndarray: shape {}, dtype {}'.format(obj.shape, obj.dtype)
+        else:
+            return super().default(obj)
 
 
 def dump_json(obj, path, *, indent=2, **kwargs):
