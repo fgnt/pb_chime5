@@ -13,7 +13,6 @@ from pathlib import Path
 from nt.io import audioread
 from nt.io import hdf5
 from nt.io import play
-from nt.io.json_module import load_json
 from nt.io.json_module import load_json, dump_json
 from nt.io.json_module import SummaryEncoder
 from nt.io.file_handling import mkdir_p
