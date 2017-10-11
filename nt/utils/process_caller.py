@@ -11,9 +11,9 @@ DEFAULT_ENV = os.environ.copy()
 class CalledProcessError(subprocess.CalledProcessError):
     def __str__(self):
         # Improve error msg with stdout and stderr
-        return (f'{super().__str__()}\n\n'
-                f'Stdout:\n{self.stdout}\n\n'
-                f'Stderr:\n{self.stderr}')
+        return '{}\n\nStdout:\n{}\n\nStderr:\n{}'.format(
+            super().__str__(), self.stdout, self.stderr
+        )
 
 
 def run_process(
