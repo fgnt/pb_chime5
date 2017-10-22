@@ -39,3 +39,18 @@ SPEAKER_ID = 'speaker_id'
 GENDER = 'gender'
 START = 'start'
 END = 'end'
+
+# temporary keys, need to be discussed
+EXAMPLES = "examples"
+EXAMPLE_ID = "example_id"
+DATASETS = "datasets"
+AUDIO = "audio"
+META = "meta"
+TAGS = "tags"
+ANNOTATION = "annotation"
+PHONES = "phones"
+WORDS = "words"
+EVENTS = "events"
+MALE = "male"
+FEMALE = "female"
+HIERARCHICAL_MAPPING = "hierarchical_mapping"
