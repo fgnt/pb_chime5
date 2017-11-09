@@ -68,6 +68,8 @@ def stft_v2(
     # TODO: This automatism should be discussed and in my opinion removed (L)
     if axis is None:
         axis = np.argmax(time_signal.shape)
+    else:
+        axis = axis % time_signal.ndim
 
     if window_length is None:
         window_length = size
@@ -417,7 +419,7 @@ def istft_v2(
     # Compensate fade-in and fade-out
     if fading:
         time_signal = time_signal[
-            ..., size - shift:len(time_signal) - (size - shift)]
+            ..., size - shift:time_signal.shape[-1] - (size - shift)]
 
     return time_signal
 
