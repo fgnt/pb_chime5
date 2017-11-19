@@ -5,52 +5,54 @@ These are database related keys. Use them in your database JSON.
 
 Please avoid abbreviations and discuss first, before adding new keys.
 """
-SEQ_LEN = 'sequence_length'
-OBS_ID = 'observation_id'  # Replaces mixture ID for multi-speaker scenario.
+DATASETS = "datasets"
+EXAMPLES = "examples"
+META = "meta"
 
+# Information per example
+AUDIO_PATH = "audio_path"
+AUDIO_DATA = "audio_data"
+SEQ_LEN = 'sequence_length'
+EXAMPLE_ID = "example_id"  # Replaces mixture ID for multi-speaker scenario.
+SPEAKER_ID = 'speaker_id'
+GENDER = 'gender'
+
+# annotation refers to exact segmentation given as a list of tuples
+# [(<label 1>, <start sample>, <end sample>), ...]
+ANNOTATION = "annotation"
+# transcription refers to a list of labels [<label 1>, <label 2>, ...] providing
+# the labels that appear in an example in a specified order
+TRANSCRIPTION = 'transcription'
+KALDI_TRANSCRIPTION = 'kaldi_transcription'
+# tags refers to a list of labels [<label 1>, <label 2>, ...] providing
+# the labels that appear in an example in a any order
+TAGS = "tags"
+
+# Signals
+OBSERVATION = 'observation'
+OBSERVATION_LAPEL = 'observation_lapel'
+OBSERVATION_HEADSET = 'observation_headset'
+
+SPEECH_SOURCE = 'speech_source'
+SPEECH_IMAGE = 'speech_image'
+NOISE_IMAGE = 'noise_image'
+
+RIR = 'rir'
+RIR_DIRECT = 'rir_direct'
+RIR_TAIL = 'rir_tail'
 
 # Dimension prefixes for i.e. observation signal.
 ARRAY = 'a'
 SPEAKER = 's'
 CHANNEL = 'c'
 
-
-# Signals
-SPEECH_SOURCE = 'speech_source'
-
-SPEECH_IMAGE = 'speech_image'
-NOISE_IMAGE = 'noise_image'
-
-OBSERVATION = 'observation'
-OBSERVATION_LAPEL = 'observation_lapel'
-OBSERVATION_HEADSET = 'observation_headset'
-
-RIR = 'rir'
-RIR_DIRECT = 'rir_direct'
-RIR_TAIL = 'rir_tail'
-
-
-# Transcription as plain string
-TRANSCRIPTION = 'transcription'
-KALDI_TRANSCRIPTION = 'kaldi_transcription'
-
-# Information per observation
-SPEAKER_ID = 'speaker_id'
-GENDER = 'gender'
-START = 'start'
-END = 'end'
-
-# temporary keys, need to be discussed
-EXAMPLES = "examples"
-EXAMPLE_ID = "example_id"
-DATASETS = "datasets"
-AUDIO = "audio"
-META = "meta"
-TAGS = "tags"
-ANNOTATION = "annotation"
+# other sub-keys
+MALE = "male"
+FEMALE = "female"
 PHONES = "phones"
 WORDS = "words"
 EVENTS = "events"
-MALE = "male"
-FEMALE = "female"
-HIERARCHICAL_MAPPING = "hierarchical_mapping"
+SAMPLE_RATE = "sample_rate"
+
+# temporary keys, need to be discussed
+MAPPINGS = "mappings"
