@@ -59,6 +59,7 @@ def audioread(path, offset=0.0, duration=None, sample_rate=16000):
     """
     if isinstance(path, Path):
         path = str(path)
+    path = os.path.expanduser(path)
 
     with wavefile.WaveReader(path) as wav_reader:
         channels = wav_reader.channels
