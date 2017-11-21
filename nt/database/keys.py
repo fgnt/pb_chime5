@@ -16,6 +16,8 @@ SEQ_LEN = 'sequence_length'
 EXAMPLE_ID = "example_id"  # Replaces mixture ID for multi-speaker scenario.
 SPEAKER_ID = 'speaker_id'
 GENDER = 'gender'
+START = 'start'  # startingtime for speaker_id
+END = 'end'  # endingtime for speaker_id
 
 # annotation refers to exact segmentation given as a list of tuples
 # [(<label 1>, <start sample>, <end sample>), ...]
