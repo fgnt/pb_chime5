@@ -19,11 +19,11 @@ GENDER = 'gender'
 START = 'start'  # startingtime for speaker_id
 END = 'end'  # endingtime for speaker_id
 
-# annotation refers to exact segmentation given as a list of tuples
+# segmentation refers to a list of tuples
 # [(<label 1>, <start sample>, <end sample>), ...]
-ANNOTATION = "annotation"
+SEGMENTATION = "segmentation"
 # transcription refers to a list of labels [<label 1>, <label 2>, ...] providing
-# the labels that appear in an example in a specified order
+# the labels that appear in an example in a certain order
 TRANSCRIPTION = 'transcription'
 KALDI_TRANSCRIPTION = 'kaldi_transcription'
 # tags refers to a list of labels [<label 1>, <label 2>, ...] providing
@@ -57,4 +57,5 @@ EVENTS = "events"
 SAMPLE_RATE = "sample_rate"
 
 # temporary keys, need to be discussed
+LABELS = "labels"
 MAPPINGS = "mappings"
