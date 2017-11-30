@@ -12,7 +12,8 @@ META = "meta"
 # Information per example
 AUDIO_PATH = "audio_path"
 AUDIO_DATA = "audio_data"
-SEQ_LEN = 'sequence_length'
+NUM_SAMPLES = 'num_samples'
+NUM_FRAMES = 'num_frames'
 EXAMPLE_ID = "example_id"  # Replaces mixture ID for multi-speaker scenario.
 SPEAKER_ID = 'speaker_id'
 GENDER = 'gender'
