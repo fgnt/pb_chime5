@@ -20,14 +20,14 @@ GENDER = 'gender'
 START = 'start'  # startingtime for speaker_id
 END = 'end'  # endingtime for speaker_id
 
-# segmentation refers to a list of tuples
+# Segmentation refers to a list of tuples
 # [(<label 1>, <start sample>, <end sample>), ...]
 SEGMENTATION = "segmentation"
-# transcription refers to a list of labels [<label 1>, <label 2>, ...] providing
+# Transcription refers to a list of labels [<label 1>, <label 2>, ...] providing
 # the labels that appear in an example in a certain order
 TRANSCRIPTION = 'transcription'
 KALDI_TRANSCRIPTION = 'kaldi_transcription'
-# tags refers to a list of labels [<label 1>, <label 2>, ...] providing
+# Tags refers to a list of labels [<label 1>, <label 2>, ...] providing
 # the labels that appear in an example in a any order
 TAGS = "tags"
 
