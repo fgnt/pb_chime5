@@ -99,9 +99,12 @@ def stft_v2(
     letters = string.ascii_lowercase[:time_signal_seg.ndim]
     mapping = letters + ',' + letters[axis + 1] + '->' + letters
 
-    # ToDo: Implement this more memory efficient
-    return rfft(np.einsum(mapping, time_signal_seg, window),
-                n=size, axis=axis + 1)
+    try:
+        # ToDo: Implement this more memory efficient
+        return rfft(np.einsum(mapping, time_signal_seg, window),
+                    n=size, axis=axis + 1)
+    except ValueError as e:
+        raise ValueError('Could not calculate the stft, something does not match', mapping, time_signal_seg.shape, window.shape, size, axis+1) from e
 
 
 def stft(
