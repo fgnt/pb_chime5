@@ -19,6 +19,7 @@ UTILS_DIR = path.join(path.dirname(path.abspath(
 
 
 def audioread(path, offset=0.0, duration=None):
+def audioread(path, offset=0.0, duration=None, sample_rate=None):
     """
     Reads a wav file, converts it to 32 bit float values and reshapes according
     to the number of channels.
@@ -63,7 +64,8 @@ def audioread(path, offset=0.0, duration=None):
 
     with wavefile.WaveReader(path) as wav_reader:
         channels = wav_reader.channels
-        sample_rate = wav_reader.samplerate
+        if sample_rate is None:
+            sample_rate = wav_reader.samplerate
         if wav_reader.samplerate != sample_rate:
             raise ValueError(
                 'Requested sampling rate is {} but the audiofile has {}'.format(
