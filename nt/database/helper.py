@@ -4,7 +4,7 @@ def dump_database_as_json(filename, obj):
 
 
 import json
-
+from nt.database.keys import *
 
 def print_template():
     """ Prints the template used for the json file
@@ -240,6 +240,67 @@ def add_flist(flist, progress_json, scenario, stage='train',
     for utt_id in flist:
         utt_id_dict = _get_next_dict(scenario_dict, utt_id)
         channel_type_dict = _get_next_dict(utt_id_dict, channel_type)
+        channel_type_dict[channel] = flist[utt_id]
+
+def add_listing(flist, progress_json, scenario, stage='train'):
+
+
+    def _get_next_dict(cur_dict, key):
+        try:
+            return cur_dict[key]
+        except KeyError:
+            cur_dict[key] = dict()
+            return cur_dict[key]
+
+    cur_dict = progress_json
+    dataset_dict = _get_next_dict(cur_dict, DATASETS)
+    stage_dict = _get_next_dict(dataset_dict, stage)
+    scenario_dict = _get_next_dict(stage_dict, scenario)
+    stage_dict[scenario] = list(flist.keys())
+
+
+def add_examples(flist, orth, progress_json,
+               channel_type='observed', channel='CH1'):
+    """ Adds a file list to the current progress_json object
+
+    examples:
+    <unique example id 1>
+        audio_path:
+            observation:
+                a0:
+                    <path to observation of array 0 and channel 0>
+                    <path to observation of array 0 and channel 0>
+                    ...
+                a1:
+                    c0: <path to observation of array 1 and channel 0>
+                    c99: <path to observation of array 1 and channel 99>
+
+
+
+    :param flist: A dictionary acting as a file list
+    :param progress_json: The current json object
+    :param scenario: Name for the file list
+    :param stage: [train, dev, test]
+    :param file_type: Type of the referenced files. e.g. wav, mfcc, ...
+    :return:
+    """
+
+    def _get_next_dict(cur_dict, key):
+        try:
+            return cur_dict[key]
+        except KeyError:
+            cur_dict[key] = dict()
+            return cur_dict[key]
+
+    cur_dict = progress_json
+    flists_dict = _get_next_dict(cur_dict, EXAMPLES)
+
+    for utt_id in flist:
+        utt_id_dict = _get_next_dict(flists_dict, utt_id)
+        utt_id_dict.update({EXAMPLE_ID : utt_id.split('_')[0]})
+        utt_id_dict.update({TRANSCRIPTION : orth[utt_id.split('_')[0]]})
+        audio_path_dict = _get_next_dict(utt_id_dict, AUDIO_PATH)
+        channel_type_dict = _get_next_dict(audio_path_dict, channel_type)
         channel_type_dict[channel] = flist[utt_id]
 
 
