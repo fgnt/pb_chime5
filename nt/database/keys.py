@@ -40,6 +40,11 @@ OBSERVATION_HEADSET = 'observation_headset'
 SPEECH_SOURCE = 'speech_source'
 SPEECH_IMAGE = 'speech_image'
 NOISE_IMAGE = 'noise_image'
+LOG_WEIGHTS = 'log_weights'
+
+X_DIRECT ='X_direct'
+X_TAIL = 'X_tail'
+
 
 RIR = 'rir'
 RIR_DIRECT = 'rir_direct'
