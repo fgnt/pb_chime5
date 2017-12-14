@@ -242,7 +242,7 @@ def add_flist(flist, progress_json, scenario, stage='train',
         channel_type_dict = _get_next_dict(utt_id_dict, channel_type)
         channel_type_dict[channel] = flist[utt_id]
 
-def add_listing(flist, progress_json, scenario, stage='train'):
+def add_listing(flist, progress_json, scenario):
 
 
     def _get_next_dict(cur_dict, key):
@@ -254,13 +254,11 @@ def add_listing(flist, progress_json, scenario, stage='train'):
 
     cur_dict = progress_json
     dataset_dict = _get_next_dict(cur_dict, DATASETS)
-    stage_dict = _get_next_dict(dataset_dict, stage)
-    scenario_dict = _get_next_dict(stage_dict, scenario)
-    stage_dict[scenario] = list(flist.keys())
+    dataset_dict[scenario] = list(flist.keys())
 
 
 def add_examples(flist, orth, progress_json,
-               channel_type='observed', channel='CH1'):
+               channel_type='observed', channel='c0'):
     """ Adds a file list to the current progress_json object
 
     examples:
@@ -301,7 +299,12 @@ def add_examples(flist, orth, progress_json,
         utt_id_dict.update({TRANSCRIPTION : orth[utt_id.split('_')[0]]})
         audio_path_dict = _get_next_dict(utt_id_dict, AUDIO_PATH)
         channel_type_dict = _get_next_dict(audio_path_dict, channel_type)
-        channel_type_dict[channel] = flist[utt_id]
+        if channel is None:
+            if not audio_path_dict[channel_type]:
+                audio_path_dict[channel_type] = []
+            audio_path_dict[channel_type].append(flist[utt_id])
+        else:
+            channel_type_dict[channel] = flist[utt_id]
 
 
 def combine_flists(data, flist_1_path, flist_2_path, flist_path,
