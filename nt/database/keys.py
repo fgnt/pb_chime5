@@ -14,6 +14,7 @@ AUDIO_PATH = "audio_path"
 AUDIO_DATA = "audio_data"
 NUM_SAMPLES = 'num_samples'
 NUM_FRAMES = 'num_frames'
+NUM_SPEAKERS = 'num_speakers'
 EXAMPLE_ID = "example_id"  # Replaces mixture ID for multi-speaker scenario.
 SPEAKER_ID = 'speaker_id'
 GENDER = 'gender'
