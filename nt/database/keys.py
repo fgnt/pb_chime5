@@ -42,8 +42,9 @@ SPEECH_IMAGE = 'speech_image'
 NOISE_IMAGE = 'noise_image'
 LOG_WEIGHTS = 'log_weights'
 
-X_DIRECT ='X_direct'
-X_TAIL = 'X_tail'
+# SPEECH_REVERBARATON
+SPEECH_REVERBERATION_DIRECT ='speech_reverberation_direct'
+SPEECH_REVERBERATION_TAIL = 'speech_reverberation_tail'
 
 
 RIR = 'rir'
