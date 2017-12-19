@@ -67,3 +67,5 @@ SAMPLE_RATE = "sample_rate"
 # temporary keys, need to be discussed
 LABELS = "labels"
 MAPPINGS = "mappings"
+
+LOCATION = 'location'
