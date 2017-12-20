@@ -256,12 +256,11 @@ def add_listing(flist, progress_json, scenario):
     dataset_dict = _get_next_dict(cur_dict, DATASETS)
     dataset_dict[scenario] = list(flist.keys())
 
-
-def add_examples(flist, orth, progress_json,
+def add_examples(flist, orth, progress_json, scenario,
                channel_type='observed', channel='c0'):
     """ Adds a file list to the current progress_json object
 
-    examples:
+    datasets:
     <unique example id 1>
         audio_path:
             observation:
@@ -291,11 +290,11 @@ def add_examples(flist, orth, progress_json,
             return cur_dict[key]
 
     cur_dict = progress_json
-    flists_dict = _get_next_dict(cur_dict, EXAMPLES)
+    flists_dict = _get_next_dict(cur_dict, DATASETS)
+    scenario_dict = _get_next_dict(flists_dict, scenario)
 
     for utt_id in flist:
-        utt_id_dict = _get_next_dict(flists_dict, utt_id)
-        utt_id_dict.update({EXAMPLE_ID : utt_id.split('_')[0]})
+        utt_id_dict = _get_next_dict(scenario_dict, utt_id)
         utt_id_dict.update({TRANSCRIPTION : orth[utt_id.split('_')[0]]})
         audio_path_dict = _get_next_dict(utt_id_dict, AUDIO_PATH)
         channel_type_dict = _get_next_dict(audio_path_dict, channel_type)
