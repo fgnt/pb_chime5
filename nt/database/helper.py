@@ -257,7 +257,7 @@ def add_listing(flist, progress_json, scenario):
     dataset_dict[scenario] = list(flist.keys())
 
 def add_examples(flist, orth, progress_json, scenario,
-               channel_type='observed', channel='c0'):
+               channel_type='observed', channel=None):
     """ Adds a file list to the current progress_json object
 
     datasets:
