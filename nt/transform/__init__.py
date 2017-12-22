@@ -1,16 +1,20 @@
 """
 This module deals with all sorts of acoustic features and transforms.
 """
-from nt.transform.module_stft import stft, spectrogram
-from nt.transform.module_stft import istft, istft_loop
-from nt.transform.module_stft import stft_to_spectrogram
-from nt.transform.module_stft import spectrogram_to_energy_per_frame
-from nt.transform.module_stft import get_stft_center_frequencies
+from nt.transform.module_stft import (
+    stft,
+    istft,
+    spectrogram,
+    stft_to_spectrogram,
+    spectrogram_to_energy_per_frame,
+    get_stft_center_frequencies,
+)
+
 from nt.transform.module_filter import preemphasis
 from nt.transform.module_filter import inverse_preemphasis
-from nt.transform.module_fbank import fbank, logfbank
 from nt.transform.module_filter import offset_compensation
 from nt.transform.module_filter import preemphasis_with_offset_compensation
+from nt.transform.module_fbank import fbank, logfbank
 from nt.transform.module_mfcc import mfcc, mfcc_velocity_acceleration
 from nt.transform.module_ssc import ssc
 from nt.transform.module_bark_fbank import bark_fbank
