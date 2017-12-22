@@ -368,3 +368,8 @@ def combine_flists(data, flist_1_path, flist_2_path, flist_path,
 
     flist_parent = traverse_to_dict(data, flist_parent_path, delimiter)
     flist_parent[flist_name] = new_flist
+
+
+def dict_to_sorted_list(d):
+    return [v for _, v in sorted(d.items())]
+
