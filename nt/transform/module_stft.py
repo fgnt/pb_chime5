@@ -1,37 +1,34 @@
 """
 This file contains the STFT function and related helper functions.
 """
-import numpy as np
-from math import ceil
-import scipy
-
-from scipy import signal
-from numpy.fft import rfft, irfft
-
+import typing
 import string
-from nt.utils.numpy_utils import segment_axis, segment_axis_v2
+from math import ceil
+
+import numpy as np
+from numpy.fft import rfft, irfft
+from scipy import signal
+
+from nt.utils.numpy_utils import segment_axis_v2
 from nt.utils.numpy_utils import roll_zeropad
 
 
-def stft_v2(
+def stft(
         time_signal,
         size: int=1024,
         shift: int=256,
-        axis=None,
-        window=signal.blackman,
-        window_length=None,
         *,
+        axis=-1,
+        window: typing.Callable=signal.blackman,
+        window_length: int=None,
         fading: bool=True,
-        detrend=False,
         pad: bool=True,
-        sym_window: bool=False
+        symmetric_window: bool=False,
 ) -> np.array:
     """ !!! WIP !!!
-    ToDo: Discuss new stft:
+    ToDo: Open points:
      - sym_window need literature
      - fading why it is better?
-     - use zero padding from rfft instead padding window
-     - detrend need literature
      - should pad have more degrees of freedom?
 
     Calculates the short time Fourier transformation of a multi channel multi
@@ -51,12 +48,8 @@ def stft_v2(
     :param window_length: Sometimes one desires to use a shorter window than
         the fft size. In that case, the window is padded with zeros.
         The default is to use the fft-size as a window size.
-    :param detrend: Detrends segments before FFT. If ``type == 'linear'``,
-        the result of a linear least-squares fit is subtracted.
-        If ``type == 'constant'``, only the mean is subtracted. Defaults to False.
-    :type detrend: str or bool, optional
     :param pad: If true zero pad the signal to match the shape, else cut
-    :param sym_window: symmetric or periotic window. Assume window is periodic.
+    :param symmetric_window: symmetric or periotic window. Assume window is periodic.
         Since the implementation of the windows in scipy.signal have a curious
         behaviour for odd window_length. Use window(len+1)[:-1]. Since is equal
         to the behaviour of MATLAB.
@@ -65,11 +58,7 @@ def stft_v2(
     """
     time_signal = np.array(time_signal)
 
-    # TODO: This automatism should be discussed and in my opinion removed (L)
-    if axis is None:
-        axis = np.argmax(time_signal.shape)
-    else:
-        axis = axis % time_signal.ndim
+    axis = axis % time_signal.ndim
 
     if window_length is None:
         window_length = size
@@ -80,7 +69,7 @@ def stft_v2(
         pad_width[axis, :] = window_length - shift
         time_signal = np.pad(time_signal, pad_width, mode='constant')
 
-    if sym_window:
+    if symmetric_window:
         window = window(window_length)
     else:
         # https://github.com/scipy/scipy/issues/4551
@@ -90,12 +79,6 @@ def stft_v2(
                                       shift=shift, axis=axis,
                                       end='pad' if pad else 'cut')
 
-    if detrend not in ['linear', 'l', 'constant', 'c', False]:
-        raise ValueError("Detrend type must be 'linear', 'constant' or False.")
-    elif isinstance(detrend, str):
-        time_signal_seg = signal.detrend(time_signal_seg,
-                                         type=detrend, axis=axis + 1)
-
     letters = string.ascii_lowercase[:time_signal_seg.ndim]
     mapping = letters + ',' + letters[axis + 1] + '->' + letters
 
@@ -104,85 +87,55 @@ def stft_v2(
         return rfft(np.einsum(mapping, time_signal_seg, window),
                     n=size, axis=axis + 1)
     except ValueError as e:
-        raise ValueError('Could not calculate the stft, something does not match', mapping, time_signal_seg.shape, window.shape, size, axis+1) from e
+        raise ValueError(
+            f'Could not calculate the stft, something does not match.\n'
+            f'mapping: {mapping}, '
+            f'time_signal_seg.shape: {time_signal_seg.shape}, '
+            f'window.shape: {window.shape}, '
+            f'size: {size}'
+            f'axis+1: {axis+1}'
+        ) from e
 
 
-def stft(
-        time_signal, size=1024, shift=256, axis=None, window=signal.blackman,
-        fading=True, window_length=None, kaldi_dims=False, detrend=False
+def stft_with_kaldi_dimensions(
+        time_signal,
+        size: int = 512,
+        shift: int = 400,
+        *,
+        window=signal.blackman,
+        window_length=160,
+        symmetric_window: bool = False
 ):
     """
-    Calculates the short time Fourier transformation of a multi channel multi
-    speaker time signal. It is able to add additional zeros for fade-in and
-    fade out and should yield an STFT signal which allows perfect
-    reconstruction.
+    The Kaldi implementation uses another non standard window.
+    See:
+     - https://github.com/kaldi-asr/kaldi/blob/master/src/feat/feature-window.h#L48
+     - https://github.com/kaldi-asr/kaldi/blob/81b7a1947fb8df501a2bbb680b65ce18ce606cff/src/feat/feature-window.h#L48
 
-    :param time_signal: Multi channel time signal with dimensions
-        AA x ... x AZ x T x BA x ... x BZ.
-    :param size: Scalar FFT-size.
-    :param shift: Scalar FFT-shift, the step between successive frames in
-        samples. Typically shift is a fraction of size.
-    :param axis: Scalar axis of time.
-        Default: None means the biggest dimension.
-    :param window: Window function handle. Default is blackman window.
-    :param fading: Pads the signal with zeros for better reconstruction.
-    :param window_length: Sometimes one desires to use a shorter window than
-        the fft size. In that case, the window is padded with zeros.
-        The default is to use the fft-size as a window size.
-    :param kaldi_dims: No padding or fading.
-        Size is 1 + ((nsamp - frame_length) / frame_shift).
-    :param detrend: Detrends segments before FFT. If ``type == 'linear'``,
-        the result of a linear least-squares fit is subtracted.
-        If ``type == 'constant'``, only the mean is subtracted. Defaults to False.
-    :type detrend: str or bool, optional
-    :return: Single channel complex STFT signal with dimensions
-        AA x ... x AZ x T' times size/2+1 times BA x ... x BZ.
+    ..note::
+       Kaldi uses symmetric_window == True
+        - https://github.com/kaldi-asr/kaldi/blob/master/src/feat/feature-window.cc#L113
+
     """
-    # TODO: This automatism should be discussed and in my opinion removed (L)
-    if axis is None:
-        axis = np.argmax(time_signal.shape)
-
-    # Pad with zeros to have enough samples for the window function to fade.
-    if fading and not kaldi_dims:
-        pad = [(0, 0)] * time_signal.ndim
-        pad[axis] = [size - shift, size - shift]
-        time_signal = np.pad(time_signal, pad, mode='constant')
-
-    # Pad with trailing zeros, to have an integral number of frames.
-    if not kaldi_dims:
-        frames = _samples_to_stft_frames(time_signal.shape[axis], size, shift)
-        samples = _stft_frames_to_samples(frames, size, shift)
-        pad = [(0, 0)]*time_signal.ndim
-        pad[axis] = [0, samples - time_signal.shape[axis]]
-        time_signal = np.pad(time_signal, pad, mode='constant')
-
-    if window_length is None:
-        window = window(size)
-    else:
-        window = window(window_length)
-        window = np.pad(window, (0, size-window_length), mode='constant')
-
-    time_signal_seg = segment_axis(time_signal, size, size - shift, axis=axis)
-    letters = string.ascii_lowercase
-    mapping = letters[:time_signal_seg.ndim] + ',' + letters[axis + 1] \
-        + '->' + letters[:time_signal_seg.ndim]
-
-    if detrend not in ['linear', 'l', 'constant', 'c', False]:
-        raise ValueError("Detrend type must be 'linear', 'constant' or False.")
-    elif isinstance(detrend, str):
-        time_signal_seg = signal.detrend(time_signal_seg, type=detrend, axis=axis+1)
-
-    if kaldi_dims:
-        nsamp = time_signal.shape[axis]
-        frames = time_signal_seg.shape[axis]
-        expected_frames = 1 + ((nsamp - size) // shift)
-        if frames != expected_frames:
-            raise ValueError('Expected {} frames, got {}'.format(
-                expected_frames, frames))
-
-    # ToDo: Implement this more memory efficient
-    return rfft(np.einsum(mapping, time_signal_seg, window),
-                axis=axis + 1)
+    # ToDo: Write test to force this function to fulfill the old kaldi_dims
+    #       argument
+    # if kaldi_dims:
+    #     nsamp = time_signal.shape[axis]
+    #     frames = time_signal_seg.shape[axis]
+    #     expected_frames = 1 + ((nsamp - size) // shift)
+    #     if frames != expected_frames:
+    #         raise ValueError('Expected {} frames, got {}'.format(
+    #             expected_frames, frames))
+    return stft(
+        time_signal,
+        size,
+        shift,
+        window=window,
+        window_length=window_length,
+        fading=False,
+        pad=False,
+        symmetric_window=symmetric_window
+    )
 
 
 def _samples_to_stft_frames(samples, size, shift):
@@ -192,6 +145,13 @@ def _samples_to_stft_frames(samples, size, shift):
     :param size: FFT size.
     :param shift: Hop in samples.
     :return: Number of STFT frames.
+
+    >>> _samples_to_stft_frames(19, 16, 4)
+    2
+    >>> _samples_to_stft_frames(20, 16, 4)
+    2
+    >>> _samples_to_stft_frames(21, 16, 4)
+    3
     """
     # I changed this from np.ceil to math.ceil, to yield an integer result.
     return ceil((samples - size + shift) / shift)
@@ -204,6 +164,9 @@ def _stft_frames_to_samples(frames, size, shift):
     :param size: FFT size.
     :param shift: Hop in samples.
     :return: Number of samples in time domain.
+
+    >>> _stft_frames_to_samples(2, 16, 4)
+    20
     """
     return frames * shift + size - shift
 
@@ -285,6 +248,16 @@ def _biorthogonal_window_brute_force(analysis_window, shift,
     :param analysis_window:
     :param shift:
     :return:
+
+    >>> analysis_window = signal.blackman(4+1)[:-1]
+    >>> print(analysis_window)
+    [ -1.38777878e-17   3.40000000e-01   1.00000000e+00   3.40000000e-01]
+    >>> synthesis_window = _biorthogonal_window_brute_force(analysis_window, 1)
+    >>> print(synthesis_window)
+    [ -1.12717575e-17   2.76153346e-01   8.12215724e-01   2.76153346e-01]
+    >>> mult = analysis_window * synthesis_window
+    >>> sum(mult)
+    1.0000000000000002
     """
     size = len(analysis_window)
 
@@ -309,62 +282,18 @@ def _biorthogonal_window_brute_force(analysis_window, shift,
 _biorthogonal_window_fastest = _biorthogonal_window_brute_force
 
 
-def istft_loop(
+def istft(
         stft_signal,
-        size=1024, shift=256,
-        time_dim=-2, freq_dim=-1,
-        window=signal.blackman
+        size: int=1024,
+        shift: int=256,
+        *,
+        window: typing.Callable=signal.blackman,
+        fading: bool=True,
+        window_length: bool=None,
+        symmetric_window: bool=False,
+        # use_amplitude_for_biorthogonal_window=False,
+        # disable_sythesis_window=False
 ):
-
-    def convert_for_mat_loopy(tensor, mat_dim_one, mat_dim_two):
-        ndim = tensor.ndim
-        shape = tensor.shape
-        mat_dim_one %= ndim
-        mat_dim_two %= ndim
-        perm = [x for x in range(ndim)
-                if x not in (mat_dim_one, mat_dim_two)] \
-            + [mat_dim_one, mat_dim_two]
-        tensor = tensor.transpose(perm)
-        return np.reshape(tensor,
-                             (-1, shape[mat_dim_one], shape[mat_dim_two]))
-
-    def reconstruct_mat_loopy(tensor, dim_one, dim_two, shape):
-        ndim = len(shape)
-        dim_one %= ndim
-        dim_two %= ndim
-        new_shape = [shape[x] for x in range(ndim)
-                     if x not in (dim_one, dim_two)] \
-            + [shape[dim_one], shape[dim_two]]
-        tensor = np.reshape(tensor, new_shape)
-        perm = list(range(ndim - 2))
-        if dim_one > dim_two:
-            perm.insert(dim_two, -1)
-            perm.insert(dim_one, -2)
-        else:
-            perm.insert(dim_one, -2)
-            perm.insert(dim_two, -1)
-        return tensor.transpose(perm)
-
-    shape = stft_signal.shape
-    stft_signal = convert_for_mat_loopy(stft_signal, time_dim, freq_dim)
-
-    time_signal = np.array([istft(
-        stft_signal[i, :, :], window=window, size=size, shift=shift
-    ) for i in range(stft_signal.shape[0])])
-    shape = list(shape)
-    shape[time_dim] = 1
-    shape[freq_dim] = time_signal.shape[1]
-    time_signal = reconstruct_mat_loopy(
-        np.expand_dims(time_signal, axis=-2), time_dim, freq_dim, shape)
-    return np.squeeze(time_signal, axis=time_dim)
-
-
-def istft_v2(
-        stft_signal, size=1024, shift=256,
-        window=signal.blackman, fading=True, window_length=None,
-        sym_window: bool=False,
-        use_amplitude_for_biorthogonal_window=False,
-        disable_sythesis_window=False):
     """
     Calculated the inverse short time Fourier transform to exactly reconstruct
     the time signal.
@@ -386,6 +315,8 @@ def istft_v2(
     :return: Single channel complex STFT signal
     :return: Single channel time signal.
     """
+    # Note: frame_axis and frequency_axis would make this function much more
+    #       complicated
     stft_signal = np.array(stft_signal)
 
     assert stft_signal.shape[-1] == size // 2 + 1, str(stft_signal.shape)
@@ -394,16 +325,17 @@ def istft_v2(
     if window_length is None:
         window_length = size
 
-    if sym_window:
+    if symmetric_window:
         window = window(window_length)
     else:
         window = window(window_length + 1)[:-1]
 
-    window = _biorthogonal_window_fastest(
-        window, shift, use_amplitude_for_biorthogonal_window)
+    window = _biorthogonal_window_fastest(window, shift)
 
-    if disable_sythesis_window:
-        window = np.ones_like(window)
+    # window = _biorthogonal_window_fastest(
+    #     window, shift, use_amplitude_for_biorthogonal_window)
+    # if disable_sythesis_window:
+    #     window = np.ones_like(window)
 
     time_signal = np.zeros(
         (*stft_signal.shape[:-2],
@@ -416,62 +348,11 @@ def istft_v2(
     # Unbuffered inplace add
     np.add.at(time_signal_seg, ...,
               window * np.real(irfft(stft_signal, window_length)))
-    # np.add.at(time_signal_seg, ...,
-    #           window * np.real(irfft(stft_signal)[..., :window_length]))
 
     # Compensate fade-in and fade-out
     if fading:
         time_signal = time_signal[
             ..., size - shift:time_signal.shape[-1] - (size - shift)]
-
-    return time_signal
-
-
-def istft(stft_signal, size=1024, shift=256,
-          window=signal.blackman, fading=True, window_length=None,
-          use_amplitude_for_biorthogonal_window=False,
-          disable_sythesis_window=False):
-    """
-    Calculated the inverse short time Fourier transform to exactly reconstruct
-    the time signal.
-
-    ..note::
-        Be careful if you make modifications in the frequency domain (e.g.
-        beamforming) because the synthesis window is calculated according to the
-        unmodified! analysis window.
-
-    :param stft_signal: Single channel complex STFT signal
-        with dimensions frames times size/2+1.
-    :param size: Scalar FFT-size.
-    :param shift: Scalar FFT-shift. Typically shift is a fraction of size.
-    :param window: Window function handle.
-    :param fading: Removes the additional padding, if done during STFT.
-    :param window_length: Sometimes one desires to use a shorter window than
-        the fft size. In that case, the window is padded with zeros.
-        The default is to use the fft-size as a window size.
-    :return: Single channel complex STFT signal
-    :return: Single channel time signal.
-    """
-    assert stft_signal.shape[1] == size // 2 + 1, str(stft_signal.shape)
-
-    if window_length is None:
-        window = window(size)
-    else:
-        window = window(window_length)
-        window = np.pad(window, (0, size-window_length), mode='constant')
-    window = _biorthogonal_window_fastest(window, shift,
-                                          use_amplitude_for_biorthogonal_window)
-    if disable_sythesis_window:
-        window = np.ones_like(window)
-
-    time_signal = scipy.zeros(stft_signal.shape[0] * shift + size - shift)
-
-    for j, i in enumerate(range(0, len(time_signal) - size + shift, shift)):
-        time_signal[i:i + size] += window * np.real(irfft(stft_signal[j]))
-
-    # Compensate fade-in and fade-out
-    if fading:
-        time_signal = time_signal[size-shift:len(time_signal)-(size-shift)]
 
     return time_signal
 
@@ -484,7 +365,10 @@ def stft_to_spectrogram(stft_signal):
     :param stft_signal: Complex STFT signal with dimensions
         #time_frames times #frequency_bins.
     :return: Real spectrogram with same dimensions as input.
+
+    Note: Special version of nt.math.misc.abs_square
     """
+
     spectrogram = stft_signal.real**2 + stft_signal.imag**2
     return spectrogram
 
