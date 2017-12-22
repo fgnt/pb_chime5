@@ -100,10 +100,10 @@ def stft(
 def stft_with_kaldi_dimensions(
         time_signal,
         size: int = 512,
-        shift: int = 400,
+        shift: int = 160,
         *,
         window=signal.blackman,
-        window_length=160,
+        window_length=400,
         symmetric_window: bool = False
 ):
     """
@@ -128,8 +128,8 @@ def stft_with_kaldi_dimensions(
     #             expected_frames, frames))
     return stft(
         time_signal,
-        size,
-        shift,
+        size=size,
+        shift=shift,
         window=window,
         window_length=window_length,
         fading=False,
@@ -289,7 +289,7 @@ def istft(
         *,
         window: typing.Callable=signal.blackman,
         fading: bool=True,
-        window_length: bool=None,
+        window_length: int=None,
         symmetric_window: bool=False,
         # use_amplitude_for_biorthogonal_window=False,
         # disable_sythesis_window=False
@@ -320,7 +320,6 @@ def istft(
     stft_signal = np.array(stft_signal)
 
     assert stft_signal.shape[-1] == size // 2 + 1, str(stft_signal.shape)
-    assert window_length is None, 'window_length is currently not supported'
 
     if window_length is None:
         window_length = size
@@ -347,12 +346,13 @@ def istft(
 
     # Unbuffered inplace add
     np.add.at(time_signal_seg, ...,
-              window * np.real(irfft(stft_signal, window_length)))
+              window * np.real(irfft(stft_signal))[..., :window_length])
+    # The [..., :window_length] is the inverse of the window padding in rfft.
 
     # Compensate fade-in and fade-out
     if fading:
         time_signal = time_signal[
-            ..., size - shift:time_signal.shape[-1] - (size - shift)]
+            ..., window_length - shift:time_signal.shape[-1] - (window_length - shift)]
 
     return time_signal
 
