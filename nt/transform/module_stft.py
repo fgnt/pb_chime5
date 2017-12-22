@@ -25,7 +25,7 @@ def stft(
         pad: bool=True,
         symmetric_window: bool=False,
 ) -> np.array:
-    """ !!! WIP !!!
+    """
     ToDo: Open points:
      - sym_window need literature
      - fading why it is better?
@@ -49,10 +49,10 @@ def stft(
         the fft size. In that case, the window is padded with zeros.
         The default is to use the fft-size as a window size.
     :param pad: If true zero pad the signal to match the shape, else cut
-    :param symmetric_window: symmetric or periotic window. Assume window is periodic.
-        Since the implementation of the windows in scipy.signal have a curious
-        behaviour for odd window_length. Use window(len+1)[:-1]. Since is equal
-        to the behaviour of MATLAB.
+    :param symmetric_window: symmetric or periodic window. Assume window is
+        periodic. Since the implementation of the windows in scipy.signal have a
+        curious behaviour for odd window_length. Use window(len+1)[:-1]. Since
+        is equal to the behaviour of MATLAB.
     :return: Single channel complex STFT signal with dimensions
         AA x ... x AZ x T' times size/2+1 times BA x ... x BZ.
     """
@@ -75,17 +75,24 @@ def stft(
         # https://github.com/scipy/scipy/issues/4551
         window = window(window_length + 1)[:-1]
 
-    time_signal_seg = segment_axis_v2(time_signal, window_length,
-                                      shift=shift, axis=axis,
-                                      end='pad' if pad else 'cut')
+    time_signal_seg = segment_axis_v2(
+        time_signal,
+        window_length,
+        shift=shift,
+        axis=axis,
+        end='pad' if pad else 'cut'
+    )
 
     letters = string.ascii_lowercase[:time_signal_seg.ndim]
     mapping = letters + ',' + letters[axis + 1] + '->' + letters
 
     try:
         # ToDo: Implement this more memory efficient
-        return rfft(np.einsum(mapping, time_signal_seg, window),
-                    n=size, axis=axis + 1)
+        return rfft(
+            np.einsum(mapping, time_signal_seg, window),
+            n=size,
+            axis=axis + 1
+        )
     except ValueError as e:
         raise ValueError(
             f'Could not calculate the stft, something does not match.\n'
@@ -102,6 +109,7 @@ def stft_with_kaldi_dimensions(
         size: int = 512,
         shift: int = 160,
         *,
+        axis=-1,
         window=signal.blackman,
         window_length=400,
         symmetric_window: bool = False
@@ -130,6 +138,7 @@ def stft_with_kaldi_dimensions(
         time_signal,
         size=size,
         shift=shift,
+        axis=axis,
         window=window,
         window_length=window_length,
         fading=False,
@@ -291,8 +300,6 @@ def istft(
         fading: bool=True,
         window_length: int=None,
         symmetric_window: bool=False,
-        # use_amplitude_for_biorthogonal_window=False,
-        # disable_sythesis_window=False
 ):
     """
     Calculated the inverse short time Fourier transform to exactly reconstruct
@@ -312,6 +319,10 @@ def istft(
     :param window_length: Sometimes one desires to use a shorter window than
         the fft size. In that case, the window is padded with zeros.
         The default is to use the fft-size as a window size.
+    :param symmetric_window: symmetric or periodic window. Assume window is
+        periodic. Since the implementation of the windows in scipy.signal have a
+        curious behaviour for odd window_length. Use window(len+1)[:-1]. Since
+        is equal to the behaviour of MATLAB.
     :return: Single channel complex STFT signal
     :return: Single channel time signal.
     """
@@ -342,11 +353,15 @@ def istft(
 
     # Get the correct view to time_signal
     time_signal_seg = segment_axis_v2(
-        time_signal, window_length, shift, end=None)
+        time_signal, window_length, shift, end=None
+    )
 
     # Unbuffered inplace add
-    np.add.at(time_signal_seg, ...,
-              window * np.real(irfft(stft_signal))[..., :window_length])
+    np.add.at(
+        time_signal_seg,
+        ...,
+        window * np.real(irfft(stft_signal))[..., :window_length]
+    )
     # The [..., :window_length] is the inverse of the window padding in rfft.
 
     # Compensate fade-in and fade-out
