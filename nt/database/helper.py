@@ -1,10 +1,22 @@
+from collections import defaultdict
+
+from nt.database.keys import *
+from nt.io.json_module import dump_json
+
 def dump_database_as_json(filename, obj):
     with open(filename, 'w') as fid:
-        json.dump(obj, fid, sort_keys=True, indent=4, ensure_ascii=False)
+        dump_json(obj, fid, indent=4, ensure_ascii=False)
 
 
-import json
-from nt.database.keys import *
+def default_dict():
+    """
+    Defaultdict for json structure.
+    """
+    database = defaultdict(lambda:
+                            defaultdict(lambda:
+                                        defaultdict(lambda:
+                                                  defaultdict(dict))))
+    return database
 
 def print_template():
     """ Prints the template used for the json file
