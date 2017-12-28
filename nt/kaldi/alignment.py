@@ -126,9 +126,6 @@ def import_alignment_data(
             model_file = ali_dir / model_name
             imported = import_fn(
                 ali_file, model_file, is_zipped=zipped, **import_kwargs)
-            print('Imported {} alignments from {}'.format(
-                len(imported), ali_file)
-            )
             data_dict.update(imported)
     return data_dict
 
