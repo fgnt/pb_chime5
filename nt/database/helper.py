@@ -1,12 +1,22 @@
 from collections import defaultdict
 import click
+import pathlib
 
 from nt.database.keys import *
 from nt.io.json_module import dump_json
 
-def dump_database_as_json(filename, obj):
-    with open(filename, 'w') as fid:
-        dump_json(obj, fid, indent=4, ensure_ascii=False)
+
+def dump_database_as_json(filename, database_dict):
+    """
+    Dumps a `database_dict` as json to `filename`. Ensures that filename has the
+    extension '.json' and creates parent directories if necessary.
+    """
+    filename = pathlib.Path(filename)
+    assert filename.suffix == '.json', f'Json file must end with ".json" and ' \
+                                       f'not "{filename.suffix}"'
+    filename.parent.mkdir(parents=True, exists_ok=True)
+    with filename.open() as fid:
+        dump_json(database_dict, fid, indent=4, ensure_ascii=False)
 
 
 def default_dict():
@@ -255,6 +265,7 @@ def add_flist(flist, progress_json, scenario, stage='train',
         channel_type_dict = _get_next_dict(utt_id_dict, channel_type)
         channel_type_dict[channel] = flist[utt_id]
 
+
 def add_listing(flist, progress_json, scenario):
 
 
@@ -268,6 +279,7 @@ def add_listing(flist, progress_json, scenario):
     cur_dict = progress_json
     dataset_dict = _get_next_dict(cur_dict, DATASETS)
     dataset_dict[scenario] = list(flist.keys())
+
 
 def add_examples(flist, orth, progress_json, scenario,
                channel_type='observed', channel=None):
@@ -381,6 +393,7 @@ def combine_decorators(*decorators):
             c = decorator(c)
         return c
     return f
+
 
 def click_common_options(default_json_path='db.json',
                          default_database_path='.'):
