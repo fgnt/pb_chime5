@@ -1,4 +1,5 @@
 from collections import defaultdict
+import click
 
 from nt.database.keys import *
 from nt.io.json_module import dump_json
@@ -373,3 +374,24 @@ def combine_flists(data, flist_1_path, flist_2_path, flist_path,
 def dict_to_sorted_list(d):
     return [v for _, v in sorted(d.items())]
 
+
+def combine_decorators(*decorators):
+    def f(c):
+        for decorator in decorators:
+            c = decorator(c)
+        return c
+    return f
+
+def click_common_options(default_json_path='db.json',
+                         default_database_path='.'):
+    return combine_decorators(
+        click.option('--json-path', '-j', default=default_json_path,
+                     help=f'Output path for the generated JSON file. If the '
+                          f'file exists, it gets overwritten. Defaults to '
+                          f'"{default_json_path}".',
+                     type=click.Path(dir_okay=False, writable=True)),
+        click.option('--database-path', '-db', default=default_database_path,
+                     help=f'Path where the database is located. Defaults to '
+                          f'"{default_database_path}".',
+                     type=click.Path())
+    )
