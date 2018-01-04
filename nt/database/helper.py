@@ -14,8 +14,8 @@ def dump_database_as_json(filename, database_dict):
     filename = pathlib.Path(filename)
     assert filename.suffix == '.json', f'Json file must end with ".json" and ' \
                                        f'not "{filename.suffix}"'
-    filename.parent.mkdir(parents=True, exists_ok=True)
-    with filename.open() as fid:
+    filename.parent.mkdir(parents=True, exist_ok=True)
+    with filename.open('w') as fid:
         dump_json(database_dict, fid, indent=4, ensure_ascii=False)
 
 
