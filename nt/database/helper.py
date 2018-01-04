@@ -414,9 +414,21 @@ def click_common_options(
                      help=f'Output path for the generated JSON file. If the '
                           f'file exists, it gets overwritten. Defaults to '
                           f'"{default_json_path}".',
-                     type=click.Path(dir_okay=False, writable=True)),
+                     type=click.Path(dir_okay=False, writable=True),
+                     callback=click_convert_to_path),
         click.option('--database-path', '-db', default=default_database_path,
                      help=f'Path where the database is located. Defaults to '
                           f'"{default_database_path}".',
-                     type=click.Path())
+                     type=click.Path(),
+                     callback=click_convert_to_path)
     )
+
+def click_convert_to_path(ctx, param, value):
+    """
+    Callback function for click.option to ensure all pathes are PosixPathes.
+    """
+    assert value is not None
+    if isinstance(value, str):
+        value = pathlib.Path(value)
+
+    return value
