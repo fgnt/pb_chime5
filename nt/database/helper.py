@@ -1,6 +1,7 @@
-from collections import defaultdict
-import click
 import pathlib
+from collections import defaultdict
+
+import click
 
 from nt.database.keys import *
 from nt.io.json_module import dump_json
@@ -23,11 +24,15 @@ def default_dict():
     """
     Defaultdict for json structure.
     """
-    database = defaultdict(lambda:
-                            defaultdict(lambda:
-                                        defaultdict(lambda:
-                                                  defaultdict(dict))))
+    database = defaultdict(
+        lambda: defaultdict(
+            lambda: defaultdict(
+                lambda: defaultdict(dict)
+            )
+        )
+    )
     return database
+
 
 def print_template():
     """ Prints the template used for the json file
@@ -227,8 +232,10 @@ def get_channel_for_utt(flist, ch, utt):
     return val
 
 
-def add_flist(flist, progress_json, scenario, stage='train',
-              file_type='wav', channel_type='observed', channel='CH1'):
+def add_flist(
+        flist, progress_json, scenario, stage='train',
+        file_type='wav', channel_type='observed', channel='CH1'
+):
     """ Adds a file list to the current progress_json object
 
     Example::
@@ -267,8 +274,6 @@ def add_flist(flist, progress_json, scenario, stage='train',
 
 
 def add_listing(flist, progress_json, scenario):
-
-
     def _get_next_dict(cur_dict, key):
         try:
             return cur_dict[key]
@@ -281,8 +286,10 @@ def add_listing(flist, progress_json, scenario):
     dataset_dict[scenario] = list(flist.keys())
 
 
-def add_examples(flist, orth, progress_json, scenario,
-               channel_type='observed', channel=None):
+def add_examples(
+        flist, orth, progress_json, scenario,
+        channel_type='observed', channel=None
+):
     """ Adds a file list to the current progress_json object
 
     datasets:
@@ -320,7 +327,7 @@ def add_examples(flist, orth, progress_json, scenario,
 
     for utt_id in flist:
         utt_id_dict = _get_next_dict(scenario_dict, utt_id)
-        utt_id_dict.update({TRANSCRIPTION : orth[utt_id.split('_')[0]]})
+        utt_id_dict.update({TRANSCRIPTION: orth[utt_id.split('_')[0]]})
         audio_path_dict = _get_next_dict(utt_id_dict, AUDIO_PATH)
         channel_type_dict = _get_next_dict(audio_path_dict, channel_type)
         if channel is None:
@@ -331,9 +338,11 @@ def add_examples(flist, orth, progress_json, scenario,
             channel_type_dict[channel] = flist[utt_id]
 
 
-def combine_flists(data, flist_1_path, flist_2_path, flist_path,
-                   postfix_1='', postfix_2='', delimiter='/',
-                   only_common_channels=False):
+def combine_flists(
+        data, flist_1_path, flist_2_path, flist_path,
+        postfix_1='', postfix_2='', delimiter='/',
+        only_common_channels=False
+):
     """ Combines two file lists into a new file list ``flist_name``
 
     The new file list will only have those channels, which are present in both
@@ -392,11 +401,14 @@ def combine_decorators(*decorators):
         for decorator in decorators:
             c = decorator(c)
         return c
+
     return f
 
 
-def click_common_options(default_json_path='db.json',
-                         default_database_path='.'):
+def click_common_options(
+        default_json_path='db.json',
+        default_database_path='.'
+):
     return combine_decorators(
         click.option('--json-path', '-j', default=default_json_path,
                      help=f'Output path for the generated JSON file. If the '
