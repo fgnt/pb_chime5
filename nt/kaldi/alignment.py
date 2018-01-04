@@ -1,7 +1,8 @@
 from pathlib import Path
 import subprocess
 import numpy as np
-from nt.kaldi.helper import get_kaldi_env
+from tempfile import NamedTemporaryFile
+from nt.kaldi.helper import get_kaldi_env, excute_kaldi_commands
 
 
 def _import_alignment(ark, model_file, extract_cmd, extract_cmd_finish,
@@ -134,6 +135,16 @@ def import_occs(occs_file):
     """ Reads data from an oocs file
 
     """
-    with open(occs_file) as fid:
-        occs = fid.readline().strip().replace('[', '').replace(']', '').split()
+    try:
+        with open(occs_file) as fid:
+            occs = fid.readline().strip()
+    except UnicodeDecodeError:
+        with NamedTemporaryFile() as tmpfile:
+            excute_kaldi_commands(
+                [f'copy-vector --binary=false {occs_file} {tmpfile.name}'],
+                'convert occs'
+            )
+            with open(tmpfile.name) as fid:
+                occs = fid.readline().strip()
+    occs = occs.replace('[', '').replace(']', '').split()
     return np.array(occs, dtype=np.int32)
