@@ -164,6 +164,9 @@ class JsonDatabase(DictDatabase):
             lengths.append(length_transform_fn(num_samples))
         return lengths
 
+    def add_num_samples(self, example):
+        return example
+
 
 class KaldiDatabase(DictDatabase):
 
@@ -207,6 +210,18 @@ class KaldiDatabase(DictDatabase):
             example[keys.KALDI_TRANSCRIPTION] = ' '.join(text[example_id])
             examples[example_id] = dict(**example)
         return examples
+
+    def add_num_samples(self, example):
+        assert (
+            keys.AUDIO_DATA in example
+            and keys.OBSERVATION in example[keys.AUDIO_DATA]
+        ), (
+            'No audio data found in example. Make sure to mak `AudioReader`'
+            'before adding `num_samples`.'
+        )
+        example[keys.NUM_SAMPLES] \
+            = example[keys.AUDIO_DATA][keys.OBSERVATION].shape[-1]
+        return example
 
     @classmethod
     def get_dataset_dict_from_kaldi(cls, egs_path):
