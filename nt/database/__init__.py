@@ -60,15 +60,12 @@ are made unique by prefixing them with the dataset name of the original
 database, i.e. dt_simu_c0123.
 """
 import glob
-import numbers
 import logging
-from collections import ChainMap, defaultdict
-from copy import deepcopy
+from collections import defaultdict
 from pathlib import Path
 from nt.database.iterator import ExamplesIterator
 import numpy as np
 from cached_property import cached_property
-from natsort import natsorted
 
 from nt import kaldi
 from nt.database import keys
@@ -100,8 +97,7 @@ class DictDatabase:
     def dataset_names(self):
         return list(self.database_dict[keys.DATASETS].keys())
 
-    def get_iterator_by_names(self, dataset_names,
-                              prepend_dataset_name=False):
+    def get_iterator_by_names(self, dataset_names, prepend_dataset_name=False):
         """
         Returns a single Iterator over specified datasets.
         :param dataset_names: list or str specifying the datasets of interest.
@@ -120,6 +116,7 @@ class DictDatabase:
             expected_length += len(new_examples)
             examples.update(new_examples)
             assert expected_length == len(examples)
+
             # Why not ConcatIterator?
         if len(dataset_names) == 1:
             return ExamplesIterator(examples, name=dataset_names[0])
