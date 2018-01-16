@@ -142,9 +142,9 @@ def run_processes(cmds, sleep_time=None, ignore_return_code=False,
                                   universal_newlines=True,
                                   cwd=cwd,
                                   env=environment) for cmd in cmds]
-    except FileExistsError:
-        print(cmds)
-        print(cwd)
+    except Exception:
+        print('cmds:', cmds)
+        print('cwd:', cwd)
         raise
     return_codes = len(cmds) * [None]
     stdout = len(cmds) * [None]
