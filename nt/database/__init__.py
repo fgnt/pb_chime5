@@ -87,11 +87,7 @@ class DictDatabase:
 
         :param json_path: path to database JSON
         """
-        self._database_dict = database_dict
-
-    @property
-    def database_dict(self):
-        return self._database_dict
+        self.database_dict = database_dict
 
     @property
     def dataset_names(self):
@@ -146,10 +142,13 @@ class JsonDatabase(DictDatabase):
         :param json_path: path to database JSON
         """
         self._json_path = json_path
-        super().__init__(load_json(self._json_path))
+
+    @cached_property
+    def database_dict(self):
+        return load_json(self._json_path)
 
     def __repr__(self):
-        return f'{type(self).__name__}: {self._json_path}'
+        return f'{type(self).__name__}({self._json_path!r})'
 
     def get_lengths(self, datasets, length_transform_fn=lambda x: x):
         it = self.get_iterator_by_names(datasets)
