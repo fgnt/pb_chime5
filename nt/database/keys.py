@@ -31,6 +31,10 @@ KALDI_TRANSCRIPTION = 'kaldi_transcription'
 # Tags refers to a list of labels [<label 1>, <label 2>, ...] providing
 # the labels that appear in an example in a any order
 TAGS = "tags"
+# Transcription refers to a list of states [<s1>, <s2>, ...] providing
+# the state alignment sequence usually inferred by Kaldi
+ALIGNMENT = 'alignment'
+NUM_ALIGNMENT_FRAMES = 'num_alignment_frames'
 
 # Signals
 OBSERVATION = 'observation'
