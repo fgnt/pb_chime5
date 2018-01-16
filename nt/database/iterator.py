@@ -158,9 +158,16 @@ class BaseIterator:
         return f'{self.__class__.__name__}()'
 
     def __repr__(self):
+        import textwrap
         r = ''
-        if hasattr(self, 'input_dataset'):
-            r += repr(self.input_dataset) + '\n '
+        indent = '  '
+        if hasattr(self, 'input_iterator'):
+            s = repr(self.input_iterator)
+            r += textwrap.indent(s, indent) + '\n'
+        if hasattr(self, 'input_iterators'):
+            for input_iterator in self.input_iterators:
+                s = repr(input_iterator)
+                r += textwrap.indent(s, indent) + '\n'
         return r + str(self)
 
 
