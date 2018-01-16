@@ -582,9 +582,10 @@ class AlignmentReader:
                 f'from path {self._ali_path}'
             )
         try:
-            example['alignment'] = self._alignments[
+            example[keys.ALIGNMENT] = self._alignments[
                 self._map_fn(example)
             ]
+            example[keys.NUM_ALIGNMENT_FRAMES] = len(example['alignment'])
         except KeyError:
             LOG.warn(
                 f'No alignment found for example id {example[keys.EXAMPLE_ID]} '
