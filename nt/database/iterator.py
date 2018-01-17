@@ -484,7 +484,8 @@ def recursive_transform(func, dict_list_val, list2array=False):
                 for key, val in dict_list_val.items()}
     if isinstance(dict_list_val, (list, tuple)):
         # Recursively call itself
-        l = [recursive_transform(func, val, list2array) for val in dict_list_val]
+        l = [recursive_transform(func, val, list2array)
+             for val in dict_list_val]
         if list2array:
             return np.array(l)
         return l
@@ -572,7 +573,7 @@ class AlignmentReader:
         self._ali_path = alignment_path
         self._alignments = alignments
         self._map_fn = example_id_map_fn
- 
+
     def __call__(self, example):
         if self._alignments is None:
             self._alignments = \
@@ -585,7 +586,7 @@ class AlignmentReader:
             example[keys.ALIGNMENT] = self._alignments[
                 self._map_fn(example)
             ]
-            example[keys.NUM_ALIGNMENT_FRAMES] = len(example['alignment'])
+            example[keys.NUM_ALIGNMENT_FRAMES] = len(example[keys.ALIGNMENT])
         except KeyError:
             LOG.warn(
                 f'No alignment found for example id {example[keys.EXAMPLE_ID]} '
@@ -595,7 +596,30 @@ class AlignmentReader:
 
 
 def remove_examples_without_alignment(example):
-    return 'alignment' in example and len(example['alignment'])
+    valid_ali = keys.ALIGNMENT in example and len(example[keys.ALIGNMENT])
+    if not valid_ali:
+        LOG.warn(f'No alignment found for example\n{example}')
+        return False
+    if keys.NUM_SAMPLES in example:
+        num_samples = example[keys.NUM_SAMPLES]
+        if isinstance(num_samples, dict):
+            num_samples = num_samples[keys.OBSERVATION]
+    else:
+        return True  # Only happens for Kaldi databases
+    num_frames = (num_samples - 400 + 160) // 160
+    num_frames_lfr = (num_frames + np.mod(-num_frames, 3)) // 3
+    len_ali = len(example[keys.ALIGNMENT])
+    valid_ali = (
+        len_ali == num_frames or
+        len_ali == num_frames_lfr
+    )
+    if not valid_ali:
+        LOG.warn(
+            f'Alignment has {len_ali} frames but the observation has '
+            f'{num_frames} [{num_frames_lfr}] frames. Example was:\n{example}'
+        )
+        return False
+    return True
 
 
 class Word2Id:
