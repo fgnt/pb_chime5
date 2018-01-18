@@ -148,3 +148,12 @@ def import_occs(occs_file):
                 occs = fid.readline().strip()
     occs = occs.replace('[', '').replace(']', '').split()
     return np.array(occs, dtype=np.int32)
+
+def write_occs(occs, occs_file):
+    """ Writes data to an oocs file
+
+    """
+    with open(occs_file, 'w') as fid:
+        fid.write('[')
+        fid.write(' '.join(map(str, occs)))
+        fid.write(']')
