@@ -59,20 +59,16 @@ If the example IDs are not unique in the original database, the example IDs
 are made unique by prefixing them with the dataset name of the original
 database, i.e. dt_simu_c0123.
 """
-import glob
-import numbers
 import logging
-from collections import ChainMap, defaultdict
+import numbers
+from collections import ChainMap
 from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
-from cached_property import cached_property
-from natsort import natsorted
 
 from nt import kaldi
 from nt.database import keys
-from nt.io import load_json
 from nt.io.audioread import audioread
 
 LOG = logging.getLogger('Database')
@@ -563,9 +559,8 @@ def to_list(x):
 
 
 class AlignmentReader:
-
     def __init__(
-            self, alignment_path: Path=None, alignments: dict=None,
+            self, alignment_path: Path = None, alignments: dict = None,
             example_id_map_fn=lambda x: x[keys.EXAMPLE_ID]):
         assert alignment_path is not None or alignments is not None, (
             'Either alignments or the path to the alignments must be specified'
@@ -588,7 +583,7 @@ class AlignmentReader:
             ]
             example[keys.NUM_ALIGNMENT_FRAMES] = len(example[keys.ALIGNMENT])
         except KeyError:
-            LOG.warn(
+            LOG.warning(
                 f'No alignment found for example id {example[keys.EXAMPLE_ID]} '
                 f'(mapped: {self._map_fn(example)}).'
             )
@@ -598,7 +593,7 @@ class AlignmentReader:
 def remove_examples_without_alignment(example):
     valid_ali = keys.ALIGNMENT in example and len(example[keys.ALIGNMENT])
     if not valid_ali:
-        LOG.warn(f'No alignment found for example\n{example}')
+        LOG.warning(f'No alignment found for example\n{example}')
         return False
     if keys.NUM_SAMPLES in example:
         num_samples = example[keys.NUM_SAMPLES]
@@ -614,7 +609,7 @@ def remove_examples_without_alignment(example):
         len_ali == num_frames_lfr
     )
     if not valid_ali:
-        LOG.warn(
+        LOG.warning(
             f'Alignment has {len_ali} frames but the observation has '
             f'{num_frames} [{num_frames_lfr}] frames. Example was:\n{example}'
         )
@@ -623,13 +618,13 @@ def remove_examples_without_alignment(example):
 
 
 class Word2Id:
-
     def __init__(self, word2id_fn):
         self._word2id_fn = word2id_fn
 
     def __call__(self, example):
         def _w2id(s):
             return np.array([self._word2id_fn(w) for w in s.split()], np.int32)
+
         for trans in [keys.TRANSCRIPTION, keys.KALDI_TRANSCRIPTION]:
             try:
                 example[trans + '_ids'] = recursive_transform(
