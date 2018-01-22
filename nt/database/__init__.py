@@ -435,6 +435,26 @@ class HybridASRDatabaseTemplate:
     def asr_observation_key(self):
         return keys.OBSERVATION
 
+    def build_select_channels_map_fn(self, channels):
+        def select_channels(example):
+            assert channels == [0], (
+                f'Requested to select channels {channels}, but the '
+                f'database is only single-channel. Please only request '
+                f'channel 0 in this case (channels = [0]).'
+            )
+            return example
+        return select_channels
+
+    def build_sample_channels_map_fn(self, channels):
+        def sample_channels(example):
+            assert channels == [0], (
+                f'Requested to sample from channels {channels}, but the '
+                f'database is only single-channel. Please only request '
+                f'channel 0 in this case (channels = [0]).'
+            )
+            return example
+        return sample_channels
+
 
 class HybridASRJSONDatabaseTemplate(HybridASRDatabaseTemplate, JsonDatabase):
     def __init__(self, json_path: Path, lfr=False):
