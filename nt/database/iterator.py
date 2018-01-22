@@ -201,7 +201,9 @@ class ExamplesIterator(BaseIterator):
             if item in self.keys():
                 key = item
             else:
-                raise IndexError(item)
+                import difflib
+                similar = difflib.get_close_matches(item, self.keys())
+                raise IndexError(item, f'close_matches: {similar}')
         elif isinstance(item, numbers.Integral):
             key = self.keys()[item]
         else:
