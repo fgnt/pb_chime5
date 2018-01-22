@@ -22,6 +22,8 @@ class Encoder(json.JSONEncoder):
             return str(obj)
         elif isinstance(obj, datetime.datetime):
             return obj.strftime('%Y-%m-%d_%H-%M-%S')
+        elif isinstance(obj, Path):
+            return str(obj)
         else:
             return super().default(obj)
 
@@ -66,7 +68,7 @@ def dump_json(obj, path, *, indent=2, **kwargs):
     """
     if isinstance(path, io.IOBase):
         json.dump(obj, path, cls=Encoder, indent=indent,
-                  sort_keys=True, **kwargs)
+                  sort_keys=sort_keys, **kwargs)
     elif isinstance(path, (str, Path)):
         path = Path(path).expanduser()
 
