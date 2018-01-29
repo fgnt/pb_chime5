@@ -93,6 +93,21 @@ class DictDatabase:
     def dataset_names(self):
         return list(self.database_dict[keys.DATASETS].keys())
 
+    @property
+    def datasets_train(self):
+        """A list of filelist names for training."""
+        raise NotImplementedError
+
+    @property
+    def datasets_eval(self):
+        """A list of filelist names for development."""
+        raise NotImplementedError
+
+    @property
+    def datasets_test(self):
+        """A list of filelist names for evaluation."""
+        raise NotImplementedError
+
     def get_iterator_by_names(self, dataset_names, prepend_dataset_name=False):
         """
         Returns a single Iterator over specified datasets.
@@ -133,6 +148,10 @@ class DictDatabase:
         except NotImplementedError:
             assert num_buckets == 1, num_buckets
             return []
+
+    @property
+    def audio_read_fn(self):
+        return lambda x: audioread(x)[0]
 
 
 class JsonDatabase(DictDatabase):
@@ -237,21 +256,6 @@ class HybridASRDatabaseTemplate:
         self.lfr = lfr
 
     @property
-    def datasets_train(self):
-        """A list of filelist names for training."""
-        raise NotImplementedError
-
-    @property
-    def datasets_eval(self):
-        """A list of filelist names for development."""
-        raise NotImplementedError
-
-    @property
-    def datasets_test(self):
-        """A list of filelist names for evaluation."""
-        raise NotImplementedError
-
-    @property
     def ali_path_train(self):
         """Path containing the kaldi alignments for train data."""
         if self.lfr:
@@ -308,10 +312,6 @@ class HybridASRDatabaseTemplate:
     @property
     def example_id_map_fn(self):
         return lambda x: x[keys.EXAMPLE_ID]
-
-    @property
-    def audio_read_fn(self):
-        return lambda x: audioread(x)[0]
 
     @property
     def decode_fst(self):
