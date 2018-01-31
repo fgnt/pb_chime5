@@ -396,6 +396,8 @@ class ConcatenateIterator(BaseIterator):
     Iterates over all elements of all input_iterators.
     Best use is to concatenate cross validation or evaluation datasets.
     It does not work well with buffer based shuffle (i.e. in Tensorflow).
+
+    Here, __getitem__ is not possible per definition of IDs collide.
     """
 
     def __init__(self, *input_iterators):
@@ -421,6 +423,7 @@ class ConcatenateIterator(BaseIterator):
     _keys = None
 
     def keys(self):
+        # TODO: Can also be written as cached property
         if self._keys is None:
             self._keys = []
             for iterator in self.input_iterators:
