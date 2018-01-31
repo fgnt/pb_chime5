@@ -71,6 +71,7 @@ from nt import kaldi
 from nt.database import keys
 from nt.io import load_json
 from nt.io.audioread import audioread
+from nt.database.iterator import ConcatenateIterator
 
 LOG = logging.getLogger('Database')
 
@@ -93,56 +94,28 @@ class DictDatabase:
     def dataset_names(self):
         return list(self.database_dict[keys.DATASETS].keys())
 
-    @property
-    def datasets_train(self):
-        """A list of filelist names for training."""
-        raise NotImplementedError
-
-    @property
-    def datasets_eval(self):
-        """A list of filelist names for development."""
-        raise NotImplementedError
-
-    @property
-    def datasets_test(self):
-        """A list of filelist names for evaluation."""
-        raise NotImplementedError
-
-    def get_iterator_by_names(
-            self,
-            dataset_names,
-            prepend_dataset_name=False,
-            include_dataset_name=False
-    ):
+    def get_iterator_by_names(self, dataset_names):
         """
         Returns a single Iterator over specified datasets.
+
+        Adds the example_id and dataset_name to each example dict.
+
         :param dataset_names: list or str specifying the datasets of interest.
             If None an iterator over the complete databases will be returned.
         :return:
         """
-        examples = dict()
-        expected_length = 0
         dataset_names = to_list(dataset_names)
+        iterators = list()
         for dataset_name in dataset_names:
-            prefix = dataset_name + '_' if prepend_dataset_name else ''
-            new_examples = {
-                prefix + k: ex for k, ex in
-                self.database_dict[keys.DATASETS][dataset_name].items()
-            }
+            examples = self.database_dict[keys.DATASETS][dataset_name]
 
-            if include_dataset_name:
-                for examle_id in new_examples.keys():
-                    new_examples[examle_id][keys.DATASET_NAME] = dataset_name
+            for example_id in examples.keys():
+                examples[example_id][keys.EXAMPLE_ID] = example_id
+                examples[example_id][keys.DATASET_NAME] = dataset_name
 
-            expected_length += len(new_examples)
-            examples.update(new_examples)
-            assert expected_length == len(examples)
+            iterators.append(ExamplesIterator(examples, name=dataset_name))
 
-            # Why not ConcatIterator?
-        if len(dataset_names) == 1:
-            return ExamplesIterator(examples, name=dataset_names[0])
-        else:
-            return ExamplesIterator(examples)
+        return ConcatenateIterator(*iterators)
 
     def get_lengths(self, datasets, length_transform_fn=lambda x: x):
         raise NotImplementedError
