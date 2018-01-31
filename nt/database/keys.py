@@ -6,6 +6,7 @@ These are database related keys. Use them in your database JSON.
 Please avoid abbreviations and discuss first, before adding new keys.
 """
 DATASETS = "datasets"
+DATASET_NAME = "dataset"
 EXAMPLES = "examples"
 META = "meta"
 
@@ -47,7 +48,7 @@ NOISE_IMAGE = 'noise_image'
 LOG_WEIGHTS = 'log_weights'
 
 # SPEECH_REVERBARATON
-SPEECH_REVERBERATION_DIRECT ='speech_reverberation_direct'
+SPEECH_REVERBERATION_DIRECT = 'speech_reverberation_direct'
 SPEECH_REVERBERATION_TAIL = 'speech_reverberation_tail'
 
 
