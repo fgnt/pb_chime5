@@ -108,7 +108,12 @@ class DictDatabase:
         """A list of filelist names for evaluation."""
         raise NotImplementedError
 
-    def get_iterator_by_names(self, dataset_names, prepend_dataset_name=False):
+    def get_iterator_by_names(
+            self,
+            dataset_names,
+            prepend_dataset_name=False,
+            include_dataset_name=False
+    ):
         """
         Returns a single Iterator over specified datasets.
         :param dataset_names: list or str specifying the datasets of interest.
@@ -124,6 +129,11 @@ class DictDatabase:
                 prefix + k: ex for k, ex in
                 self.database_dict[keys.DATASETS][dataset_name].items()
             }
+
+            if include_dataset_name:
+                for examle_id in new_examples.keys():
+                    new_examples[examle_id][keys.DATASET_NAME] = dataset_name
+
             expected_length += len(new_examples)
             examples.update(new_examples)
             assert expected_length == len(examples)
@@ -231,8 +241,8 @@ class KaldiDatabase(DictDatabase):
             keys.AUDIO_DATA in example
             and keys.OBSERVATION in example[keys.AUDIO_DATA]
         ), (
-            'No audio data found in example. Make sure to mak `AudioReader`'
-            'before adding `num_samples`.'
+            'No audio data found in example. Make sure to map with '
+            '`AudioReader` before adding `num_samples`.'
         )
         example[keys.NUM_SAMPLES] \
             = example[keys.AUDIO_DATA][keys.OBSERVATION].shape[-1]
@@ -254,6 +264,21 @@ class HybridASRDatabaseTemplate:
 
     def __init__(self, lfr=False):
         self.lfr = lfr
+
+    @property
+    def datasets_train(self):
+        """A list of filelist names for training."""
+        raise NotImplementedError
+
+    @property
+    def datasets_eval(self):
+        """A list of filelist names for development."""
+        raise NotImplementedError
+
+    @property
+    def datasets_test(self):
+        """A list of filelist names for evaluation."""
+        raise NotImplementedError
 
     @property
     def ali_path_train(self):
@@ -312,6 +337,10 @@ class HybridASRDatabaseTemplate:
     @property
     def example_id_map_fn(self):
         return lambda x: x[keys.EXAMPLE_ID]
+
+    @property
+    def audio_read_fn(self):
+        return lambda x: audioread(x)[0]
 
     @property
     def decode_fst(self):
