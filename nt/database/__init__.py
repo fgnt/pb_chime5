@@ -71,7 +71,7 @@ from nt import kaldi
 from nt.database import keys
 from nt.io import load_json
 from nt.io.audioread import audioread
-from nt.database.iterator import ConcatenateIterator
+from nt.database.iterator import BaseIterator
 
 LOG = logging.getLogger('Database')
 
@@ -115,7 +115,7 @@ class DictDatabase:
 
             iterators.append(ExamplesIterator(examples, name=dataset_name))
 
-        return ConcatenateIterator(*iterators)
+        return BaseIterator.concatenate(*iterators)
 
     def get_lengths(self, datasets, length_transform_fn=lambda x: x):
         raise NotImplementedError
@@ -138,7 +138,7 @@ class DictDatabase:
 
 
 class JsonDatabase(DictDatabase):
-    def __init__(self, json_path: Path):
+    def __init__(self, json_path: [str, Path]):
         """
 
         :param json_path: path to database JSON
