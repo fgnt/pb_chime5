@@ -199,6 +199,26 @@ class BaseIterator:
         else:
             raise ValueError(reshuffle, self)
 
+    def split(self, sections):
+        """
+        >>> examples = {'a': {}, 'b': {}, 'c': {}}
+        >>> it = ExamplesIterator(examples)
+        >>> its = it.split(2)
+        >>> list(its[0])
+        [{'example_id': 'a'}, {'example_id': 'b'}]
+        >>> list(its[1])
+        [{'example_id': 'c'}]
+        """
+        if sections < 1:
+            raise ValueError("sections must be >= 1")
+        if sections > len(self):
+            raise ValueError(
+                f'Iterator has only {len(self)} elements and cannot be '
+                f'split into {sections} sections.'
+            )
+        slices = np.array_split(np.arange(len(self)), sections)
+        return [self[list(s)] for s in slices]
+
     def shard(self, num_shards, shard_index):
         """
         Splits an iterator into `num_shards` shards and
@@ -549,7 +569,6 @@ class ConcatenateIterator(BaseIterator):
     _keys = None
 
     def keys(self):
-        # TODO: Can also be written as cached property
         if self._keys is None:
             keys = []
             for iterator in self.input_iterators:
