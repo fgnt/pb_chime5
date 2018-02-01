@@ -39,10 +39,21 @@ def get_kaldi_env():
     return env
 
 
-def excute_kaldi_commands(cmds, name, env=None, log_dir=None):
+def excute_kaldi_commands(
+        cmds, name='kaldi_cmd', env=None, log_dir=None, inputs=None,
+        ignore_return_code=False
+    ):
     p_list = list()
     std_out_list = list()
     std_err_list = list()
+    return_codes_list = list()
+
+    cmds = cmds if isinstance(cmds, (tuple, list)) else [cmds]
+    if inputs is None:
+        inputs = len(cmds) * [None]
+    else:
+        inputs = inputs if isinstance(inputs, (tuple, list)) else [inputs]
+
     for cmd in cmds:
         kaldi_env = get_kaldi_env()
         if env is not None:
@@ -58,7 +69,7 @@ def excute_kaldi_commands(cmds, name, env=None, log_dir=None):
                                  cwd=WSJ_EG)
         p_list.append(p)
     for idx, p in enumerate(p_list):
-        std_out, std_err = p.communicate()
+        std_out, std_err = p.communicate(inputs[idx])
         if log_dir is not None:
             log_dir = Path(log_dir)
             log_dir.mkdir(parents=True, exist_ok=True)
@@ -66,12 +77,14 @@ def excute_kaldi_commands(cmds, name, env=None, log_dir=None):
                 fid.write(std_out)
             with open(log_dir / '{}.{}.stderr'.format(name, idx), 'w') as fid:
                 fid.write(std_err)
-        if p.returncode != 0:
+        returncode = p.returncode
+        if returncode != 0 and not ignore_return_code:
             print('Error excuting {}. Output was:'.format(name))
             print('Stdout: {}'.format(std_out))
             print('Stderr: {}'.format(std_err))
             print('Command was {}'.format(cmds[idx]))
             raise ValueError('Kaldi error')
+        return_codes_list.append(returncode)
         std_out_list.append(std_out)
         std_err_list.append(std_err)
-    return std_out_list, std_err_list
+    return std_out_list, std_err_list, return_codes_list
