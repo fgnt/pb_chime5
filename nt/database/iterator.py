@@ -138,6 +138,49 @@ class BaseIterator:
         """
         return ConcatenateIterator(self, *others)
 
+    def zip(self, *others):
+        """
+        Creates a `Dataset` by zipping together the given datasets.
+
+        This method has two major differences to the built-in `zip()` function
+        in Python. First the zipping happen based on the keys of the
+        first dataset (i.e. The first defines the order).
+
+        Second it is assumes that all datasets have the same length and keys.
+        (Could be removed, when someone needs it.)
+
+        This function is usually followed by a map call to merge the tuple of
+        dicts to a single dict.
+
+        >>> ds1 = ExamplesIterator({'a': {'z': 1}, 'b': {'z': 2}})
+        >>> ds2 = ExamplesIterator({'a': {'y': 'c'}, 'b': {'y': 'd', 'z': 3}})
+        >>> ds3 = ds1.zip(ds2)
+        >>> for e in ds3: print(e)
+        ({'z': 1, 'example_id': 'a'}, {'y': 'c', 'example_id': 'a'})
+        ({'z': 2, 'example_id': 'b'}, {'y': 'd', 'z': 3, 'example_id': 'b'})
+
+        # Merge the dicts, when conflict, prefer the second
+        >>> ds4 = ds3.map(lambda example: {**example[0], **example[1]})
+        >>> ds4  # doctest: +ELLIPSIS
+            ExamplesIterator(len=2)
+            ExamplesIterator(len=2)
+          ZipIterator()
+        MapIterator(<function <lambda> at 0x...>)
+        >>> for e in ds4: print(e)
+        {'z': 1, 'example_id': 'a', 'y': 'c'}
+        {'z': 3, 'example_id': 'b', 'y': 'd'}
+
+        # Lambda that merges an arbitary amount of dicts.
+        >>> ds5 = ds3.map(lambda exmaple: dict(sum([list(e.items()) for e in exmaple], [])))
+        >>> for e in ds5: print(e)
+        {'z': 1, 'example_id': 'a', 'y': 'c'}
+        {'z': 3, 'example_id': 'b', 'y': 'd'}
+
+        :param others: list of other iterators to be zipped
+        :return: Iterator
+        """
+        return ZipIterator(self, *others)
+
     def shuffle(self, reshuffle=False):
         """
         Shuffle this iterator.
@@ -512,6 +555,51 @@ class ConcatenateIterator(BaseIterator):
                 self.keys()  # test unique keys
                 self._chain_map = ChainMap(*self.input_iterators)
             return self._chain_map[item]
+        else:
+            return super().__getitem__(item)
+
+
+class ZipIterator(BaseIterator):
+    """
+    See BaseIterator.zip
+    """
+    def __init__(self, *input_iterators):
+        """
+        :param input_iterators: list of iterators
+        """
+        self.input_iterators = input_iterators
+        assert len(self.input_iterators) >= 1, \
+            'You have to provide at least one iterator.' \
+            f'\n{self.input_iterators}'
+        assert len(self.input_iterators) >= 2, \
+            'Currently limited to at least two iterator. Could be removed.' \
+            f'\n{self.input_iterators}'
+        lengths = [len(it) for it in self.input_iterators]
+        assert len(set(lengths)) == 1, \
+            f'Expect that all input_iterators have the same length {lengths}' \
+            f'\n{self.input_iterators}'
+
+    def __iter__(self):
+        for key in self.keys():
+            yield tuple([
+                it[key]
+                for it in self.input_iterators
+            ])
+
+    def __len__(self):
+        return len(self.input_iterators[0])
+
+    def keys(self):
+        return self.input_iterators[0].keys()
+
+    def __getitem__(self, item):
+        if isinstance(item, numbers.Integral):
+            item = self.keys()[item]
+        if isinstance(item, str):
+            return tuple([
+                it[item]
+                for it in self.input_iterators
+            ])
         else:
             return super().__getitem__(item)
 
