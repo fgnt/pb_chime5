@@ -136,6 +136,8 @@ class BaseIterator:
         :param others: list of other iterators to be concatenated
         :return: ExamplesIterator iterating over all examples.
         """
+        if len(others) == 0:
+            return self
         return ConcatenateIterator(self, *others)
 
     def zip(self, *others):
@@ -208,6 +210,8 @@ class BaseIterator:
         return f'{self.__class__.__name__}()'
 
     def __repr__(self):
+        # CB: Discussable, if this methode name should be something like
+        #     description instead of __repr__.
         import textwrap
         r = ''
         indent = '  '
@@ -240,7 +244,8 @@ class ExamplesIterator(BaseIterator):
                    f'(name={self.name}, len={len(self)})'
 
     def keys(self):
-        return list(self.examples.keys())
+        # Note: tuple is immutable, i.e. it can not be modified
+        return tuple(self.examples.keys())
 
     def __iter__(self):
         for k in self.keys():
@@ -314,6 +319,18 @@ class ShuffleIterator(BaseIterator):
     has a length.
     Note:
         This Iterator supports indexing, but does not reshuffle each iteration.
+
+    >>> np.random.seed(1)
+    >>> examples = {'a': {}, 'b': {}, 'c': {}}
+    >>> it = ExamplesIterator(examples)
+    >>> it = it.shuffle(False)
+    >>> it
+      ExamplesIterator(len=3)
+    ShuffleIterator()
+    >>> list(it)
+    [{'example_id': 'a'}, {'example_id': 'c'}, {'example_id': 'b'}]
+    >>> it.keys()
+    ('a', 'c', 'b')
     """
 
     def __init__(self, input_iterator):
@@ -324,8 +341,13 @@ class ShuffleIterator(BaseIterator):
     def __len__(self):
         return len(self.input_iterator)
 
+    _keys = None
+
     def keys(self):
-        return self.input_iterator.keys()
+        if self._keys is None:
+            keys = self.input_iterator.keys()
+            self._keys = tuple([keys[p] for p in self.permutation])
+        return self._keys
 
     def __iter__(self):
         for idx in self.permutation:
@@ -355,8 +377,11 @@ class ReShuffleIterator(BaseIterator):
     def __len__(self):
         return len(self.input_iterator)
 
-    def keys(self):
-        return self.input_iterator.keys()
+    # keys is not well defined for this iterator
+    # The First iterator (i.e. ExamplesIterator has sorted keys), so what should
+    # this iterator return? Maybe a frozenset to highlight unordered?
+    # def keys(self):
+    #     return frozenset(self.input_iterator.keys())
 
     def __iter__(self):
         np.random.shuffle(self.permutation)
@@ -504,7 +529,7 @@ class ConcatenateIterator(BaseIterator):
     Best use is to concatenate cross validation or evaluation datasets.
     It does not work well with buffer based shuffle (i.e. in Tensorflow).
 
-    Here, __getitem__ is not possible per definition of IDs collide.
+    Here, __getitem__ for str is not possible per definition when IDs collide.
     """
 
     def __init__(self, *input_iterators):
@@ -512,12 +537,6 @@ class ConcatenateIterator(BaseIterator):
         :param input_iterators: list of iterators
         """
         self.input_iterators = input_iterators
-
-    def __str__(self):
-        return f'{self.__class__.__name__}({self.input_iterators})'
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}({self.input_iterators})'
 
     def __iter__(self):
         for input_iterator in self.input_iterators:
@@ -532,13 +551,14 @@ class ConcatenateIterator(BaseIterator):
     def keys(self):
         # TODO: Can also be written as cached property
         if self._keys is None:
-            self._keys = []
+            keys = []
             for iterator in self.input_iterators:
-                self._keys += list(iterator.keys())
-            assert len(self._keys) == len(set(self._keys)), \
+                keys += list(iterator.keys())
+            assert len(keys) == len(set(keys)), \
                 'Keys are not unique. ' \
                 'len(self._keys) = {len(self._keys)} != ' \
                 '{len(set(self._keys))} = len(set(self._keys))'
+            self._keys = tuple(keys)
         return self._keys
 
     _chain_map = None
