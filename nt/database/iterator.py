@@ -820,6 +820,62 @@ def remove_examples_without_alignment(example):
     return True
 
 
+def remove_zero_length_example(example, audio_key='observation',
+                                dst_key='audio_data'):
+
+    if keys.NUM_SAMPLES in example:
+        num_samples = example[keys.NUM_SAMPLES]
+        if isinstance(num_samples, dict):
+            num_samples = num_samples[keys.OBSERVATION]
+        valid_ali = num_samples > 0
+    else:
+        valid_ali = len(example[dst_key][audio_key]) > 0
+    if not valid_ali:
+        LOG.warning(f'Skipping: Audio length '
+                    f'example\n{example[keys.EXAMPLE_ID]} is 0')
+        return False
+    return True
+
+
+class LimitAudioLength:
+    def __init__(self, max_lengths=160000, audio_key='observation',
+                 dst_key='audio_data', frame_length=400, frame_step=160):
+        self.max_lengths = max_lengths
+        self.audio_key = audio_key
+        self.dst_key = dst_key
+        self.frame_length = frame_length
+        self.frame_step = frame_step
+
+    def __call__(self, example):
+        valid_ex = keys.NUM_SAMPLES in example and \
+                   example[keys.NUM_SAMPLES] <= self.max_lengths
+        if not valid_ex:
+            delta = max(1, (example[keys.NUM_SAMPLES] - self.max_lengths) // 2)
+            start = np.random.choice(delta, 1)[0]
+
+            # audio
+            example[self.dst_key][self.audio_key] = \
+                example[self.dst_key][self.audio_key][start: start
+                + self.max_lengths]
+            example[keys.NUM_SAMPLES] = self.max_lengths
+
+            # alignment
+            num_frames_start = max(
+                            0, (start - self.frame_length + self.frame_step)
+                            // self.frame_step)
+            num_frames_length = \
+                (self.max_lengths - self.frame_length + self.frame_step)\
+                // self.frame_step
+            example[keys.ALIGNMENT] = \
+                example[keys.ALIGNMENT][num_frames_start: num_frames_start
+                + num_frames_length]
+            example[keys.NUM_ALIGNMENT_FRAMES] = num_frames_length
+
+            LOG.warning(f'Cutting example to length {self.max_lengths}'
+                        f' :\n{example[keys.EXAMPLE_ID]}')
+        return example
+
+
 class Word2Id:
     def __init__(self, word2id_fn):
         self._word2id_fn = word2id_fn
