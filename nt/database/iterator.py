@@ -87,7 +87,10 @@ class BaseIterator:
         )
 
     def __len__(self):
-        raise NotImplementedError(
+        # The correct exception type is TypeError and not NotImplementedError
+        # for __len__. For example len(iterator) ignores TypeError but not
+        # NotImplementedError
+        raise TypeError(
             f'__len__ is not implemented for {self.__class__}.\n'
             f'self: \n{repr(self)}'
         )
@@ -479,7 +482,16 @@ class ShardedIterator(BaseIterator):
 class SliceIterator(BaseIterator):
     def __init__(self, slice, input_iterator):
         self._slice = slice
-        self.slice = np.arange(len(input_iterator))[self._slice]
+        try:
+            self.slice = np.arange(len(input_iterator))[self._slice]
+        except IndexError:
+            if isinstance(slice, (tuple, list)) and isinstance(slice[0], str):
+                # Assume sequence of str
+                keys = {k: i for i, k in enumerate(input_iterator.keys())}
+                self.slice = [keys[k] for k in slice]
+            else:
+                raise
+
         self.input_iterator = input_iterator
 
     def keys(self):
@@ -769,6 +781,25 @@ class IdFilter:
         A filter to filter example ids.
         :param id_list: list of valid ids, e.g. ids belonging to a specific
             dataset.
+
+        An alternative with slicing:
+
+        >>> it = ExamplesIterator({'a': {}, 'b': {}, 'c': {}})
+        >>> list(it)
+        [{'example_id': 'a'}, {'example_id': 'b'}, {'example_id': 'c'}]
+        >>> it['a']
+        {'example_id': 'a'}
+        >>> it['a', 'b']
+          ExamplesIterator(len=3)
+        SliceIterator(('a', 'b'))
+        >>> list(it['a', 'b'])
+        [{'example_id': 'a'}, {'example_id': 'b'}]
+
+        >>> it.filter(IdFilter(('a', 'b')))  # doctest: +ELLIPSIS
+          ExamplesIterator(len=3)
+        FilterIterator(<nt.database.iterator.IdFilter object at 0x...>)
+        >>> list(it.filter(IdFilter(('a', 'b'))))
+        [{'example_id': 'a'}, {'example_id': 'b'}]
         """
         self.id_list = id_list
 
