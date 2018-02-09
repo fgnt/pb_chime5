@@ -61,6 +61,8 @@ database, i.e. dt_simu_c0123.
 """
 import logging
 import numbers
+import textwrap
+import collections
 from collections import ChainMap
 from copy import deepcopy
 from pathlib import Path
@@ -569,10 +571,33 @@ class ConcatenateIterator(BaseIterator):
     _keys = None
 
     def keys(self):
+        """
+        >>> examples = {'a': {}, 'b': {}, 'c': {}}
+        >>> it = ExamplesIterator(examples)
+        >>> it.concatenate(it).keys()
+        Traceback (most recent call last):
+        ...
+        AssertionError: Keys are not unique. There are 3 duplicates.
+        ['a', 'b', 'c']
+        """
         if self._keys is None:
             keys = []
             for iterator in self.input_iterators:
                 keys += list(iterator.keys())
+            if len(keys) != len(set(keys)):
+                duplicates = [
+                    item  # https://stackoverflow.com/a/9835819/5766934
+                    for item, count in collections.Counter(keys).items()
+                    if count > 1
+                ]
+                duplicates_str = textwrap.shorten(
+                    str(duplicates)[1:-1], width=500, placeholder=' ...')
+                raise AssertionError(
+                    f'Keys are not unique. '
+                    f'There are {len(duplicates)} duplicates.'
+                    f'\n[{duplicates_str}]'
+                )
+
             assert len(keys) == len(set(keys)), \
                 'Keys are not unique. ' \
                 'len(self._keys) = {len(self._keys)} != ' \
