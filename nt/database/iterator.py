@@ -229,7 +229,7 @@ class BaseIterator:
         Splits an iterator into `num_shards` shards and
         selects shard `shard_index`.
         """
-        return ShardedIterator(num_shards, shard_index, self)
+        return self.split(num_shards)[shard_index]
 
     def __str__(self):
         return f'{self.__class__.__name__}()'
@@ -420,63 +420,6 @@ class ReShuffleIterator(BaseIterator):
             raise TypeError(item)
         else:
             return super().__getitem__(item)
-
-
-class ShardedIterator(BaseIterator):
-    """
-    Iterator that shards the input_iterator. Assumes, that the input_iterator
-    has a length.
-    """
-
-    @staticmethod
-    def _build_shards(num_shards, num_elements):
-        if num_shards < 1:
-            raise ValueError("num_shards must be >= 1")
-        if num_shards > num_elements:
-            raise ValueError(
-                f'Iterator has only {num_elements} elements and cannot be '
-                f'split into {num_shards} shards.'
-            )
-        shard_size = int(num_elements / num_shards)
-        if shard_size == 0:
-            raise ValueError("Array length is less than num shards")
-        array = np.arange(0, num_elements)
-        shards = [
-            array[i * shard_size:i * shard_size + shard_size]
-            for i in range(num_shards - 1)
-        ]
-        # Add the rest
-        shards.append(array[(num_shards - 1) * shard_size:])
-        return shards
-
-    def __init__(self, num_shards, shard_index, input_iterator):
-        self.input_iterator = input_iterator
-        shards = self._build_shards(num_shards, len(input_iterator))
-        assert shard_index < len(shards), (
-            f'Requested shard {shard_index} but only {len(shards)} shards are '
-            f'available.'
-        )
-        self.shard_indices = shards[shard_index]
-
-    def __len__(self):
-        return len(self.shard_indices)
-
-    def keys(self):
-        keys = list(self.input_iterator.keys())
-        return [keys[i] for i in self.shard_indices]
-
-    def __iter__(self):
-        for idx in self.shard_indices:
-            yield self.input_iterator[idx]
-
-    def __getitem__(self, item):
-        if isinstance(item, numbers.Integral):
-            assert item < len(self.shard_indices), (item, len(self.shard_indices))
-            return self.input_iterator[self.shard_indices[item]]
-        else:
-            raise ValueError(
-                f'ShardIterator only supports numeric getitem, not {item}'
-            )
 
 
 class SliceIterator(BaseIterator):
