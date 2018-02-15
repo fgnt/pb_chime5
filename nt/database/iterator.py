@@ -283,7 +283,7 @@ class ExamplesIterator(BaseIterator):
             else:
                 import difflib
                 similar = difflib.get_close_matches(item, self.keys())
-                raise IndexError(item, f'close_matches: {similar}')
+                raise KeyError(item, f'close_matches: {similar}', self)
         elif isinstance(item, numbers.Integral):
             key = self.keys()[item]
         else:
@@ -563,6 +563,15 @@ class ConcatenateIterator(BaseIterator):
     _chain_map = None
 
     def __getitem__(self, item):
+        """
+        >>> it1 = ExamplesIterator({'a': {}, 'b': {}})
+        >>> it2 = ExamplesIterator({'c': {}, 'd': {}})
+        >>> it = it1.concatenate(it2)
+        >>> it['a']
+        {'example_id': 'a'}
+        >>> it['c']
+        {'example_id': 'c'}
+        """
         if isinstance(item, numbers.Integral):
             for iterator in self.input_iterators:
                 if len(iterator) <= item:
