@@ -43,7 +43,7 @@ def excute_kaldi_commands(
         cmds, name='kaldi_cmd', env=None, log_dir=None, inputs=None,
         ignore_return_code=False
     ):
-    p_list = list()
+    plist = list()
     std_out_list = list()
     std_err_list = list()
     return_codes_list = list()
@@ -67,24 +67,34 @@ def excute_kaldi_commands(
                                  universal_newlines=True,
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                  cwd=WSJ_EG)
-        p_list.append(p)
-    for idx, p in enumerate(p_list):
-        std_out, std_err = p.communicate(inputs[idx])
-        if log_dir is not None:
-            log_dir = Path(log_dir)
-            log_dir.mkdir(parents=True, exist_ok=True)
-            with open(log_dir / '{}.{}.stdout'.format(name, idx), 'w') as fid:
-                fid.write(std_out)
-            with open(log_dir / '{}.{}.stderr'.format(name, idx), 'w') as fid:
-                fid.write(std_err)
-        returncode = p.returncode
-        if returncode != 0 and not ignore_return_code:
-            print('Error excuting {}. Output was:'.format(name))
-            print('Stdout: {}'.format(std_out))
-            print('Stderr: {}'.format(std_err))
-            print('Command was {}'.format(cmds[idx]))
-            raise ValueError('Kaldi error')
-        return_codes_list.append(returncode)
-        std_out_list.append(std_out)
-        std_err_list.append(std_err)
+        plist.append(p)
+    new_plist = plist.copy()
+    while(len(new_plist)):
+        plist = new_plist.copy()
+        new_plist = list()
+        for idx, p in enumerate(plist):
+            std_out, std_err = 'DEF', 'DEF'
+            try:
+                std_out, std_err = p.communicate(timeout=1)
+            except subprocess.TimeoutExpired:
+                new_plist.append(p)
+                continue
+            else:
+                if log_dir is not None:
+                    log_dir = Path(log_dir)
+                    log_dir.mkdir(parents=True, exist_ok=True)
+                    with open(log_dir / '{}.{}.stdout'.format(name, idx), 'w') as fid:
+                        fid.write(std_out)
+                    with open(log_dir / '{}.{}.stderr'.format(name, idx), 'w') as fid:
+                        fid.write(std_err)
+            returncode = p.returncode
+            if returncode != 0 and not ignore_return_code:
+                print('Error excuting {}. Output was:'.format(name))
+                print('Stdout: {}'.format(std_out))
+                print('Stderr: {}'.format(std_err))
+                print('Command was {}'.format(cmds[idx]))
+                raise ValueError('Kaldi error')
+            return_codes_list.append(returncode)
+            std_out_list.append(std_out)
+            std_err_list.append(std_err)
     return std_out_list, std_err_list, return_codes_list
