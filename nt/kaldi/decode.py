@@ -6,18 +6,16 @@ from collections import defaultdict
 import warnings
 import pandas
 import pickle
+import logging
 
 
 def _build_rescale_lattice_cmd(decode_dir, hclg_dir, lmwt,
                                word_insertion_penalty=0):
     lattice_rescale_cmd = \
-        '''lattice-scale --inv-acoustic-scale={LMWT} ark:"cat {decode_dir}/lats/*.lat|" ark:- | \
-        lattice-add-penalty --word-ins-penalty={word_ins_penalty} ark:- ark:- | \
+        f'''lattice-scale --inv-acoustic-scale={lmwt} ark:"cat {decode_dir}/lats/*.lat|" ark:- | \
+        lattice-add-penalty --word-ins-penalty={word_insertion_penalty} ark:- ark:- | \
         lattice-best-path --word-symbol-table={hclg_dir}/words.txt \
-        ark:- ark,t:{decode_dir}/scoring/{LMWT}.tra || exit 1;'''.format(
-            LMWT=lmwt, decode_dir=decode_dir, hclg_dir=hclg_dir,
-            word_ins_penalty=word_insertion_penalty
-        )
+        ark:- ark,t:{decode_dir}/scoring/{lmwt}.tra'''
     return lattice_rescale_cmd
 
 
@@ -27,13 +25,10 @@ def _build_compute_WER_command(decode_dir, hclg_dir, lmwt, strict=False):
     else:
         strict = '--mode=present'
     cmd = \
-        '''cat {decode_dir}/scoring/{LMWT}.tra | sort -u -k1,1 | \
-        {int2sym} -f 2- {hclg_dir}/words.txt | sed 's:<UNK>::g' | \
+        f'''cat {decode_dir}/scoring/{lmwt}.tra | sort -u -k1,1 | \
+        {helper.INT2SYM} -f 2- {hclg_dir}/words.txt | sed 's:<UNK>::g' | \
         compute-wer --text {strict}\
-        ark:{decode_dir}/scoring/test_filt.txt ark,p:- > {decode_dir}/wer_{LMWT}'''.format(
-            int2sym=helper.INT2SYM, LMWT=lmwt, decode_dir=decode_dir,
-            hclg_dir=hclg_dir, strict=strict
-        )
+        ark:{decode_dir}/scoring/test_filt.txt ark,p:- > {decode_dir}/wer_{lmwt}'''
     return cmd
 
 
@@ -65,36 +60,59 @@ def parse_wer_file(wer_file):
     return 100, 0, 0, 0, 0, 0
 
 
+def _tra_complete(tra_file, ref_file):
+    with open(tra_file) as fid:
+        tra = set([l.split()[0] for l in fid.readlines()])
+    with open(ref_file) as fid:
+        ref = set([l.split()[0] for l in fid.readlines()])
+    diff = ref - tra
+    if not len(diff):
+        return True
+    else:
+        logging.getLogger('_tra_complete').warn(
+            f'{tra_file} is missing the {len(diff)} utts. '
+            f'Samples: {list(diff)[:min(len(diff), 5)]}'
+        )
+    return False
+
 def compute_scores(decode_dir, hclg_dir, ref_text, min_lmwt=8, max_lmwt=18,
-                   force_scoring=False, build_tra=True, strict=True):
+                   force_scoring=False, build_tra=True, strict=True,
+                   ignore_return_codes=True):
+    LOG = logging.getLogger('computer_scores')
     decode_dir = os.path.abspath(decode_dir)
     mkdir_p(os.path.join(decode_dir, 'scoring'))
-    cmd = "cat {data} | sed 's:<NOISE>::g' | sed 's:<SPOKEN_NOISE>::g' " \
-          "> {decode_dir}/scoring/test_filt.txt".format(
-        data=ref_text, decode_dir=decode_dir)
+    ref_file = f'{decode_dir}/scoring/test_filt.txt'
+    cmd = (f"cat {ref_text} | sed 's:<NOISE>::g' | sed 's:<SPOKEN_NOISE>::g' "
+           f"> {ref_file}")
     helper.excute_kaldi_commands(
-        [cmd], 'copying reference transcription', log_dir=decode_dir + '/logs'
+        [cmd], 'copying reference transcription', log_dir=decode_dir + '/logs',
+        ignore_return_code=ignore_return_codes
     )
     cmds = list()
     for lmwt in range(min_lmwt, max_lmwt + 1):
-        if (not os.path.exists('{decode_dir}/scoring/{LMWT}.tra'.format(
-                decode_dir=decode_dir, LMWT=lmwt
-        )) or force_scoring) and build_tra:
+        tra_file = f'{decode_dir}/scoring/{lmwt}.tra'
+        if (not os.path.exists(tra_file)
+            or force_scoring
+            or not _tra_complete(tra_file, ref_file)) and build_tra:
+            LOG.info(f'Rescaling lattice for lmwt {lmwt}')
             cmds.append(
                 _build_rescale_lattice_cmd(decode_dir, hclg_dir, lmwt))
-    helper.excute_kaldi_commands(
-        cmds, 'rescaling lattice', log_dir=decode_dir + '/logs'
-    )
+    if len(cmds):
+        helper.excute_kaldi_commands(
+            cmds, 'rescaling lattice', log_dir=decode_dir + '/logs',
+            ignore_return_code=ignore_return_codes
+        )
+    else:
+        LOG.info('All utts already rescaled - skipping')
     cmds = list()
     for lmwt in range(min_lmwt, max_lmwt + 1):
-        if not os.path.exists('{decode_dir}/wer_{LMWT}'.format(
-                decode_dir=decode_dir, LMWT=lmwt
-        )) or force_scoring:
-            cmds.append(
-                _build_compute_WER_command(
-                    decode_dir, hclg_dir, lmwt, strict=strict))
+        LOG.info(f'Computing WER for lmwt {lmwt}')
+        cmds.append(
+            _build_compute_WER_command(
+                decode_dir, hclg_dir, lmwt, strict=strict))
     helper.excute_kaldi_commands(
-        cmds, 'computing WER', log_dir=decode_dir + '/logs'
+        cmds, 'computing WER', log_dir=decode_dir + '/logs',
+        ignore_return_code=ignore_return_codes
     )
     result = defaultdict(list)
     for lmwt in range(min_lmwt, max_lmwt + 1):
@@ -112,4 +130,4 @@ def compute_scores(decode_dir, hclg_dir, ref_text, min_lmwt=8, max_lmwt=18,
     res = pandas.DataFrame(result)
     with open(decode_dir + '/result.pkl', 'wb') as fid:
         pickle.dump(res, fid)
-    return dict(**result)
+    return result.copy()
