@@ -804,7 +804,9 @@ class AlignmentReader:
 def remove_examples_without_alignment(example):
     valid_ali = keys.ALIGNMENT in example and len(example[keys.ALIGNMENT])
     if not valid_ali:
-        LOG.warning(f'No alignment found for example\n{example}')
+        LOG.warning(
+            f'Removing example {example[keys.EXAMPLE_ID]} because '
+            f'it has no alignment')
         return False
     if keys.NUM_SAMPLES in example:
         num_samples = example[keys.NUM_SAMPLES]
@@ -821,8 +823,9 @@ def remove_examples_without_alignment(example):
     )
     if not valid_ali:
         LOG.warning(
-            f'Alignment has {len_ali} frames but the observation has '
-            f'{num_frames} [{num_frames_lfr}] frames. Example was:\n{example}'
+            f'Example {example[keys.EXAMPLE_ID]}: Alignment has {len_ali} '
+            f'frames but the observation has '
+            f'{num_frames} [{num_frames_lfr}] frames. Dropping example.'
         )
         return False
     return True
@@ -854,33 +857,50 @@ class LimitAudioLength:
         self.frame_length = frame_length
         self.frame_step = frame_step
 
+    def _sample_to_frame(self, s):
+        return max(
+            0,
+            (s - self.frame_length + self.frame_step) // self.frame_step
+        )
+
+    def _frame_to_lfr_frame(self, f):
+        return (f + np.mod(-f, 3)) // 3
+
     def __call__(self, example):
         valid_ex = keys.NUM_SAMPLES in example and \
                    example[keys.NUM_SAMPLES] <= self.max_lengths
         if not valid_ex:
             delta = max(1, (example[keys.NUM_SAMPLES] - self.max_lengths) // 2)
             start = np.random.choice(delta, 1)[0]
+            
+            # Check for LFR
+            num_frames = (example[keys.NUM_SAMPLES] - 400 + 160) // 160
+            num_frames_lfr = self._frame_to_lfr_frame(num_frames)
+            if len(example[keys.ALIGNMENT]) == num_frames_lfr:
+                lfr = True
+            else:
+                lfr = False
 
             # audio
             example[self.dst_key][self.audio_key] = \
-                example[self.dst_key][self.audio_key][start: start
+                example[self.dst_key][self.audio_key][..., start: start
                 + self.max_lengths]
             example[keys.NUM_SAMPLES] = self.max_lengths
 
             # alignment
-            num_frames_start = max(
-                            0, (start - self.frame_length + self.frame_step)
-                            // self.frame_step)
-            num_frames_length = \
-                (self.max_lengths - self.frame_length + self.frame_step)\
-                // self.frame_step
+            num_frames_start = self._sample_to_frame(start)
+            if lfr:
+                num_frames_start = self._frame_to_lfr_frame(num_frames_start)
+            num_frames_length = self._sample_to_frame(self.max_lengths)
+            if lfr:
+                num_frames_length = self._frame_to_lfr_frame(num_frames_length)
             example[keys.ALIGNMENT] = \
                 example[keys.ALIGNMENT][num_frames_start: num_frames_start
                 + num_frames_length]
             example[keys.NUM_ALIGNMENT_FRAMES] = num_frames_length
 
             LOG.warning(f'Cutting example to length {self.max_lengths}'
-                        f' :\n{example[keys.EXAMPLE_ID]}')
+                        f' :{example[keys.EXAMPLE_ID]}')
         return example
 
 
@@ -892,11 +912,19 @@ class Word2Id:
         def _w2id(s):
             return np.array([self._word2id_fn(w) for w in s.split()], np.int32)
 
-        for trans in [keys.TRANSCRIPTION, keys.KALDI_TRANSCRIPTION]:
-            try:
-                example[trans + '_ids'] = recursive_transform(
-                    _w2id, example[trans]
-                )
-            except KeyError:
-                pass
+        if not (keys.TRANSCRIPTION in example or
+                keys.KALDI_TRANSCRIPTION in example):
+            raise ValueError(
+                'Could not find transcription for example id '
+                f'{example[keys.EXAMPLE_ID]}'
+            )
+        if keys.TRANSCRIPTION in example:
+            example[keys.TRANSCRIPTION + '_ids'] = recursive_transform(
+                _w2id, example[keys.TRANSCRIPTION]
+            )
+        if keys.KALDI_TRANSCRIPTION in example:
+            example[keys.KALDI_TRANSCRIPTION + '_ids'] = recursive_transform(
+                _w2id, example[keys.KALDI_TRANSCRIPTION]
+            )
+
         return example
