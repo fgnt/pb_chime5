@@ -772,13 +772,15 @@ def to_list(x):
 class AlignmentReader:
     def __init__(
             self, alignment_path: Path = None, alignments: dict = None,
-            example_id_map_fn=lambda x: x[keys.EXAMPLE_ID]):
+            example_id_map_fn=lambda x: x[keys.EXAMPLE_ID],
+            dst_key=keys.ALIGNMENT):
         assert alignment_path is not None or alignments is not None, (
             'Either alignments or the path to the alignments must be specified'
         )
         self._ali_path = alignment_path
         self._alignments = alignments
         self._map_fn = example_id_map_fn
+        self._dst_key = dst_key
 
     def __call__(self, example):
         if self._alignments is None:
@@ -789,10 +791,10 @@ class AlignmentReader:
                 f'from path {self._ali_path}'
             )
         try:
-            example[keys.ALIGNMENT] = self._alignments[
+            example[self._dst_key] = self._alignments[
                 self._map_fn(example)
             ]
-            example[keys.NUM_ALIGNMENT_FRAMES] = len(example[keys.ALIGNMENT])
+            example[keys.NUM_ALIGNMENT_FRAMES] = len(example[self._dst_key])
         except KeyError:
             LOG.warning(
                 f'No alignment found for example id {example[keys.EXAMPLE_ID]} '
