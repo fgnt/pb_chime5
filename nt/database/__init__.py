@@ -298,6 +298,10 @@ class HybridASRDatabaseTemplate:
             return self.hclg_path_ffr
 
     @property
+    def lang_path(self):
+        raise NotImplementedError
+
+    @property
     def hclg_path_ffr(self):
         """Path to HCLG directory created by Kaldi."""
         raise NotImplementedError
@@ -432,6 +436,16 @@ class HybridASRDatabaseTemplate:
             per_frame=True, model_name=self.model_file
         ))
         return alignments
+
+    @cached_property
+    def vad(self):
+        alignment = self.phone_alignment
+        with open(self.lang_path / 'phones' / 'silence.csl') as fid:
+            silence_ids = list(map(int, fid.read().strip().split(':')))
+        return {
+            k: [int(_id) not in silence_ids for _id in v]
+            for k, v in alignment.items()
+        }
 
     @property
     def asr_observation_key(self):
