@@ -24,7 +24,11 @@ class CHiME5_Keys:
 
 CH_K = CHiME5_Keys
 
-GENDER_DICT = dict(p='female', P='male')
+FEMALE_SPEAKER = [
+    'P14', 'P15', 'P17', 'P19', 'P36', 'P49', 'P52', 'P41', 'P43', 'P44',
+    'P53', 'P56', 'P05', 'P08', 'P25', 'P26', 'P27', 'P28', 'P01', 'P02',
+    'P08', 'P46', 'P48'
+]
 NUM_ARRAYS = 6
 NUM_MICS = 4
 SAMPLE_RATE = 16000
@@ -127,7 +131,8 @@ def get_example(transcription, audio_path):
     end_time_dict = get_time_from_dict(transcription['end_time'],
                                        speaker_ids, arrays)
     num_samples = get_num_samples(start_time_dict, end_time_dict)
-    gender = {id: GENDER_DICT[id[0]] for id in speaker_ids}
+    gender = {id: 'male' for id in speaker_ids}
+    gender.update({id: 'female' for id in speaker_ids if id in FEMALE_SPEAKER})
     if 'location' in transcription:
         location = transcription['location']
         ref_array = transcription['ref']
