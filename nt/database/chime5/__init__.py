@@ -1,7 +1,7 @@
 from nt.database import HybridASRJSONDatabaseTemplate
 from nt.database import HybridASRKaldiDatabaseTemplate
 from nt.database import keys as K
-from nt.io.data_dir import kaldi_root, database_jsons, chime_4
+from nt.io.data_dir import kaldi_root, database_jsons, chime_5
 import numpy as np
 from pathlib import Path
 from nt.database import keys
@@ -10,7 +10,7 @@ from collections import defaultdict
 
 class Chime5(HybridASRJSONDatabaseTemplate):
     def __init__(self):
-        path = Path('/net/storage/jheymann/__share/jensheit/chime5_temp.json')
+        path = database_jsons / 'chime5.json'
         super().__init__(path)
 
     @property
