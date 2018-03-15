@@ -1,13 +1,14 @@
-from nt.io.json_module import load_json, dump_json
-import click
-import tqdm
 import logging
 import os
-import numpy as np
-from nt.io.audioread import audio_length
-from nt.database.helper import click_convert_to_path
 from datetime import datetime
 from pathlib import Path
+
+import click
+import numpy as np
+import tqdm
+from nt.database.helper import click_convert_to_path
+from nt.io.json_module import load_json, dump_json
+
 FORMAT_STRING = '%H:%M:%S.%f'
 JSON_PATH = Path('/net/vol/jensheit/chime5/train')
 NUM_MICS = 4
@@ -15,29 +16,31 @@ SAMPLE_RATE = 16000
 NUM_ARRAYS = 6
 TIME_ZERO = datetime.strptime('0:00:00.00', FORMAT_STRING)
 
+
 def create_cross_talk_database(database_path, json_path):
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
     for dataset in ['train', 'dev']:
         get_cross_talk(database_path, dataset, json_path)
 
 
-
 def get_cross_talk(database_path, dataset, json_path):
     database_path = database_path / 'CHiME5'
     dataset_transciption_path = database_path / 'transcriptions' / dataset
-    dataset_audio_path = database_path / 'audio' / dataset
     json_dict = dict()
     for session_path in dataset_transciption_path.glob('*.json'):
         trans = load_json(session_path)
         session_id = trans[0]['session_id']
         json_dict[session_id] = dict()
-        num_samples = audio_length(str(dataset_audio_path / session_id) +'_U01.CH1.wav')
         total = len(trans)
         speaker_ids = [key for key in trans[0]['start_time'].keys() if
                        'P' in key]
         arrays = [f'U0{array+1}' for array in range(NUM_ARRAYS)]
-        out_dict = {array: {speaker: dict(start=[], end=[]) for speaker in speaker_ids} for array in arrays}
-        out_dict.update({speaker: {speaker: dict(start=[], end=[]) for speaker in speaker_ids} for speaker in speaker_ids})
+        out_dict = {
+        array: {speaker: dict(start=[], end=[])
+                for speaker in speaker_ids} for array in arrays}
+        out_dict.update({
+                        speaker: {speaker: dict(start=[], end=[]) for speaker in
+                                  speaker_ids} for speaker in speaker_ids})
 
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(os.cpu_count()) as ex:
@@ -47,23 +50,21 @@ def get_cross_talk(database_path, dataset, json_path):
                         trans
                     ),
                     total=total,
-                    desc=dataset+'_'+session_id
+                    desc=dataset + '_' + session_id
             ):
-                if not example_dict is None:
+                if example_dict is not None:
                     out_dict = combine_dicts(example_dict, out_dict)
         in_tuple = list(out_dict.items())
         with ThreadPoolExecutor(os.cpu_count()) as ex:
             for mic_id, cross_talk in tqdm.tqdm(
-                ex.map(get_cross_talk_per_mic,
-                       in_tuple),
-                total=len(in_tuple),
-                desc=dataset+'_'+session_id
+                    ex.map(get_cross_talk_per_mic,
+                           in_tuple),
+                    total=len(in_tuple),
+                    desc=dataset + '_' + session_id
             ):
                 out_dict[mic_id]['cross_talk'] = cross_talk
         dump_json(out_dict,
                   str(json_path / session_id) + 'time.json')
-
-
 
 
 def get_dict_speaker(example):
@@ -87,16 +88,19 @@ def get_dict_speaker(example):
 
 
 def get_time_from_dict(start, end, speaker_ids, arrays, target):
-    time_dict = {array:
-        {target: dict(start=to_samples(start[array]),end=to_samples(end[array]))} for array in arrays}
-    time_dict.update({speaker: {target: dict(start=to_samples(start[speaker]), end=to_samples(end[speaker]))}
-                      for speaker in speaker_ids})
+    time_dict = {array: {
+        target: dict(start=to_samples(start[array]),
+                     end=to_samples(end[array]))} for array in arrays}
+    time_dict.update({speaker: {
+        target: dict(start=to_samples(start[speaker]),
+                     end=to_samples(end[speaker]))} for speaker in speaker_ids})
     return time_dict
 
 
 def to_samples(time):
-    return int((datetime.strptime(time,
-                                  FORMAT_STRING) - TIME_ZERO).total_seconds() * SAMPLE_RATE)
+    return int((
+                   datetime.strptime(time, FORMAT_STRING) - TIME_ZERO
+                ).total_seconds() * SAMPLE_RATE)
 
 
 def combine_dicts(speaker_dict, org_dict):
@@ -176,18 +180,15 @@ def to_numpy(in_dict, start_sample, end_sample):
 
 @click.command()
 @click.option(
-        '--database-path', type=click.Path(),
-                     callback=click_convert_to_path
-    )
+    '--database-path', type=click.Path(),
+    callback=click_convert_to_path
+)
 @click.option(
-        '--json-path', type=click.Path(),
-                     callback=click_convert_to_path
-    )
+    '--json-path', type=click.Path(),
+    callback=click_convert_to_path
+)
 def main(database_path, json_path):
     create_cross_talk_database(database_path, json_path)
-
-
-
 
 
 if __name__ == '__main__':
