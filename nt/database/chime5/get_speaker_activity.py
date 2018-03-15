@@ -64,7 +64,7 @@ def get_cross_talk(database_path, dataset, json_path):
             ):
                 out_dict[mic_id]['cross_talk'] = cross_talk
         dump_json(out_dict,
-                  str(json_path / session_id) + 'time.json')
+                  str(json_path / session_id) + '.json')
 
 
 def get_dict_speaker(example):
