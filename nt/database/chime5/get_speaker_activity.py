@@ -10,7 +10,7 @@ from nt.database.helper import click_convert_to_path
 from nt.io.json_module import load_json, dump_json
 
 FORMAT_STRING = '%H:%M:%S.%f'
-JSON_PATH = Path('/net/vol/jensheit/chime5/train')
+JSON_PATH = Path('/net/vol/jenkins/jsons/chime5_speech_activity')
 NUM_MICS = 4
 SAMPLE_RATE = 16000
 NUM_ARRAYS = 6
