@@ -154,27 +154,32 @@ def get_cross_talk_per_mic(input_tuple):
 
 
 def get_active_speaker(start_sample, end_sample, session_id,
-                       json_path=JSON_PATH):
+                       json_path=JSON_PATH, sample_step=1, dtype=bool):
     speaker_json = load_json(str(json_path / session_id) + '.json')
     out_dict = dict()
     for key, value in speaker_json.items():
-        cross_talk = to_numpy(value['cross_talk'], start_sample, end_sample)
-        speech_activity = np.array([to_numpy(activity, start_sample, end_sample)
+        cross_talk = to_numpy(value['cross_talk'], start_sample, end_sample,
+                              sample_step=sample_step, dtype=dtype)
+        speech_activity = np.array([to_numpy(activity, start_sample,
+                                             end_sample,
+                                             sample_step=sample_step,
+                                             dtype=dtype)
                                     for _, activity in sorted(value.items())])
         out_dict[key] = dict(cross_talk=cross_talk, activity=speech_activity)
     return out_dict
 
 
-def to_numpy(in_dict, start_sample, end_sample):
+def to_numpy(in_dict, start_sample, end_sample, sample_step=1, dtype=bool):
     num_samples = end_sample - start_sample
-    array = np.array([False] * num_samples)
+    array = np.zeros(int(num_samples / sample_step), dtype=dtype)
     for idx, start in enumerate(in_dict['start']):
         end = in_dict['end'][idx]
         if start > end_sample:
             break
         if end < start_sample:
             continue
-        array[max(start - start_sample, 0): end - end_sample] = True
+        array[int(max(start - start_sample, 0) / sample_step):int(
+            (end - end_sample) / sample_step)] = 1
     return array
 
 
