@@ -1,4 +1,3 @@
-from collections import Counter
 import itertools
 from operator import itemgetter
 from functools import lru_cache
@@ -9,7 +8,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from nt.database.chime5 import Chime5
 from nt.database.chime5.get_speaker_activity import get_active_speaker
 
 """
@@ -18,65 +16,67 @@ from nt.database.chime5.get_speaker_activity import get_active_speaker
 """
 
 
-def speaker_activity_per_sess(dataset: str, sessions: list):
+def speaker_activity_per_sess(sessions: list, sample_step=160):
     """
 
-    :param dataset: The dataset to generate speaker activity overview for.
-        May be either 'train', 'dev' or 'test'. Otherwise return ValueError()
     :param sessions: Calculate speaker activity for sessions given in
-        `sessions`. Sessions must match with `dataset`. Otherwise, KeyError()
-        will be thrown
+        `sessions`.
+    :param sample_step: Consider only every i-th sample in speaker activity
+        array for calculation. This may lower accuracy but can greatly speed
+        up calculations (e.g. for notebooks). Defaults to 160, i.e. take a
+        sample every 0.01 seconds.
     :return: df: pd.DataFrame
-        An tabular overview of relative speaker activity per session
+        An tabular overview of relative speaker activity per session.
     """
 
-    db = Chime5()
+    sample_rate = 16000
+    start_sample = 0
+    end_sample = 10800*sample_rate  # 3 hours
 
-    if dataset == 'train':
-        it = db.get_iterator_by_names(db.datasets_train)
-    elif dataset == 'dev':
-        it = db.get_iterator_by_names(db.datasets_eval)
-    elif dataset == 'test':
-        it = db.get_iterator_by_names(db.datasets_test)
-    else:
-        raise ValueError(f'Dataset {dataset} unknown')
+    speaker_activity = dict()
+    speakers = list()
 
-    example_ids = list(it.keys())
+    for sess_id in sessions:
 
-    speaker_activity = {sess: dict() for sess in sessions}
+        activity = get_active_speaker(start_sample, end_sample,
+                                      f'{sess_id}time',
+                                      sample_step=sample_step,
+                                      )
 
-    target_speakers = [tuple(example.split('_')[:2]) for example in example_ids]
+        target_speakers = sorted([speaker for speaker in list(activity.keys())
+                                  if speaker.startswith('P')])
 
-    speaker_occurence_in_sess = dict(Counter(target_speakers))
-    for sess_spk, occ in speaker_occurence_in_sess.items():
-        speaker_activity[sess_spk[0]][sess_spk[1]] = occ
+        speakers += target_speakers
 
-    speaker_activity['average'] = dict()
-    for sess in sessions:
-        sess_utterances = sum(speaker_activity[sess].values())
-        for speaker, activity in speaker_activity[sess].items():
-            speaker_activity[sess][speaker] /= sess_utterances
-            if speaker in speaker_activity['average']:
-                speaker_activity['average'][speaker] += [
-                    speaker_activity[sess][speaker]]
-            else:
-                speaker_activity['average'][speaker] = [
-                    speaker_activity[sess][speaker]]
-        speaker_activity[sess]['Sum'] = sum(speaker_activity[sess].values())
+        active_speaker_samples = dict()
 
-    target_speakers = speaker_activity['average'].keys()
+        for idx, spk in enumerate(target_speakers):
+            active_speaker_samples[spk] = activity[spk]['activity'][idx]
 
-    speaker_activity['average'] = {s: sum(speaker_activity['average'][s]) /
-                                   len(speaker_activity['average'][s])
-                                   for s in target_speakers
-                                   }
+        speaker_activity_arr = np.array(list(active_speaker_samples.values()))
 
+        sess_start_sample, sess_end_sample = np.squeeze(np.argwhere(
+            speaker_activity_arr.any(0)))[[0, -1]]
+
+        # Discard samples at beginning and end of session where no speaker is
+        # active
+        speaker_activity_arr = speaker_activity_arr[
+                               :, sess_start_sample:sess_end_sample+1
+                               ]
+
+        speaker_activity[sess_id] = {spk: row.sum()/row.size for spk, row in
+                                     zip(target_speakers, speaker_activity_arr)}
+        speaker_activity[sess_id]['Total Activity per Session'] = \
+            np.sum(speaker_activity_arr.any(0))/speaker_activity_arr.shape[1]
+
+    # Generate pandas.DataFrame
     df = pd.DataFrame.from_dict(speaker_activity)
-    df.columns = sessions + ['Average Activity']
-    df = df.sort_values(by='Average Activity', ascending=False)
+    df.index = sorted(set(speakers)) + ['Total Activity per Session']
+    df = df.sort_values(by='Total Activity per Session', axis=1,
+                        ascending=False)
     df = (df.style
           .format(lambda x: f"{x:.2%}" if x > 0 else x)
-          .applymap(lambda x: 'background: yellow' if x > 0.1 else '')
+          .applymap(lambda x: 'background: yellow' if x > 0 else '')
           )
     return df
 
