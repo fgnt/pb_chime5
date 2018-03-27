@@ -179,7 +179,7 @@ def to_numpy(in_dict, start_sample, end_sample, sample_step=1, dtype=bool):
         if end < start_sample:
             continue
         array[int(max(start - start_sample, 0) / sample_step):int(
-            (end - end_sample) / sample_step)] = 1
+            (end - start_sample) / sample_step)] = 1
     return array
 
 
