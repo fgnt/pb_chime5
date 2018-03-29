@@ -9,9 +9,9 @@ import tqdm
 from pathlib import Path
 from nt.database import keys
 from nt.database.helper import dump_database_as_json, click_common_options
+from nt.database.chime5.get_speaker_activity import to_samples
 from nt.io.data_dir import chime_5
 from nt.io.json_module import load_json
-
 
 class CHiME5_Keys:
     WORN = 'worn_microphone'
@@ -112,10 +112,13 @@ def get_example(transcription, audio_path):
         else:
             target_speaker_id = 'original'
             notes.append('target_speaker_id is missing')
+    # Format time to fit kaldi example ids
+    example_time = '-'.join([
+        time_to_string_format(transcription['start_time'][target_speaker_id]),
+        time_to_string_format(transcription['end_time'][target_speaker_id])
+    ])
     example_id = '_'.join(
-        [session_id, target_speaker_id,
-         transcription['start_time'][target_speaker_id],
-         transcription['end_time'][target_speaker_id]]
+        [target_speaker_id, session_id, example_time]
     )
     arrays = [f'U0{array+1}' for array in range(NUM_ARRAYS)]
     if session_id in ['S05', 'S22']:
@@ -156,6 +159,10 @@ def get_example(transcription, audio_path):
                         keys.TRANSCRIPTION: transcription['words']}
 
 
+def time_to_string_format(time):
+    # format to time string to fit time in kaldi example_ids
+    return ''.join(''.join(time.split(':')).split('.'))
+
 def get_audio_path_dict(arrays, speaker_ids, session_id, audio_path):
     audio_path_dict = {keys.OBSERVATION: {array: [
         str(audio_path / '_'.join([session_id, array])) + f'.CH{mic+1}.wav'
@@ -189,10 +196,10 @@ def get_duration(start_time, end_time):
 
 
 def get_time_from_dict(time, speaker_ids, arrays):
-    time_dict = {keys.OBSERVATION: {array: [
-        time[array] for mic in range(NUM_MICS)] for array in arrays}}
-    time_dict.update({CH_K.WORN: {speaker: [time[speaker] for mic in WORN_MICS]
-                                  for speaker in speaker_ids}})
+    time_dict = {keys.OBSERVATION: {array: [to_samples(
+        time[array])for mic in range(NUM_MICS)] for array in arrays}}
+    time_dict.update({CH_K.WORN: {speaker: [to_samples(
+        time[speaker]) for mic in WORN_MICS] for speaker in speaker_ids}})
     return time_dict
 
 
