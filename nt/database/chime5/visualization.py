@@ -2,13 +2,18 @@ import itertools
 from operator import itemgetter
 from functools import lru_cache
 import datetime
+from collections import Counter
+from pathlib import Path
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from nt.database.chime5.get_speaker_activity import get_active_speaker
+from nt.io.json_module import load_json
+from nt.database.chime5 import Chime5
+from nt.database.chime5.get_speaker_activity import get_active_speaker, \
+    to_samples, to_numpy
 
 """
     This module contains all functions related to visualizing data from the 
@@ -177,3 +182,224 @@ def sess_timeline(session: str, start=60, duration=120):
     ax.legend(handles=[green_patch])
     ax.set_title(f'Speaker Activity over Time, Session {session}')
     return ax
+
+
+def _highlight_min(s):
+    is_min = s == s.min()
+    return ['background-color: green' if v else '' for v in is_min]
+
+
+def _highlight_max(s):
+    is_max = s == s.max()
+    return ['background-color: red' if v else '' for v in is_max]
+
+
+def plot_histogram(rel_olap_per_utt_per_sess: dict, ncols=3):
+    sessions = list(rel_olap_per_utt_per_sess.keys())
+
+    nrows = int(np.ceil(len(sessions) / ncols))
+    hist_plot, axes = plt.subplots(nrows, ncols, squeeze=False,
+                                   figsize=(ncols * 5, nrows * 5))
+
+    blue_patch = mpatches.Patch(color='blue', label='Utterances with overlap')
+    red_patch = mpatches.Patch(color='red', label='Overlap-free utterances')
+
+    for idx, dict_items in enumerate(rel_olap_per_utt_per_sess.items()):
+        sess_id = dict_items[0]
+        data = np.array(dict_items[1])
+        num_olap_free = np.array(len(data) - len(data[[data > 0]]))
+
+        occurences = dict(
+            Counter(np.array(data[[data > 0]] * 10, dtype=np.int32) * 10))
+        occurences[90] += occurences[100]
+        occurences.pop(100)
+
+        row = int(np.floor(idx / ncols))
+        col = idx % ncols
+
+        # Generate histogram for subplot
+        axes[row, col].bar(np.array(list(occurences.keys())) + 5,
+                           list(occurences.values()), width=5,
+                           color='blue')
+        axes[row, col].bar(0, num_olap_free, width=5, color='red')
+        axes[row, col].set_title(f'Session {sess_id}')
+        axes[row, col].set_xticks(np.arange(0, 101, 10))
+        axes[row, col].set_xlabel('Relative overlap per utterance (in %)')
+        axes[row, col].set_ylabel('Utterances per bin')
+        axes[row, col].legend(handles=[red_patch, blue_patch])
+
+    return hist_plot
+
+
+def get_crosstalk_examples(example_ids, session_id, crosstalk_times,
+                           with_crosstalk=True, min_overlap=0.0,
+                           max_overlap=0.0):
+        """
+        Return examples of a session according to flag `with_crosstalk`
+
+        :param example_ids: List of example IDs of data set iterator
+        :param session_id: The session whose utterances should be filtered.
+        :param crosstalk_times: A dictionary which specifies start and end times
+            of cross talk
+        :param with_crosstalk: If False, return all utterances which have 0%
+            overlap with any other utterance.
+            If True, return all utterances which have at least one sample
+            overlap with any other utterance.
+        :param min_overlap: If `with_crosstalk` is True, filter only utterances
+            whose overlap ratio is greater than `min_overlap`. Then only these
+            utterances are considered to have overlap.
+        :param max_overlap: If `with_crosstalk` is False, filter all utterances
+            whose overlap_ratio is lower or equal to `max_overlap`. These
+            additional filtered utterances will then be treated as
+            "overlap-free".
+
+        :return: (filtered_examples: list, filter_ratio: float,
+                relative_overlap_per_utt: list)
+            filtered_examples is a list of examples IDs which satisfy filter
+                criterion `with_crosstalk`.
+            filter_ratio is the number of examples in filtered_examples over
+                number of total examples in the session.
+            relative_overlap_per_utt is a list of relative overlap an utterance
+                exhibits for each utterance
+        """
+
+        session_examples = list(
+            filter(lambda x: x[0:3] == session_id, example_ids))
+        num_examples = len(session_examples)
+
+        crosstalk_start = np.array(crosstalk_times['start'])
+        crosstalk_end = np.array(crosstalk_times['end'])
+
+        filtered_examples = list()
+        relative_overlap_per_utt = list()
+
+        for example_id in session_examples:
+            _, _, start_time, end_time = example_id.split('_')
+            start_sample, end_sample = (
+                to_samples(start_time), to_samples(end_time)
+            )
+            crosstalk_idx = np.logical_and(crosstalk_start >= start_sample,
+                                           crosstalk_end <= end_sample)
+            has_crosstalk = crosstalk_idx.any()
+            if has_crosstalk:
+                # sample only every 0.01 second
+                utt_samples = to_numpy({'start': crosstalk_start[crosstalk_idx],
+                                        'end': crosstalk_end[crosstalk_idx]},
+                                       start_sample, end_sample,
+                                       sample_step=160)
+                overlap_ratio = utt_samples.sum() / int(
+                    (end_sample - start_sample) / 160)
+            else:
+                overlap_ratio = 0
+            relative_overlap_per_utt.append(overlap_ratio)
+            if not with_crosstalk and overlap_ratio <= max_overlap:
+                filtered_examples.append(example_id)
+            elif with_crosstalk and overlap_ratio > min_overlap:
+                filtered_examples.append(example_id)
+
+        filter_ratio = len(filtered_examples) / num_examples
+
+        # sort examples by start time
+        return \
+            sorted(filtered_examples, key=lambda x: x[8:18]), \
+            filter_ratio, \
+            relative_overlap_per_utt
+
+
+def calculate_overlap(sessions, json_path=Path('/net/vol/jenkins/jsons'),
+                      with_crosstalk=True, min_overlap=0.0, max_overlap=0.0,
+                      plot_hist=True, ncols=3):
+    if isinstance(json_path, str):
+        json_path = Path(json_path)
+
+    db = Chime5()
+    iterator = db.get_iterator_by_names(db.dataset_names)
+    example_ids = list(iterator.keys())
+
+    overlap_durations = dict()  # np.ndarray of durations in samples per session
+    rel_overlap_per_utt_per_sess = dict()
+    rel_overlap = dict()
+    num_overlapping_utts_per_sess = dict()
+    filtered_examples_per_sess = dict()
+
+    for session_id in sessions:
+        json_sess = load_json(
+            json_path / 'chime5_speech_activity' / f'{session_id}time.json')
+
+        target_speakers = sorted([speaker for speaker in list(json_sess.keys())
+                                  if speaker.startswith('P')])
+
+        crosstalk_times = set([(start, end) for spk in target_speakers for
+                               start, end in
+                               zip(json_sess[spk]['cross_talk']['start'],
+                                   json_sess[spk]['cross_talk']['end'])
+                               ])
+
+        crosstalk = {
+            'start': [times[0] for times in crosstalk_times],
+            'end': [times[1] for times in crosstalk_times]
+        }
+
+        cross_talk_dur = np.array(crosstalk['end']) - np.array(
+            crosstalk['start'])
+
+        filtered_examples, filter_ratio, relative_overlaps = \
+            get_crosstalk_examples(example_ids, session_id,
+                                   crosstalk,
+                                   with_crosstalk=with_crosstalk,
+                                   min_overlap=min_overlap,
+                                   max_overlap=max_overlap)
+
+        overlap_durations[session_id] = cross_talk_dur
+        num_overlapping_utts_per_sess[session_id] = len(
+            filtered_examples) if with_crosstalk else int(
+            len(filtered_examples) / filter_ratio) - len(filtered_examples)
+        rel_overlap[
+            session_id] = filter_ratio if with_crosstalk else 1 - filter_ratio
+        rel_overlap_per_utt_per_sess[session_id] = relative_overlaps
+        filtered_examples_per_sess[session_id] = filtered_examples
+
+    # Convert samples to seconds, sample rate = 16 kHz
+    data = {
+        '#Overlapping Utterances': list(num_overlapping_utts_per_sess.values()),
+        'Relative Overlap': list(rel_overlap.values()),
+        'Minimum Overlap': [np.min(durations / 16000) for durations in
+                            overlap_durations.values()],
+        'Average Overlap': [np.average(durations / 16000) for durations in
+                            overlap_durations.values()],
+        'Maximum Overlap': [np.max(durations / 16000) for durations in
+                            overlap_durations.values()]
+    }
+
+    # Generate pandas.DataFrame
+    olap_df = (pd.DataFrame(data=data, index=sessions,
+                            columns=['#Overlapping Utterances',
+                                     'Minimum Overlap',
+                                     'Average Overlap',
+                                     'Maximum Overlap',
+                                     'Relative Overlap'
+                                     ]
+                            )
+               .sort_values(by='Relative Overlap', ascending=True)
+               .style
+               .format(
+        {
+            'Relative Overlap': "{:.2%}",
+            'Minimum Overlap': "{:.2f} s",
+            'Average Overlap': "{:.2f} s",
+            'Maximum Overlap': "{:.2f} s"
+        }
+    )
+               .apply(_highlight_min,
+                      subset=['#Overlapping Utterances', 'Average Overlap'])
+               .apply(_highlight_max,
+                      subset=['#Overlapping Utterances', 'Average Overlap'])
+               .set_properties(**{'text-align': 'center'})
+               )
+
+    # Get histogram
+    if plot_hist:
+        hist = plot_histogram(rel_overlap_per_utt_per_sess, ncols=ncols)
+        return olap_df, filtered_examples_per_sess, hist
+
+    return olap_df, filtered_examples_per_sess, None
