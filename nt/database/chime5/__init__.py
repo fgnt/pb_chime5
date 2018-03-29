@@ -28,6 +28,17 @@ class Chime5(HybridASRJSONDatabaseTemplate):
     def datasets_test(self):
         return ['test']
 
+    def get_lengths(self, datasets, length_transform_fn=lambda x: x[0]):
+        it = self.get_iterator_by_names(datasets)
+        lengths = []
+        for example in it:
+            num_samples = example[K.NUM_SAMPLES]
+            speaker_id = example[CHiME5_Keys.TARGET_SPEAKER]
+            if isinstance(num_samples, dict):
+                num_samples = num_samples[CHiME5_Keys.WORN][speaker_id]
+            lengths.append(length_transform_fn(num_samples))
+        return lengths
+
 
 class Chime5AudioReader(AudioReader):
     def __init__(self, src_key='audio_path', dst_key='audio_data',
