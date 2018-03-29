@@ -61,6 +61,7 @@ database, i.e. dt_simu_c0123.
 """
 import glob
 import logging
+import pickle
 from collections import defaultdict
 from pathlib import Path
 from nt.database.iterator import ExamplesIterator
@@ -107,13 +108,29 @@ class DictDatabase:
         dataset_names = to_list(dataset_names)
         iterators = list()
         for dataset_name in dataset_names:
-            examples = self.database_dict[keys.DATASETS][dataset_name]
+            try:
+                examples = self.database_dict[keys.DATASETS][dataset_name]
+            except KeyError:
+                import difflib
+                similar = difflib.get_close_matches(
+                    dataset_name,
+                    self.database_dict[keys.DATASETS].keys(),
+                    n=5,
+                    cutoff=0,
+                )
+                raise KeyError(dataset_name, f'close_matches: {similar}', self)
 
             for example_id in examples.keys():
                 examples[example_id][keys.EXAMPLE_ID] = example_id
                 examples[example_id][keys.DATASET_NAME] = dataset_name
 
-            iterators.append(ExamplesIterator(examples, name=dataset_name))
+            # Convert values to binary, because deepcopy on binary is faster
+            # This is important for CHiME5
+            examples = {k: pickle.dumps(v) for k, v in examples.items()}
+            it = ExamplesIterator(examples, name=dataset_name)
+            # Apply map function to restore binary data
+            it = it.map(pickle.loads)
+            iterators.append(it)
 
         return BaseIterator.concatenate(*iterators)
 
