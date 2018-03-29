@@ -60,10 +60,10 @@ are made unique by prefixing them with the dataset name of the original
 database, i.e. dt_simu_c0123.
 """
 import logging
+import pickle
 import numbers
 import textwrap
 import collections
-from collections import ChainMap
 from copy import deepcopy
 from pathlib import Path
 
@@ -109,6 +109,26 @@ class BaseIterator:
             f'keys is not implemented for {self.__class__}.\n'
             f'self: \n{repr(self)}'
         )
+
+    def items(self):
+        """
+        >>> examples = {'a': {'d': 1}, 'b': {'e': 1}, 'c': {'f': 1}}
+        >>> it = ExamplesIterator(examples)
+        >>> list(it)
+        [{'d': 1}, {'e': 1}, {'f': 1}]
+        >>> list(it.items())
+        [('a', {'d': 1}), ('b', {'e': 1}), ('c', {'f': 1})]
+        """
+        it = ExamplesIterator(dict(zip(self.keys(), self.keys())))
+        return it.zip(self)
+
+    def __contains__(self, item):
+        # contains is not well defined for iterator, because iterator is a
+        # mixture of tuple and dict. (tuple -> value, dict -> key)
+        # Use the verbose contains (see exception msg)
+        raise Exception(
+            f"Use 'key in {self.__class__}.keys()' "
+            f"instead of 'key in {self.__class__}'")
 
     def map(self, map_fn):
         """
@@ -160,28 +180,36 @@ class BaseIterator:
         dicts to a single dict.
 
         >>> ds1 = ExamplesIterator({'a': {'z': 1}, 'b': {'z': 2}})
+        >>> ds1 = ds1.items().map(lambda x: {'example_id': x[0], **x[1]})
         >>> ds2 = ExamplesIterator({'a': {'y': 'c'}, 'b': {'y': 'd', 'z': 3}})
+        >>> ds2 = ds2.items().map(lambda x: {'example_id': x[0], **x[1]})
         >>> ds3 = ds1.zip(ds2)
         >>> for e in ds3: print(e)
-        ({'z': 1, 'example_id': 'a'}, {'y': 'c', 'example_id': 'a'})
-        ({'z': 2, 'example_id': 'b'}, {'y': 'd', 'z': 3, 'example_id': 'b'})
+        ({'example_id': 'a', 'z': 1}, {'example_id': 'a', 'y': 'c'})
+        ({'example_id': 'b', 'z': 2}, {'example_id': 'b', 'y': 'd', 'z': 3})
 
         # Merge the dicts, when conflict, prefer the second
         >>> ds4 = ds3.map(lambda example: {**example[0], **example[1]})
         >>> ds4  # doctest: +ELLIPSIS
-            ExamplesIterator(len=2)
-            ExamplesIterator(len=2)
+                ExamplesIterator(len=2)
+                ExamplesIterator(len=2)
+              ZipIterator()
+            MapIterator(<function <lambda> at 0x...>)
+                ExamplesIterator(len=2)
+                ExamplesIterator(len=2)
+              ZipIterator()
+            MapIterator(<function <lambda> at 0x...>)
           ZipIterator()
         MapIterator(<function <lambda> at 0x...>)
         >>> for e in ds4: print(e)
-        {'z': 1, 'example_id': 'a', 'y': 'c'}
-        {'z': 3, 'example_id': 'b', 'y': 'd'}
+        {'example_id': 'a', 'z': 1, 'y': 'c'}
+        {'example_id': 'b', 'z': 3, 'y': 'd'}
 
         # Lambda that merges an arbitary amount of dicts.
         >>> ds5 = ds3.map(lambda exmaple: dict(sum([list(e.items()) for e in exmaple], [])))
         >>> for e in ds5: print(e)
-        {'z': 1, 'example_id': 'a', 'y': 'c'}
-        {'z': 3, 'example_id': 'b', 'y': 'd'}
+        {'example_id': 'a', 'z': 1, 'y': 'c'}
+        {'example_id': 'b', 'z': 3, 'y': 'd'}
 
         :param others: list of other iterators to be zipped
         :return: Iterator
@@ -208,6 +236,7 @@ class BaseIterator:
         """
         >>> examples = {'a': {}, 'b': {}, 'c': {}}
         >>> it = ExamplesIterator(examples)
+        >>> it = it.items().map(lambda x: {'example_id': x[0], **x[1]})
         >>> its = it.split(2)
         >>> list(its[0])
         [{'example_id': 'a'}, {'example_id': 'b'}]
@@ -260,6 +289,7 @@ class ExamplesIterator(BaseIterator):
         assert isinstance(examples, dict)
         self.examples = examples
         self.name = name
+        self._keys = tuple(self.examples.keys())
 
     def __str__(self):
         if self.name is None:
@@ -269,8 +299,7 @@ class ExamplesIterator(BaseIterator):
                    f'(name={self.name}, len={len(self)})'
 
     def keys(self):
-        # Note: tuple is immutable, i.e. it can not be modified
-        return tuple(self.examples.keys())
+        return self._keys
 
     def __iter__(self):
         for k in self.keys():
@@ -278,19 +307,21 @@ class ExamplesIterator(BaseIterator):
 
     def __getitem__(self, item):
         if isinstance(item, str):
-            if item in self.keys():
-                key = item
-            else:
+            key = item
+            try:
+                example = self.examples[key]
+            except Exception:
                 import difflib
                 similar = difflib.get_close_matches(item, self.keys())
                 raise KeyError(item, f'close_matches: {similar}', self)
         elif isinstance(item, numbers.Integral):
             key = self.keys()[item]
+            example = self.examples[key]
         else:
             return super().__getitem__(item)
-        example = deepcopy(self.examples[key])
-        example[keys.EXAMPLE_ID] = key
-        return example
+
+        # Ensure that nobody can change the data.
+        return deepcopy(example)
 
     def __len__(self):
         return len(self.examples)
@@ -348,9 +379,13 @@ class ShuffleIterator(BaseIterator):
     >>> np.random.seed(1)
     >>> examples = {'a': {}, 'b': {}, 'c': {}}
     >>> it = ExamplesIterator(examples)
+    >>> it = it.items().map(lambda x: {'example_id': x[0], **x[1]})
     >>> it = it.shuffle(False)
-    >>> it
-      ExamplesIterator(len=3)
+    >>> it  # doctest: +ELLIPSIS
+          ExamplesIterator(len=3)
+          ExamplesIterator(len=3)
+        ZipIterator()
+      MapIterator(<function <lambda> at 0x...>)
     ShuffleIterator()
     >>> list(it)
     [{'example_id': 'a'}, {'example_id': 'c'}, {'example_id': 'b'}]
@@ -560,12 +595,12 @@ class ConcatenateIterator(BaseIterator):
             self._keys = tuple(keys)
         return self._keys
 
-    _chain_map = None
-
     def __getitem__(self, item):
         """
         >>> it1 = ExamplesIterator({'a': {}, 'b': {}})
+        >>> it1 = it1.items().map(lambda x: {'example_id': x[0], **x[1]})
         >>> it2 = ExamplesIterator({'c': {}, 'd': {}})
+        >>> it2 = it2.items().map(lambda x: {'example_id': x[0], **x[1]})
         >>> it = it1.concatenate(it2)
         >>> it['a']
         {'example_id': 'a'}
@@ -578,11 +613,25 @@ class ConcatenateIterator(BaseIterator):
                     item -= len(iterator)
                 else:
                     return iterator[item]
+            raise KeyError(item)
         elif isinstance(item, str):
-            if self._chain_map is None:
-                self.keys()  # test unique keys
-                self._chain_map = ChainMap(*self.input_iterators)
-            return self._chain_map[item]
+            self.keys()  # test unique keys
+            for iterator in self.input_iterators:
+                if item in iterator.keys():
+                    return iterator[item]
+            # In collections.ChainMap is
+            # 'try: ... except KeyError: ...'
+            # used, since an iterator should provide a better exception msg,
+            # __contains__ is faster than collections.ChainMap
+            # because the overhead of calculating the exception msg is to high.
+
+            if item in self.keys():
+                raise Exception(
+                    f'There is a internal error in {self.__class__}. '
+                    f'Could not find {item} in input iterators, but it is in '
+                    f'{self.keys()}'
+                )
+            raise KeyError(item)
         else:
             return super().__getitem__(item)
 
@@ -603,9 +652,19 @@ class ZipIterator(BaseIterator):
             'Currently limited to at least two iterator. Could be removed.' \
             f'\n{self.input_iterators}'
         lengths = [len(it) for it in self.input_iterators]
-        assert len(set(lengths)) == 1, \
-            f'Expect that all input_iterators have the same length {lengths}' \
-            f'\n{self.input_iterators}'
+        keys = set(self.input_iterators[0].keys())
+        lengths = [
+            len(keys - set(it.keys())) for it in self.input_iterators
+        ]
+        if set(lengths) != {0}:
+            missing_keys = [
+                keys - set(it.keys()) for it in self.input_iterators
+            ]
+            raise AssertionError(
+                f'Expect that all input_iterators have at least the same keys as ' \
+                f'the first. To much keys: {missing_keys}' \
+                f'\n{self.input_iterators}'
+            )
 
     def __iter__(self):
         for key in self.keys():
@@ -737,18 +796,25 @@ class IdFilter:
         An alternative with slicing:
 
         >>> it = ExamplesIterator({'a': {}, 'b': {}, 'c': {}})
+        >>> it = it.items().map(lambda x: {'example_id': x[0], **x[1]})
         >>> list(it)
         [{'example_id': 'a'}, {'example_id': 'b'}, {'example_id': 'c'}]
         >>> it['a']
         {'example_id': 'a'}
-        >>> it['a', 'b']
-          ExamplesIterator(len=3)
+        >>> it['a', 'b']  # doctest: +ELLIPSIS
+              ExamplesIterator(len=3)
+              ExamplesIterator(len=3)
+            ZipIterator()
+          MapIterator(<function <lambda> at 0x...>)
         SliceIterator(('a', 'b'))
         >>> list(it['a', 'b'])
         [{'example_id': 'a'}, {'example_id': 'b'}]
 
         >>> it.filter(IdFilter(('a', 'b')))  # doctest: +ELLIPSIS
-          ExamplesIterator(len=3)
+              ExamplesIterator(len=3)
+              ExamplesIterator(len=3)
+            ZipIterator()
+          MapIterator(<function <lambda> at 0x...>)
         FilterIterator(<nt.database.iterator.IdFilter object at 0x...>)
         >>> list(it.filter(IdFilter(('a', 'b'))))
         [{'example_id': 'a'}, {'example_id': 'b'}]
