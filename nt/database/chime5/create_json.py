@@ -144,8 +144,7 @@ def get_example(transcription, audio_path):
         ref_array = 'unkown'
     if session_id in NOTES_DICT:
         notes.append(NOTES_DICT[session_id])
-    return example_id, {keys.EXAMPLE_ID: example_id,
-                        CH_K.SESSION_ID: session_id,
+    return example_id, {CH_K.SESSION_ID: session_id,
                         CH_K.TARGET_SPEAKER: target_speaker_id,
                         keys.SPEAKER_ID: speaker_ids,
                         keys.GENDER: gender,
@@ -192,7 +191,7 @@ def get_num_samples(start_time_dict, end_time_dict):
 def get_duration(start_time, end_time):
     duration = datetime.strptime(end_time, FORMAT_STRING) - datetime.strptime(
         start_time, FORMAT_STRING)
-    return duration.total_seconds() * SAMPLE_RATE
+    return int(duration.total_seconds() * SAMPLE_RATE)
 
 
 def get_time_from_dict(time, speaker_ids, arrays):
