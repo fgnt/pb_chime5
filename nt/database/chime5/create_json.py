@@ -167,8 +167,7 @@ def get_audio_path_dict(arrays, speaker_ids, session_id, audio_path):
         str(audio_path / '_'.join([session_id, array])) + f'.CH{mic+1}.wav'
         for mic in range(NUM_MICS)] for array in arrays}}
     audio_path_dict.update({CH_K.WORN: {speaker: [
-        str(audio_path / '_'.join([session_id, speaker, side])) + '.wav'
-        for side in WORN_MICS] for speaker in speaker_ids}})
+        str(audio_path / '_'.join([session_id, speaker])) + '.wav'] for speaker in speaker_ids}})
     for key, audio_path in audio_path_dict.items():
         assert [Path(p).is_file() for path in audio_path.values()
                 for p in path], f'For {key} at least one audio_path is no file'
@@ -180,8 +179,10 @@ def get_num_samples(start_time_dict, end_time_dict):
             return {key: get_num_samples_recursive(value, end_time[key])
                     for key, value in start_time.items()}
         elif isinstance(start_time, list):
-            return [get_duration(start_time[idx], end_time[idx])
+            return [end_time[idx]- start_time[idx]
                     for idx in range(len(start_time))]
+        elif isinstance(start_time, int):
+            return end_time - start_time
         else:
             raise ValueError('expected dict or list')
 
@@ -197,8 +198,8 @@ def get_duration(start_time, end_time):
 def get_time_from_dict(time, speaker_ids, arrays):
     time_dict = {keys.OBSERVATION: {array: [to_samples(
         time[array])for mic in range(NUM_MICS)] for array in arrays}}
-    time_dict.update({CH_K.WORN: {speaker: [to_samples(
-        time[speaker]) for mic in WORN_MICS] for speaker in speaker_ids}})
+    time_dict.update({CH_K.WORN: {speaker: to_samples(
+        time[speaker]) for speaker in speaker_ids}})
     return time_dict
 
 

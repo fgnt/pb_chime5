@@ -34,17 +34,12 @@ def get_cross_talk(database_path, dataset, json_path):
         total = len(trans)
         speaker_ids = [key for key in trans[0]['start_time'].keys() if
                        'P' in key]
-        arrays = [f'U0{array+1}' for array in range(NUM_ARRAYS)]
         out_dict = {
-        array: {speaker: dict(start=[], end=[])
-                for speaker in speaker_ids} for array in arrays}
-        out_dict.update({
                         speaker: {speaker: dict(start=[], end=[]) for speaker in
-                                  speaker_ids} for speaker in speaker_ids})
-
+                                  speaker_ids} for speaker in speaker_ids}
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(os.cpu_count()) as ex:
-            for example_dict in tqdm.tqdm(
+            for speaker, example_dict in tqdm.tqdm(
                     ex.map(
                         get_dict_speaker,
                         trans
@@ -53,7 +48,8 @@ def get_cross_talk(database_path, dataset, json_path):
                     desc=dataset + '_' + session_id
             ):
                 if example_dict is not None:
-                    out_dict = combine_dicts(example_dict, out_dict)
+                    out_dict[speaker] = combine_dicts(example_dict,
+                                                      out_dict[speaker])
         in_tuple = list(out_dict.items())
         with ThreadPoolExecutor(os.cpu_count()) as ex:
             for mic_id, cross_talk in tqdm.tqdm(
@@ -68,32 +64,21 @@ def get_cross_talk(database_path, dataset, json_path):
 
 
 def get_dict_speaker(example):
-    session_id = example['session_id']
     speaker_ids = [key for key in example['start_time'].keys()
                    if 'P' in key]
     try:
         speaker_id = example['speaker']
     except KeyError:
-        return None
-
-    arrays = [f'U0{array+1}' for array in range(NUM_ARRAYS)]
-    if session_id in ['S05', 'S22']:
-        del arrays[2]
-    elif session_id == 'S09':
-        del arrays[4]
+        return None, None
     time_dict = get_time_from_dict(example['start_time'], example['end_time'],
-                                   speaker_ids, arrays, speaker_id)
+                                   speaker_ids)
+    return speaker_id, time_dict
 
-    return time_dict
 
-
-def get_time_from_dict(start, end, speaker_ids, arrays, target):
-    time_dict = {array: {
-        target: dict(start=to_samples(start[array]),
-                     end=to_samples(end[array]))} for array in arrays}
-    time_dict.update({speaker: {
-        target: dict(start=to_samples(start[speaker]),
-                     end=to_samples(end[speaker]))} for speaker in speaker_ids})
+def get_time_from_dict(start, end, speaker_ids):
+    time_dict = {
+        speaker: dict(start=to_samples(start[speaker]),
+                     end=to_samples(end[speaker])) for speaker in speaker_ids}
     return time_dict
 
 
@@ -119,43 +104,40 @@ def combine_dicts(speaker_dict, org_dict):
 
 
 def get_cross_talk_per_mic(input_tuple):
-    mic, mic_times = input_tuple
-    speaker_list = list()
+    # input is item of time_dict
+    speaker, mic_times = input_tuple
     cross_talk = dict(end=list(), start=list())
-    for speaker, speaker_times in mic_times.items():
-        speaker_list.append(speaker)
-        start_list = sorted(speaker_times['start'])
-        end_list = sorted(speaker_times['end'])
-        for idx in range(len(start_list)):
-            start = start_list[idx]
-            end = end_list[idx]
-            for speaker_2, speaker_times_2 in mic_times.items():
-                if speaker_2 in speaker_list:
+    speaker_times = mic_times[speaker]
+    start_list = sorted(speaker_times['start'])
+    end_list = sorted(speaker_times['end'])
+    for idx in range(len(start_list)):
+        start = start_list[idx]
+        end = end_list[idx]
+        for speaker_2, speaker_times_2 in mic_times.items():
+            start_list_2 = sorted(speaker_times_2['start'])
+            end_list_2 = sorted(speaker_times_2['end'])
+            for idx2 in range(len(start_list_2)):
+                start_2 = start_list_2[idx2]
+                end_2 = end_list_2[idx2]
+                if start_2 >= end:
+                    break
+                if end_2 <= start or (start==start_2 and end==end_2):
                     continue
-                start_list_2 = sorted(speaker_times_2['start'])
-                end_list_2 = sorted(speaker_times_2['end'])
-                for idx2 in range(len(start_list_2)):
-                    start_2 = start_list_2[idx2]
-                    end_2 = end_list_2[idx2]
-                    if start_2 >= end:
-                        break
-                    if end_2 <= start:
-                        continue
-                    if end < end_2:
-                        cross_talk['end'].append(end)
-                    else:
-                        cross_talk['end'].append(end_2)
-                    if start > start_2:
-                        cross_talk['start'].append(start)
-                    else:
-                        cross_talk['start'].append(start_2)
+                if end < end_2:
+                    cross_talk['end'].append(end)
+                else:
+                    cross_talk['end'].append(end_2)
+                if start > start_2:
+                    cross_talk['start'].append(start)
+                else:
+                    cross_talk['start'].append(start_2)
 
-    return mic, cross_talk
+    return speaker, cross_talk
 
 
 def get_active_speaker(start_sample, end_sample, session_id,
-                       json_path=JSON_PATH, sample_step=1, dtype=bool):
-    speaker_json = load_json(str(json_path / session_id) + '.json')
+                       speaker_json=None, sample_step=1, dtype=bool):
+    # speaker_json = load_json(str(json_path / session_id) + '.json')
     out_dict = dict()
     for key, value in speaker_json.items():
         cross_talk = to_numpy(value['cross_talk'], start_sample, end_sample,

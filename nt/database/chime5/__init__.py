@@ -3,7 +3,7 @@ from datetime import datetime
 import numpy as np
 from nt.database import HybridASRJSONDatabaseTemplate
 from nt.database import keys as K
-from nt.database.chime5.create_json import CHiME5_Keys
+from nt.database.chime5.create_json import CHiME5_Keys, SAMPLE_RATE
 from nt.database.iterator import AudioReader
 from nt.io.audioread import audioread
 from nt.io.data_dir import database_jsons
@@ -96,19 +96,22 @@ def recursive_transform(func, dict_list_val, start, end, list2array=False):
             key: recursive_transform(func, val, start[key], end[key],
                                      list2array)
             for key, val in dict_list_val.items()}
-    if isinstance(dict_list_val, (list, tuple)):
+    if isinstance(dict_list_val, (list, tuple)) and type(start) == type(dict_list_val):
         # Recursively call itself
         l = [recursive_transform(func, dict_list_val[idx], start[idx], end[idx],
                                  list2array)
              for idx in range(len(dict_list_val))]
+
+        if list2array:
+            return np.array(l)
+        return l
+    elif isinstance(dict_list_val, (list, tuple)):
+        l = start
         if list2array:
             return np.array(l)
         return l
     else:
         # applies function to a leaf value which is not a dict or list
-        offset = datetime.strptime(start, FORMAT_STRING) - datetime.strptime(
-            '0:00:00.00', FORMAT_STRING)
-        duration = datetime.strptime(end, FORMAT_STRING) - datetime.strptime(
-            start, FORMAT_STRING)
-        return func(dict_list_val, offset.total_seconds(),
-                    duration.total_seconds())
+        offset = start / SAMPLE_RATE
+        duration = (end - start) / SAMPLE_RATE
+        return func(dict_list_val, offset, duration)
