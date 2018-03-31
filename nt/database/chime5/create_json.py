@@ -160,7 +160,7 @@ def get_example(transcription, audio_path):
 
 def time_to_string_format(time):
     # format to time string to fit time in kaldi example_ids
-    return ''.join(''.join(time.split(':')).split('.'))
+    return str(int(to_samples(time) * 100 / SAMPLE_RATE)).zfill(7)
 
 def get_audio_path_dict(arrays, speaker_ids, session_id, audio_path):
     audio_path_dict = {keys.OBSERVATION: {array: [
