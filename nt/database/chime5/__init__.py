@@ -96,15 +96,19 @@ def recursive_transform(func, dict_list_val, start, end, list2array=False):
             key: recursive_transform(func, val, start[key], end[key],
                                      list2array)
             for key, val in dict_list_val.items()}
-    if isinstance(dict_list_val, (list, tuple)) and type(start) == type(dict_list_val):
-        # Recursively call itself
-        l = [recursive_transform(func, dict_list_val[idx], start[idx], end[idx],
-                                 list2array)
-             for idx in range(len(dict_list_val))]
+    if isinstance(dict_list_val, (list, tuple)):
+        if type(start) == type(dict_list_val):
+            # Recursively call itself
+            l = [recursive_transform(func, dict_list_val[idx], start[idx], end[idx],
+                                     list2array)
+                 for idx in range(len(dict_list_val))]
 
-        if list2array:
-            return np.array(l)
-        return l
+            if list2array:
+                return np.array(l)
+            return l
+        else:
+            return recursive_transform(func, dict_list_val[0], start, end,
+                                        list2array)
     elif isinstance(dict_list_val, (list, tuple)):
         l = start
         if list2array:
