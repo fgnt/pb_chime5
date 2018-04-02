@@ -640,6 +640,7 @@ class ZipIterator(BaseIterator):
     """
     See BaseIterator.zip
     """
+
     def __init__(self, *input_iterators):
         """
         :param input_iterators: list of iterators
@@ -869,38 +870,46 @@ class AlignmentReader:
         return example
 
 
-def remove_examples_without_alignment(example):
-    valid_ali = keys.ALIGNMENT in example and len(example[keys.ALIGNMENT])
-    if not valid_ali:
-        LOG.warning(
-            f'Removing example {example[keys.EXAMPLE_ID]} because '
-            f'it has no alignment')
-        return False
-    if keys.NUM_SAMPLES in example:
-        num_samples = example[keys.NUM_SAMPLES]
-        if isinstance(num_samples, dict):
-            num_samples = num_samples[keys.OBSERVATION]
-    else:
-        return True  # Only happens for Kaldi databases
-    num_frames = (num_samples - 400 + 160) // 160
-    num_frames_lfr = (num_frames + np.mod(-num_frames, 3)) // 3
-    len_ali = len(example[keys.ALIGNMENT])
-    valid_ali = (
-        len_ali == num_frames or
-        len_ali == num_frames_lfr
-    )
-    if not valid_ali:
-        LOG.warning(
-            f'Example {example[keys.EXAMPLE_ID]}: Alignment has {len_ali} '
-            f'frames but the observation has '
-            f'{num_frames} [{num_frames_lfr}] frames. Dropping example.'
+class ExamplesWithoutAlignmentRemover:
+    def __init__(self, alignment_key=keys.ALIGNMENT):
+        self._key = alignment_key
+
+    def __call__(self, example):
+        valid_ali = self._key in example and len(example[self._key])
+        if not valid_ali:
+            LOG.warning(
+                f'Removing example {example[keys.EXAMPLE_ID]} because '
+                f'it has no alignment')
+            return False
+        if keys.NUM_SAMPLES in example:
+            num_samples = example[keys.NUM_SAMPLES]
+            if isinstance(num_samples, dict):
+                num_samples = num_samples[keys.OBSERVATION]
+        else:
+            return True  # Only happens for Kaldi databases
+        num_frames = (num_samples - 400 + 160) // 160
+        num_frames_lfr = (num_frames + np.mod(-num_frames, 3)) // 3
+        len_ali = len(example[self._key])
+        valid_ali = (
+            len_ali == num_frames or
+            len_ali == num_frames_lfr
         )
-        return False
-    return True
+        if not valid_ali:
+            LOG.warning(
+                f'Example {example[keys.EXAMPLE_ID]}: Alignment has {len_ali} '
+                f'frames but the observation has '
+                f'{num_frames} [{num_frames_lfr}] frames. Dropping example.'
+            )
+            return False
+        return True
+
+
+def remove_examples_without_alignment(example):
+    return ExamplesWithoutAlignmentRemover()(example)
 
 
 def remove_zero_length_example(example, audio_key='observation',
-                                dst_key='audio_data'):
+                               dst_key='audio_data'):
 
     if keys.NUM_SAMPLES in example:
         num_samples = example[keys.NUM_SAMPLES]
@@ -917,13 +926,15 @@ def remove_zero_length_example(example, audio_key='observation',
 
 
 class LimitAudioLength:
-    def __init__(self, max_lengths=160000, audio_key='observation',
+    def __init__(self, max_lengths=160000, audio_keys=('observation',),
                  dst_key='audio_data', frame_length=400, frame_step=160):
         self.max_lengths = max_lengths
-        self.audio_key = audio_key
+        self.audio_keys = audio_keys
         self.dst_key = dst_key
         self.frame_length = frame_length
         self.frame_step = frame_step
+        if self.max_lengths:
+            LOG.info(f'Will limit audio length to {self.max_lengths}')
 
     def _sample_to_frame(self, s):
         return max(
@@ -936,36 +947,42 @@ class LimitAudioLength:
 
     def __call__(self, example):
         valid_ex = keys.NUM_SAMPLES in example and \
-                   example[keys.NUM_SAMPLES] <= self.max_lengths
+            example[keys.NUM_SAMPLES] <= self.max_lengths
         if not valid_ex:
             delta = max(1, (example[keys.NUM_SAMPLES] - self.max_lengths) // 2)
             start = np.random.choice(delta, 1)[0]
-            
-            # Check for LFR
-            num_frames = (example[keys.NUM_SAMPLES] - 400 + 160) // 160
-            num_frames_lfr = self._frame_to_lfr_frame(num_frames)
-            if len(example[keys.ALIGNMENT]) == num_frames_lfr:
-                lfr = True
-            else:
-                lfr = False
 
             # audio
-            example[self.dst_key][self.audio_key] = \
-                example[self.dst_key][self.audio_key][..., start: start
-                + self.max_lengths]
+            def cut_fn(x): return x[..., start: start + self.max_lengths]
+            if self.audio_keys is not None:
+                example[keys.AUDIO_DATA] = {
+                    audio_key: recursive_transform(
+                        cut_fn, example[keys.AUDIO_DATA][audio_key],
+                        list2array=True
+                    )
+                    for audio_key in self.audio_keys
+                }
+            else:
+                example[keys.AUDIO_DATA] = recursive_transform(
+                    cut_fn, example[keys.AUDIO_DATA], list2array=True
+                )
             example[keys.NUM_SAMPLES] = self.max_lengths
 
             # alignment
-            num_frames_start = self._sample_to_frame(start)
-            if lfr:
-                num_frames_start = self._frame_to_lfr_frame(num_frames_start)
-            num_frames_length = self._sample_to_frame(self.max_lengths)
-            if lfr:
-                num_frames_length = self._frame_to_lfr_frame(num_frames_length)
-            example[keys.ALIGNMENT] = \
-                example[keys.ALIGNMENT][num_frames_start: num_frames_start
-                + num_frames_length]
-            example[keys.NUM_ALIGNMENT_FRAMES] = num_frames_length
+            if keys.ALIGNMENT in example:
+                num_frames_start = self._sample_to_frame(start)
+                num_frames_length = self._sample_to_frame(self.max_lengths)
+                # Check for LFR
+                num_frames = (example[keys.NUM_SAMPLES] - 400 + 160) // 160
+                num_frames_lfr = self._frame_to_lfr_frame(num_frames)
+                if len(example[keys.ALIGNMENT]) == num_frames_lfr:
+                    num_frames_start = self._frame_to_lfr_frame(num_frames_start)
+                    num_frames_length = self._frame_to_lfr_frame(num_frames_length)
+                # Adjust alignment
+                example[keys.ALIGNMENT] = \
+                    example[keys.ALIGNMENT][num_frames_start: num_frames_start
+                                            + num_frames_length]
+                example[keys.NUM_ALIGNMENT_FRAMES] = num_frames_length
 
             LOG.warning(f'Cutting example to length {self.max_lengths}'
                         f' :{example[keys.EXAMPLE_ID]}')
