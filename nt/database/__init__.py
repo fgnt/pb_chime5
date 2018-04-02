@@ -164,6 +164,7 @@ class JsonDatabase(DictDatabase):
 
     @cached_property
     def database_dict(self):
+        LOG.info(f'Using json {self._json_path}')
         return load_json(self._json_path)
 
     def __repr__(self):
@@ -460,7 +461,7 @@ class HybridASRDatabaseTemplate:
         with open(self.lang_path / 'phones' / 'silence.csl') as fid:
             silence_ids = list(map(int, fid.read().strip().split(':')))
         return {
-            k: [int(_id) not in silence_ids for _id in v]
+            k: np.asarray([int(_id) not in silence_ids for _id in v])
             for k, v in alignment.items()
         }
 
