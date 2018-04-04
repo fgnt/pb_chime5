@@ -8,7 +8,7 @@ import numpy as np
 import tqdm
 from nt.database.helper import click_convert_to_path
 from nt.io.json_module import load_json, dump_json
-
+from itertools import combinations
 FORMAT_STRING = '%H:%M:%S.%f'
 JSON_PATH = Path('/net/vol/jenkins/jsons/chime5_speech_activity')
 NUM_MICS = 4
@@ -50,15 +50,8 @@ def get_cross_talk(database_path, dataset, json_path):
                 if example_dict is not None:
                     out_dict[speaker] = combine_dicts(example_dict,
                                                       out_dict[speaker])
-        in_tuple = list(out_dict.items())
-        with ThreadPoolExecutor(os.cpu_count()) as ex:
-            for mic_id, cross_talk in tqdm.tqdm(
-                    ex.map(get_cross_talk_per_mic,
-                           in_tuple),
-                    total=len(in_tuple),
-                    desc=dataset + '_' + session_id
-            ):
-                out_dict[mic_id]['cross_talk'] = cross_talk
+        out_dict['cross_talk'] = get_cross_talk_per_mic(out_dict)
+
         dump_json(out_dict,
                   str(json_path / session_id) + '.json')
 
@@ -103,55 +96,54 @@ def combine_dicts(speaker_dict, org_dict):
     return combine_iterativ(speaker_dict, org_dict)
 
 
-def get_cross_talk_per_mic(input_tuple):
-    # input is item of time_dict
-    speaker, mic_times = input_tuple
-    cross_talk = dict(end=list(), start=list())
-    speaker_times = mic_times[speaker]
-    start_list = sorted(speaker_times['start'])
-    end_list = sorted(speaker_times['end'])
-    for idx in range(len(start_list)):
-        start = start_list[idx]
-        end = end_list[idx]
-        for speaker_2, speaker_times_2 in mic_times.items():
-            start_list_2 = sorted(speaker_times_2['start'])
-            end_list_2 = sorted(speaker_times_2['end'])
-            for idx2 in range(len(start_list_2)):
-                start_2 = start_list_2[idx2]
-                end_2 = end_list_2[idx2]
-                if start_2 >= end:
-                    break
-                if end_2 <= start or (start==start_2 and end==end_2):
-                    continue
-                if end < end_2:
-                    cross_talk['end'].append(end)
-                else:
-                    cross_talk['end'].append(end_2)
-                if start > start_2:
-                    cross_talk['start'].append(start)
-                else:
-                    cross_talk['start'].append(start_2)
+def get_cross_talk_per_mic(speaker_dict):
+    cross_talk = {speaker: dict(start=list(), end=list())
+                  for speaker in speaker_dict.keys()}
+    speaker_combinations = [list(map(str, comb))
+                            for comb in combinations(speaker_dict.keys(), 2)]
+    for active_speaker_id, second_speaker_id in speaker_combinations:
+        active_speaker_mics = speaker_dict[active_speaker_id]
+        second_speaker_mics = speaker_dict[second_speaker_id]
+        for idx in range(len(active_speaker_mics[active_speaker_id]['start'])):
+            start_sp1 = active_speaker_mics[active_speaker_id]['start'][idx]
+            end_sp1 = active_speaker_mics[active_speaker_id]['end'][idx]
+            second_speaker = second_speaker_mics[active_speaker_id]
+            for idy in range(len(second_speaker['start'])):
+                start_sp2 = second_speaker['start'][idy]
+                end_sp2 = second_speaker['end'][idy]
+                if start_sp1 <= end_sp2 and end_sp1 >= start_sp2:
+                    for speaker_mic in speaker_dict.keys():
+                        if start_sp1 > start_sp2:
+                            cross_talk[speaker_mic]['start'].append(
+                                active_speaker_mics[speaker_mic]['start'][idx])
+                        else:
+                            cross_talk[speaker_mic]['start'].append(
+                                second_speaker_mics[speaker_mic]['start'][idy])
 
-    return speaker, cross_talk
+                        if end_sp1 < end_sp2:
+                            cross_talk[speaker_mic]['end'].append(
+                                active_speaker_mics[speaker_mic]['end'][idx])
+                        else:
+                            cross_talk[speaker_mic]['end'].append(
+                                second_speaker_mics[speaker_mic]['end'][idy])
+    return cross_talk
 
 
-def get_active_speaker(start_sample, end_sample, session_id,
+
+
+def get_active_speaker(start_sample, end_sample, session_id, json_path=None,
                        speaker_json=None, sample_step=1, dtype=bool):
-    # speaker_json = load_json(str(json_path / session_id) + '.json')
+    if json_path is not None:
+        speaker_json = load_json(str(json_path / session_id) + '.json')
+    elif speaker_json is None:
+        raise ValueError('Either json_path or speaker_json have to be defined')
     out_dict = dict()
-    for key, value in speaker_json.items():
-        if key.startswith('P'):
-            speech_activity = np.array([to_numpy(activity, start_sample,
-                                                 end_sample,
-                                                 sample_step=sample_step,
-                                                 dtype=dtype)
-                                        for _, activity in sorted(value.items())
-                                        ])
-            out_dict[key] = dict(activity=speech_activity)
-    for speaker, samples in speaker_json['cross_talk'].items():
-        cross_talk = to_numpy(samples, start_sample, end_sample,
+    for key, value in speaker_json['cross_talk'].items():
+        cross_talk = to_numpy(value, start_sample, end_sample,
                               sample_step=sample_step, dtype=dtype)
-        out_dict[speaker].update(dict(cross_talk=cross_talk))
+        speaker = to_numpy(speaker_json[key][key], start_sample, end_sample,
+                           sample_step, dtype)
+        out_dict[key] = dict(cross_talk=cross_talk, speaker=speaker)
     return out_dict
 
 
