@@ -101,6 +101,7 @@ def get_cross_talk_per_mic(speaker_dict):
                   for speaker in speaker_dict.keys()}
     speaker_combinations = [list(map(str, comb))
                             for comb in combinations(speaker_dict.keys(), 2)]
+    speaker_combinations += [comb[::-1] for comb in speaker_combinations]
     for active_speaker_id, second_speaker_id in speaker_combinations:
         active_speaker_mics = speaker_dict[active_speaker_id]
         second_speaker_mics = speaker_dict[second_speaker_id]
@@ -131,8 +132,9 @@ def get_cross_talk_per_mic(speaker_dict):
 
 
 
-def get_active_speaker(start_sample, end_sample, session_id, json_path=None,
-                       speaker_json=None, sample_step=1, dtype=bool):
+def get_active_speaker(start_sample, end_sample, session_id, mic_id,
+                       json_path=None, speaker_json=None, sample_step=1,
+                       dtype=bool):
     if json_path is not None:
         speaker_json = load_json(str(json_path / session_id) + '.json')
     elif speaker_json is None:
@@ -141,9 +143,9 @@ def get_active_speaker(start_sample, end_sample, session_id, json_path=None,
     for key, value in speaker_json['cross_talk'].items():
         cross_talk = to_numpy(value, start_sample, end_sample,
                               sample_step=sample_step, dtype=dtype)
-        speaker = to_numpy(speaker_json[key][key], start_sample, end_sample,
+        activity = to_numpy(speaker_json[key][mic_id], start_sample, end_sample,
                            sample_step, dtype)
-        out_dict[key] = dict(cross_talk=cross_talk, speaker=speaker)
+        out_dict[key] = dict(cross_talk=cross_talk, activity=activity)
     return out_dict
 
 
