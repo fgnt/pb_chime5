@@ -140,14 +140,18 @@ def get_active_speaker(start_sample, end_sample, session_id,
     # speaker_json = load_json(str(json_path / session_id) + '.json')
     out_dict = dict()
     for key, value in speaker_json.items():
-        cross_talk = to_numpy(value['cross_talk'], start_sample, end_sample,
+        if key.startswith('P'):
+            speech_activity = np.array([to_numpy(activity, start_sample,
+                                                 end_sample,
+                                                 sample_step=sample_step,
+                                                 dtype=dtype)
+                                        for _, activity in sorted(value.items())
+                                        ])
+            out_dict[key] = dict(activity=speech_activity)
+    for speaker, samples in speaker_json['cross_talk'].items():
+        cross_talk = to_numpy(samples, start_sample, end_sample,
                               sample_step=sample_step, dtype=dtype)
-        speech_activity = np.array([to_numpy(activity, start_sample,
-                                             end_sample,
-                                             sample_step=sample_step,
-                                             dtype=dtype)
-                                    for _, activity in sorted(value.items())])
-        out_dict[key] = dict(cross_talk=cross_talk, activity=speech_activity)
+        out_dict[speaker].update(dict(cross_talk=cross_talk))
     return out_dict
 
 

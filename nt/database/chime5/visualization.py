@@ -4,6 +4,7 @@ from functools import lru_cache
 import datetime
 from collections import Counter
 from pathlib import Path
+import re
 
 import pandas as pd
 import numpy as np
@@ -11,9 +12,10 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 from nt.io.json_module import load_json
+from nt.io.data_dir import database_jsons
 from nt.database.chime5 import Chime5
 from nt.database.chime5.get_speaker_activity import get_active_speaker, \
-    to_samples, to_numpy
+    to_numpy
 
 """
     This module contains all functions related to visualizing data from the 
@@ -43,8 +45,14 @@ def speaker_activity_per_sess(sessions: list, sample_step=160):
 
     for sess_id in sessions:
 
+        speaker_json = load_json(str(database_jsons /
+                                     'chime5_speech_activity' /
+                                     f'{sess_id}.json')
+                                 )
+
         activity = get_active_speaker(start_sample, end_sample,
-                                      f'{sess_id}time',
+                                      sess_id,
+                                      speaker_json=speaker_json,
                                       sample_step=sample_step,
                                       )
 
@@ -153,10 +161,15 @@ def sess_timeline(session: str, start=60, duration=120):
     sample_rate = 16000
     end = start + duration
 
+    speaker_json = load_json(str(database_jsons /
+                                 'chime5_speech_activity' /
+                                 f'{session}.json')
+                             )
+
     print(f"Start time @ {datetime.timedelta(seconds=start)}")
 
     activity = get_active_speaker(start * sample_rate, end * sample_rate,
-                                  f'{session}time')
+                                  session, speaker_json=speaker_json)
 
     speakers = sorted([speaker for speaker in list(activity.keys()) if
                        speaker.startswith('P')])
@@ -264,7 +277,7 @@ def get_crosstalk_examples(example_ids, session_id, crosstalk_times,
         """
 
         session_examples = list(
-            filter(lambda x: x[0:3] == session_id, example_ids))
+            filter(lambda x: x[4:7] == session_id, example_ids))
         num_examples = len(session_examples)
 
         crosstalk_start = np.array(crosstalk_times['start'])
@@ -274,10 +287,10 @@ def get_crosstalk_examples(example_ids, session_id, crosstalk_times,
         relative_overlap_per_utt = list()
 
         for example_id in session_examples:
-            _, _, start_time, end_time = example_id.split('_')
-            start_sample, end_sample = (
-                to_samples(start_time), to_samples(end_time)
-            )
+            _, _, start_time, end_time = re.split('[_-]', example_id)
+            # convert from kaldi time to samples
+            start_sample, end_sample = (int(start_time)*160,
+                                        int(end_time)*160)
             crosstalk_idx = np.logical_and(crosstalk_start >= start_sample,
                                            crosstalk_end <= end_sample)
             has_crosstalk = crosstalk_idx.any()
@@ -301,12 +314,12 @@ def get_crosstalk_examples(example_ids, session_id, crosstalk_times,
 
         # sort examples by start time
         return \
-            sorted(filtered_examples, key=lambda x: x[8:18]), \
+            sorted(filtered_examples, key=lambda x: re.split('[_-]', x)[2]), \
             filter_ratio, \
             relative_overlap_per_utt
 
 
-def calculate_overlap(sessions, json_path=Path('/net/vol/jenkins/jsons'),
+def calculate_overlap(sessions, json_path=database_jsons,
                       with_crosstalk=True, min_overlap=0.0, max_overlap=0.0,
                       plot_hist=True, ncols=3):
     if isinstance(json_path, str):
@@ -324,24 +337,23 @@ def calculate_overlap(sessions, json_path=Path('/net/vol/jenkins/jsons'),
 
     for session_id in sessions:
         json_sess = load_json(
-            json_path / 'chime5_speech_activity' / f'{session_id}time.json')
+            json_path / 'chime5_speech_activity' / f'{session_id}.json')
 
         target_speakers = sorted([speaker for speaker in list(json_sess.keys())
                                   if speaker.startswith('P')])
 
-        crosstalk_times = set([(start, end) for spk in target_speakers for
-                               start, end in
-                               zip(json_sess[spk]['cross_talk']['start'],
-                                   json_sess[spk]['cross_talk']['end'])
-                               ])
+        crosstalk_times = sorted(set([(start, end) for spk in target_speakers
+                                      for start, end in
+                                      zip(json_sess['cross_talk'][spk]['start'],
+                                          json_sess['cross_talk'][spk]['end'])
+                                      ]))
 
         crosstalk = {
-            'start': [times[0] for times in crosstalk_times],
-            'end': [times[1] for times in crosstalk_times]
+            'start': np.array([times[0] for times in crosstalk_times]),
+            'end': np.array([times[1] for times in crosstalk_times])
         }
 
-        cross_talk_dur = np.array(crosstalk['end']) - np.array(
-            crosstalk['start'])
+        cross_talk_dur = crosstalk['end'] - crosstalk['start']
 
         filtered_examples, filter_ratio, relative_overlaps = \
             get_crosstalk_examples(example_ids, session_id,
