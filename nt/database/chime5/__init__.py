@@ -1,12 +1,13 @@
 from datetime import datetime
 from pathlib import Path
 import re
+from collections import defaultdict
 
 import numpy as np
 from nt.database import HybridASRJSONDatabaseTemplate
 from nt.database import keys as K
 from nt.database.chime5.create_json import CHiME5_Keys, SAMPLE_RATE
-from nt.database.chime5.get_speaker_activity import to_numpy
+from nt.database.chime5.get_speaker_activity import to_numpy, get_active_speaker
 from nt.database.iterator import AudioReader
 from nt.io.audioread import audioread
 from nt.io.data_dir import database_jsons
@@ -134,6 +135,60 @@ def recursive_transform(func, dict_list_val, start, end, list2array=False):
         return func(dict_list_val, offset, duration)
 
 
+class MapOverlap:
+    def __init__(self, dataset: str, json_path=database_jsons):
+        """
+        Add information on relative overlap to each example in `dataset`
+        :param dataset: Chime5 dataset ('train', 'dev' or 'test')
+        :param json_path: Path to json database. May be a string or Path object
+        """
+
+        if isinstance(json_path, str):
+            json_path = Path(json_path)
+        db = Chime5()
+        sessions = db.map_dataset_to_sessions[dataset]
+        self.activity_on_target_mic = defaultdict(lambda: dict())
+
+        for session_id in sessions:
+            json_sess = load_json(
+                json_path / 'chime5_speech_activity' / f'{session_id}.json')
+
+            target_speakers = sorted(
+                [speaker for speaker in list(json_sess.keys())
+                 if speaker.startswith('P')])
+
+            for target_mic in target_speakers:
+                # sample_step = 160 matches with kaldi times in chime5.json
+                speaker_activity = get_active_speaker(0, 10800*16000,
+                                                      session_id, target_mic,
+                                                      speaker_json=json_sess,
+                                                      sample_step=160,
+                                                      dtype=np.int32)
+                self.activity_on_target_mic[session_id][target_mic] = \
+                    np.array([v['activity'] for v in speaker_activity.values()])
+
+    def __call__(self, example: dict):
+        """
+        :param example: example_dict with example_id in it
+        :return: example dict with relative overlap on example added
+        """
+        target, session, start, end = re.split('[_-]', example[K.EXAMPLE_ID])
+        if target == 'original':
+            example['overlap'] = np.NaN
+            return example
+        start_sample, end_sample = int(start), int(end)
+
+        crosstalk_arr = np.sum(self.activity_on_target_mic[session][target]
+                               [:, start_sample:end_sample], 0
+                               )
+
+        overlap_samples = np.sum(crosstalk_arr > 1)
+        overlap_ratio = overlap_samples / (end_sample - start_sample)
+
+        example['overlap'] = overlap_ratio
+        return example
+
+
 class CrossTalkFilter:
     def __init__(self, dataset: str, json_path=database_jsons,
                  with_crosstalk='no', min_overlap=0.0, max_overlap=0.0):
@@ -162,32 +217,7 @@ class CrossTalkFilter:
             f'with_crosstalk must be a value from ["yes", "no", "all"], ' \
             'not {with_crosstalk}'
 
-        if isinstance(json_path, str):
-            json_path = Path(json_path)
-        db = Chime5()
-        sessions = db.map_dataset_to_sessions[dataset]
-        self.crosstalk_times = dict()
-
-        for session_id in sessions:
-            json_sess = load_json(
-                json_path / 'chime5_speech_activity' / f'{session_id}.json')
-
-            target_speakers = sorted(
-                [speaker for speaker in list(json_sess.keys())
-                 if speaker.startswith('P')])
-
-            # ToDo: Calculate cross talk based on speaker activity
-            crosstalk_times = set([(start, end) for spk in target_speakers for
-                                   start, end in
-                                   zip(json_sess['cross_talk'][spk]['start'],
-                                       json_sess['cross_talk'][spk]['end'])
-                                   ])
-
-            crosstalk = {
-                'start': [times[0] for times in crosstalk_times],
-                'end': [times[1] for times in crosstalk_times]
-            }
-            self.crosstalk_times[session_id] = crosstalk
+        self.mapper = MapOverlap(dataset, json_path)
 
         self.with_crosstalk = 0 if with_crosstalk == 'no' else \
             1 if with_crosstalk == 'yes' else 2
@@ -205,25 +235,12 @@ class CrossTalkFilter:
             3. self.with_crosstalk='all' and overlap_ratio in
                 [self.min_overlap, self.max_overlap]
         """
-        _, session, start, end = re.split('[_-]', example[K.EXAMPLE_ID])
-        crosstalk_times = self.crosstalk_times[session]
-        crosstalk_start = np.array(crosstalk_times['start'])
-        crosstalk_end = np.array(crosstalk_times['end'])
-        # convert kaldi time to samples
-        start_sample, end_sample = int(start)*160, int(end)*160
-        crosstalk_idx = np.logical_and(crosstalk_start >= start_sample,
-                                       crosstalk_end <= end_sample)
-        has_crosstalk = crosstalk_idx.any()
-        if has_crosstalk:
-            # sample only every 0.01 second
-            utt_samples = to_numpy({'start': crosstalk_start[crosstalk_idx],
-                                    'end': crosstalk_end[crosstalk_idx]},
-                                   start_sample, end_sample,
-                                   sample_step=160)
-            overlap_ratio = utt_samples.sum() / int(
-                (end_sample - start_sample) / 160)
-        else:
-            overlap_ratio = 0
+
+        if 'overlap' not in example.keys():
+            example = self.mapper(example)
+
+        overlap_ratio = example['overlap']
+
         return \
             (not self.with_crosstalk and overlap_ratio <= self.max_overlap) \
             or (
@@ -234,6 +251,14 @@ class CrossTalkFilter:
                 not (self.with_crosstalk - 2)
                 and self.max_overlap >= overlap_ratio >= self.min_overlap
                 )
+
+
+class SessionFilter:
+    def __init__(self, session_id):
+        self.session_id = session_id
+
+    def __call__(self, example):
+        return example['session_id'] == self.session_id
 
 
 class BadTranscriptionFilter:

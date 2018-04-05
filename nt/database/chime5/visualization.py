@@ -13,7 +13,7 @@ import matplotlib.patches as mpatches
 
 from nt.io.json_module import load_json
 from nt.io.data_dir import database_jsons
-from nt.database.chime5 import Chime5
+from nt.database.chime5 import Chime5, CrossTalkFilter, SessionFilter
 from nt.database.chime5.get_speaker_activity import get_active_speaker, \
     to_numpy
 
@@ -232,8 +232,9 @@ def plot_histogram(rel_olap_per_utt_per_sess: dict, ncols=3):
 
         occurences = dict(
             Counter(np.array(data[[data > 0]] * 10, dtype=np.int32) * 10))
-        occurences[90] += occurences[100]
-        occurences.pop(100)
+        if 90 and 100 in occurences:
+            occurences[90] += occurences[100]
+            occurences.pop(100)
 
         row = int(np.floor(idx / ncols))
         col = idx % ncols
@@ -327,68 +328,60 @@ def get_crosstalk_examples(example_ids, session_id, crosstalk_times,
             relative_overlap_per_utt
 
 
-def calculate_overlap(sessions, json_path=database_jsons,
-                      with_crosstalk=True, min_overlap=0.0, max_overlap=0.0,
+def calculate_overlap(dataset, sessions, json_path=database_jsons,
+                      with_crosstalk='all', min_overlap=0.0, max_overlap=1.0,
                       plot_hist=True, ncols=3):
+
     if isinstance(json_path, str):
         json_path = Path(json_path)
 
     db = Chime5()
-    iterator = db.get_iterator_by_names(db.dataset_names)
-    example_ids = list(iterator.keys())
+    if dataset == 'train':
+        iterator = db.get_iterator_by_names(db.datasets_train)
+    elif dataset == 'dev':
+        iterator = db.get_iterator_by_names(db.datasets_eval)
+    elif dataset == 'test':
+        iterator = db.get_iterator_by_names(db.datasets_test)
+    else:
+        raise ValueError(f'Datset {dataset} unknown')
+    filtered = iterator.filter(CrossTalkFilter(dataset, json_path,
+                                               with_crosstalk=with_crosstalk,
+                                               min_overlap=min_overlap,
+                                               max_overlap=max_overlap)
+                               )
 
-    overlap_durations = dict()  # np.ndarray of durations in samples per session
+    overlap_durations = dict()
     rel_overlap_per_utt_per_sess = dict()
-    rel_overlap = dict()
+    utt_overlap_per_sess = dict()
     num_overlapping_utts_per_sess = dict()
-    filtered_examples_per_sess = dict()
 
     for session_id in sessions:
-        json_sess = load_json(
-            json_path / 'chime5_speech_activity' / f'{session_id}.json')
+        session_it = iterator.filter(SessionFilter(session_id))
+        session_filtered = filtered.filter(SessionFilter(session_id))
 
-        target_speakers = sorted([speaker for speaker in list(json_sess.keys())
-                                  if speaker.startswith('P')])
+        relative_overlaps = np.array([ex['overlap'] for ex in session_filtered])
+        utterance_durations = np.array([
+            int(re.split('[_-]', ex['example_id'])[3]) -
+            int(re.split('[_-]', ex['example_id'])[2]) for ex in
+            session_filtered
+        ])
 
-        # ToDo: Calculate cross talk based on speaker activity
-        crosstalk_times = sorted(set([(start, end) for spk in target_speakers
-                                      for start, end in
-                                      zip(json_sess['cross_talk'][spk]['start'],
-                                          json_sess['cross_talk'][spk]['end'])
-                                      ]))
-
-        crosstalk = {
-            'start': np.array([times[0] for times in crosstalk_times]),
-            'end': np.array([times[1] for times in crosstalk_times])
-        }
-
-        cross_talk_dur = crosstalk['end'] - crosstalk['start']
-
-        filtered_examples, filter_ratio, relative_overlaps = \
-            get_crosstalk_examples(example_ids, session_id,
-                                   crosstalk,
-                                   with_crosstalk=with_crosstalk,
-                                   min_overlap=min_overlap,
-                                   max_overlap=max_overlap)
-
-        overlap_durations[session_id] = cross_talk_dur
-        num_overlapping_utts_per_sess[session_id] = len(
-            filtered_examples) if with_crosstalk else int(
-            len(filtered_examples) / filter_ratio) - len(filtered_examples)
-        rel_overlap[
-            session_id] = filter_ratio if with_crosstalk else 1 - filter_ratio
+        overlap_durations[session_id] = np.trim_zeros(
+            utterance_durations * relative_overlaps)
+        num_overlapping_utts_per_sess[session_id] = np.sum(relative_overlaps > 0)
+        utt_overlap_per_sess[session_id] = \
+            num_overlapping_utts_per_sess[session_id] / len(list(session_it))
         rel_overlap_per_utt_per_sess[session_id] = relative_overlaps
-        filtered_examples_per_sess[session_id] = filtered_examples
 
-    # Convert samples to seconds, sample rate = 16 kHz
+    # Convert kaldi time to seconds
     data = {
         '#Overlapping Utterances': list(num_overlapping_utts_per_sess.values()),
-        'Relative Overlap': list(rel_overlap.values()),
-        'Minimum Overlap': [np.min(durations / 16000) for durations in
+        'Relative Overlap': list(utt_overlap_per_sess.values()),
+        'Minimum Overlap': [np.min(durations / 100) for durations in
                             overlap_durations.values()],
-        'Average Overlap': [np.average(durations / 16000) for durations in
+        'Average Overlap': [np.average(durations / 100) for durations in
                             overlap_durations.values()],
-        'Maximum Overlap': [np.max(durations / 16000) for durations in
+        'Maximum Overlap': [np.max(durations / 100) for durations in
                             overlap_durations.values()]
     }
 
@@ -421,6 +414,6 @@ def calculate_overlap(sessions, json_path=database_jsons,
     # Get histogram
     if plot_hist:
         hist = plot_histogram(rel_overlap_per_utt_per_sess, ncols=ncols)
-        return olap_df, filtered_examples_per_sess, hist
+        return olap_df, hist
 
-    return olap_df, filtered_examples_per_sess, None
+    return olap_df, None
