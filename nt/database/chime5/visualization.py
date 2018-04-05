@@ -366,8 +366,8 @@ def calculate_overlap(dataset, sessions, json_path=database_jsons,
             session_filtered
         ])
 
-        overlap_durations[session_id] = np.trim_zeros(
-            utterance_durations * relative_overlaps)
+        olap_duration = utterance_durations * relative_overlaps
+        overlap_durations[session_id] = olap_duration[olap_duration > 0]
         num_overlapping_utts_per_sess[session_id] = np.sum(relative_overlaps > 0)
         utt_overlap_per_sess[session_id] = \
             num_overlapping_utts_per_sess[session_id] / len(list(session_it))
