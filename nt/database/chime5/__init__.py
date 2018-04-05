@@ -1,5 +1,6 @@
 from datetime import datetime
 from pathlib import Path
+import re
 
 import numpy as np
 from nt.database import HybridASRJSONDatabaseTemplate
@@ -144,15 +145,16 @@ class CrossTalkFilter:
         :param with_crosstalk: A string from ['yes', 'no', 'all']. If 'yes',
             return all utterances which have at least one sample overlap. If
             'no', return all samples which are overlap-free. If 'all', return
-            all samples whose overlap is between left_overlap and right_overlap.
-            By default, 'all' will return only the utterances with no overlap.
+            all samples whose overlap is between `min_overlap` and
+            `max_overlap`. By default, 'all' will return only the utterances
+            with no overlap. Defaults to 'no'.
         :param min_overlap: If with_crosstalk is 'yes' or 'all', defines the
             lower bound the overlap on the utterance needs to have to return
             True. Ratio given in overlapping samples over total utterance
             samples
         :param max_overlap: If with_crosstalk is 'no' or 'all', defines the
-            upper bound the overlap on the utterance needs to have to return
-            True. Ratio given in overlapping samples over total utterance
+            upper bound the overlap on the utterance is allowed to have to
+            return True. Ratio given in overlapping samples over total utterance
             samples
         """
 
@@ -168,7 +170,7 @@ class CrossTalkFilter:
 
         for session_id in sessions:
             json_sess = load_json(
-                json_path / 'chime5_speech_activity' / f'{session_id}time.json')
+                json_path / 'chime5_speech_activity' / f'{session_id}.json')
 
             target_speakers = sorted(
                 [speaker for speaker in list(json_sess.keys())
@@ -176,8 +178,8 @@ class CrossTalkFilter:
 
             crosstalk_times = set([(start, end) for spk in target_speakers for
                                    start, end in
-                                   zip(json_sess[spk]['cross_talk']['start'],
-                                       json_sess[spk]['cross_talk']['end'])
+                                   zip(json_sess['cross_talk'][spk]['start'],
+                                       json_sess['cross_talk'][spk]['end'])
                                    ])
 
             crosstalk = {
@@ -202,13 +204,12 @@ class CrossTalkFilter:
             3. self.with_crosstalk='all' and overlap_ratio in
                 [self.min_overlap, self.max_overlap]
         """
-        session, _, start, end = example[K.EXAMPLE_ID].split('_')
+        _, session, start, end = re.split('[_-]', example[K.EXAMPLE_ID])
         crosstalk_times = self.crosstalk_times[session]
         crosstalk_start = np.array(crosstalk_times['start'])
         crosstalk_end = np.array(crosstalk_times['end'])
-        start_sample, end_sample = (
-            to_samples(start), to_samples(end)
-        )
+        # convert kaldi time to samples
+        start_sample, end_sample = int(start)*160, int(end)*160
         crosstalk_idx = np.logical_and(crosstalk_start >= start_sample,
                                        crosstalk_end <= end_sample)
         has_crosstalk = crosstalk_idx.any()
@@ -232,3 +233,33 @@ class CrossTalkFilter:
                 not (self.with_crosstalk - 2)
                 and self.max_overlap >= overlap_ratio >= self.min_overlap
                 )
+
+
+class BadTranscriptionFilter:
+    def __init__(self, bad_transcriptions=None):
+        """
+        Filter out all examples with bad transcriptions like [inaudible],
+            [redacted], [laughs] or [noise]
+
+        :param bad_transcriptions: A string of bad transcriptions that should be
+            filtered out from the iterator. Transcriptions must be separated by
+            a pipe (|). If None, a list of default bad transcriptions is used.
+        """
+        if not bad_transcriptions:
+            self.bad_transcriptions = r'inaudible|redacted|laughs|noise'
+        else:
+            self.bad_transcriptions = bad_transcriptions
+
+    def __call__(self, example):
+        """
+
+        :param example: example_dict with transcription in it
+        :return: True if transcription is not in self.bad_transcriptions
+        """
+        return not all([re.match(self.bad_transcriptions, words) for words in
+                        list(filter(lambda x: bool(x.strip()),
+                                    re.split('[\[\]]', example[K.TRANSCRIPTION])
+                                    )
+                             )
+                        ]
+                       )
