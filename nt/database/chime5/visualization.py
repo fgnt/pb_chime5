@@ -50,21 +50,22 @@ def speaker_activity_per_sess(sessions: list, sample_step=160):
                                      f'{sess_id}.json')
                                  )
 
-        activity = get_active_speaker(start_sample, end_sample,
-                                      sess_id,
-                                      speaker_json=speaker_json,
-                                      sample_step=sample_step,
-                                      )
-
-        target_speakers = sorted([speaker for speaker in list(activity.keys())
-                                  if speaker.startswith('P')])
+        target_speakers = sorted([spk for spk in speaker_json.keys()
+                                  if spk.startswith('P')])
 
         speakers += target_speakers
 
         active_speaker_samples = dict()
 
-        for idx, spk in enumerate(target_speakers):
-            active_speaker_samples[spk] = activity[spk]['activity'][idx]
+        for spk_id in target_speakers:
+
+            activity = get_active_speaker(start_sample, end_sample,
+                                          sess_id, spk_id,
+                                          speaker_json=speaker_json,
+                                          sample_step=sample_step,
+                                          )
+
+            active_speaker_samples[spk_id] = activity[spk_id]['activity']
 
         speaker_activity_arr = np.array(list(active_speaker_samples.values()))
 
@@ -147,13 +148,17 @@ def plot_speaker_timelines(speaker_activity: dict, left_init):
 
 
 @lru_cache(maxsize=None)
-def sess_timeline(session: str, start=60, duration=120):
+def sess_timeline(session: str, start=60, duration=120, sample_step=1):
     """
     Plot timeline for specified session from `start` to `start`+`duration`
 
     :param session: The session ID, e.g. 'S02'
     :param start: Start time of the time line (in seconds)
     :param duration: Duration of time frame (in seconds)
+    :param sample_step: Consider only every i-th sample in speaker activity
+        array for calculation. This may lower accuracy but can greatly speed
+        up calculations (e.g. for notebooks). Defaults to 1, i.e. take every
+        sample.
     :return: ax: plt.axes()
         Time line ready to plot
     """
@@ -168,16 +173,19 @@ def sess_timeline(session: str, start=60, duration=120):
 
     print(f"Start time @ {datetime.timedelta(seconds=start)}")
 
-    activity = get_active_speaker(start * sample_rate, end * sample_rate,
-                                  session, speaker_json=speaker_json)
-
-    speakers = sorted([speaker for speaker in list(activity.keys()) if
-                       speaker.startswith('P')])
+    speakers = sorted([spk for spk in speaker_json.keys()
+                       if spk.startswith('P')])
 
     speaker_activity = dict()
 
-    for idx, spk in enumerate(speakers):
-        speaker_activity[spk] = activity[spk]['activity'][idx]
+    for spk_id in speakers:
+        activity = get_active_speaker(start * sample_rate, end * sample_rate,
+                                      session, spk_id,
+                                      speaker_json=speaker_json,
+                                      sample_step=sample_step
+                                      )
+
+        speaker_activity[spk_id] = activity[spk_id]['activity']
 
     for k, v in reversed(list(speaker_activity.items())):
         print(f"Speaker {k} active: {100*np.sum(v)/len(v):.2f} % in time frame")
@@ -342,6 +350,7 @@ def calculate_overlap(sessions, json_path=database_jsons,
         target_speakers = sorted([speaker for speaker in list(json_sess.keys())
                                   if speaker.startswith('P')])
 
+        # ToDo: Calculate cross talk based on speaker activity
         crosstalk_times = sorted(set([(start, end) for spk in target_speakers
                                       for start, end in
                                       zip(json_sess['cross_talk'][spk]['start'],

@@ -176,6 +176,7 @@ class CrossTalkFilter:
                 [speaker for speaker in list(json_sess.keys())
                  if speaker.startswith('P')])
 
+            # ToDo: Calculate cross talk based on speaker activity
             crosstalk_times = set([(start, end) for spk in target_speakers for
                                    start, end in
                                    zip(json_sess['cross_talk'][spk]['start'],
