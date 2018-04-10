@@ -135,7 +135,7 @@ def recursive_transform(func, dict_list_val, start, end, list2array=False):
         return func(dict_list_val, offset, duration)
 
 
-class MapOverlap:
+class OverlapMapper:
     def __init__(self, dataset: str, json_path=database_jsons):
         """
         Add information on relative overlap to each example in `dataset`
@@ -147,25 +147,22 @@ class MapOverlap:
             json_path = Path(json_path)
         db = Chime5()
         sessions = db.map_dataset_to_sessions[dataset]
-        self.activity_on_target_mic = defaultdict(lambda: dict())
+        self.crosstalk = dict()
 
         for session_id in sessions:
             json_sess = load_json(
                 json_path / 'chime5_speech_activity' / f'{session_id}.json')
 
-            target_speakers = sorted(
-                [speaker for speaker in list(json_sess.keys())
-                 if speaker.startswith('P')])
+            crosstalk_at_target = {
+                target: to_numpy(crosstalk_dict, 0, 10800*16000,
+                                 # sample_step = 160 matches with kaldi
+                                 # times in chime5.json
+                                 sample_step=160)
+                for target, crosstalk_dict
+                in json_sess['cross_talk'].items()
+            }
 
-            for target_mic in target_speakers:
-                # sample_step = 160 matches with kaldi times in chime5.json
-                speaker_activity = get_active_speaker(0, 10800*16000,
-                                                      session_id, target_mic,
-                                                      speaker_json=json_sess,
-                                                      sample_step=160,
-                                                      dtype=np.int32)
-                self.activity_on_target_mic[session_id][target_mic] = \
-                    np.array([v['activity'] for v in speaker_activity.values()])
+            self.crosstalk[session_id] = crosstalk_at_target
 
     def __call__(self, example: dict):
         """
@@ -178,11 +175,8 @@ class MapOverlap:
             return example
         start_sample, end_sample = int(start), int(end)
 
-        crosstalk_arr = np.sum(self.activity_on_target_mic[session][target]
-                               [:, start_sample:end_sample], 0
-                               )
-
-        overlap_samples = np.sum(crosstalk_arr > 1)
+        crosstalk_arr = self.crosstalk[session][target][start_sample:end_sample]
+        overlap_samples = crosstalk_arr.sum()
         overlap_ratio = overlap_samples / (end_sample - start_sample)
 
         example['overlap'] = overlap_ratio
@@ -217,10 +211,9 @@ class CrossTalkFilter:
             f'with_crosstalk must be a value from ["yes", "no", "all"], ' \
             'not {with_crosstalk}'
 
-        self.mapper = MapOverlap(dataset, json_path)
+        self.mapper = OverlapMapper(dataset, json_path)
 
-        self.with_crosstalk = 0 if with_crosstalk == 'no' else \
-            1 if with_crosstalk == 'yes' else 2
+        self.with_crosstalk = with_crosstalk
         self.min_overlap = min_overlap
         self.max_overlap = max_overlap
 
@@ -241,16 +234,15 @@ class CrossTalkFilter:
 
         overlap_ratio = example['overlap']
 
-        return \
-            (not self.with_crosstalk and overlap_ratio <= self.max_overlap) \
-            or (
-                not (self.with_crosstalk - 1)
-                and overlap_ratio > self.min_overlap
-                ) \
-            or (
-                not (self.with_crosstalk - 2)
-                and self.max_overlap >= overlap_ratio >= self.min_overlap
-                )
+        if self.with_crosstalk == 'no' and overlap_ratio <= self.max_overlap:
+            return True
+        elif self.with_crosstalk == 'yes' and overlap_ratio > self.min_overlap:
+            return True
+        elif self.with_crosstalk == 'all' and \
+                (self.min_overlap <= overlap_ratio <= self.max_overlap):
+            return True
+        else:
+            return False
 
 
 class SessionFilter:

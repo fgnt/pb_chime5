@@ -14,8 +14,7 @@ import matplotlib.patches as mpatches
 from nt.io.json_module import load_json
 from nt.io.data_dir import database_jsons
 from nt.database.chime5 import Chime5, CrossTalkFilter, SessionFilter
-from nt.database.chime5.get_speaker_activity import get_active_speaker, \
-    to_numpy
+from nt.database.chime5.get_speaker_activity import get_active_speaker
 
 """
     This module contains all functions related to visualizing data from the 
@@ -253,83 +252,7 @@ def plot_histogram(rel_olap_per_utt_per_sess: dict, ncols=3):
     return hist_plot
 
 
-def get_crosstalk_examples(example_ids, session_id, crosstalk_times,
-                           with_crosstalk=True, min_overlap=0.0,
-                           max_overlap=0.0):
-        """
-        Return examples of a session according to flag `with_crosstalk`
-
-        :param example_ids: List of example IDs of data set iterator
-        :param session_id: The session whose utterances should be filtered.
-        :param crosstalk_times: A dictionary which specifies start and end times
-            of cross talk
-        :param with_crosstalk: If False, return all utterances which have 0%
-            overlap with any other utterance.
-            If True, return all utterances which have at least one sample
-            overlap with any other utterance.
-        :param min_overlap: If `with_crosstalk` is True, filter only utterances
-            whose overlap ratio is greater than `min_overlap`. Then only these
-            utterances are considered to have overlap.
-        :param max_overlap: If `with_crosstalk` is False, filter all utterances
-            whose overlap_ratio is lower or equal to `max_overlap`. These
-            additional filtered utterances will then be treated as
-            "overlap-free".
-
-        :return: (filtered_examples: list, filter_ratio: float,
-                relative_overlap_per_utt: list)
-            filtered_examples is a list of examples IDs which satisfy filter
-                criterion `with_crosstalk`.
-            filter_ratio is the number of examples in filtered_examples over
-                number of total examples in the session.
-            relative_overlap_per_utt is a list of relative overlap an utterance
-                exhibits for each utterance
-        """
-
-        session_examples = list(
-            filter(lambda x: x[4:7] == session_id, example_ids))
-        num_examples = len(session_examples)
-
-        crosstalk_start = np.array(crosstalk_times['start'])
-        crosstalk_end = np.array(crosstalk_times['end'])
-
-        filtered_examples = list()
-        relative_overlap_per_utt = list()
-
-        for example_id in session_examples:
-            _, _, start_time, end_time = re.split('[_-]', example_id)
-            # convert from kaldi time to samples
-            start_sample, end_sample = (int(start_time)*160,
-                                        int(end_time)*160)
-            crosstalk_idx = np.logical_and(crosstalk_start >= start_sample,
-                                           crosstalk_end <= end_sample)
-            has_crosstalk = crosstalk_idx.any()
-            if has_crosstalk:
-                # sample only every 0.01 second
-                utt_samples = to_numpy({'start': crosstalk_start[crosstalk_idx],
-                                        'end': crosstalk_end[crosstalk_idx]},
-                                       start_sample, end_sample,
-                                       sample_step=160)
-                overlap_ratio = utt_samples.sum() / int(
-                    (end_sample - start_sample) / 160)
-            else:
-                overlap_ratio = 0
-            relative_overlap_per_utt.append(overlap_ratio)
-            if not with_crosstalk and overlap_ratio <= max_overlap:
-                filtered_examples.append(example_id)
-            elif with_crosstalk and overlap_ratio > min_overlap:
-                filtered_examples.append(example_id)
-
-        filter_ratio = len(filtered_examples) / num_examples
-
-        # sort examples by start time
-        return \
-            sorted(filtered_examples, key=lambda x: re.split('[_-]', x)[2]), \
-            filter_ratio, \
-            relative_overlap_per_utt
-
-
 def calculate_overlap(dataset, sessions, json_path=database_jsons,
-                      with_crosstalk='all', min_overlap=0.0, max_overlap=1.0,
                       plot_hist=True, ncols=3):
 
     if isinstance(json_path, str):
@@ -344,10 +267,10 @@ def calculate_overlap(dataset, sessions, json_path=database_jsons,
         iterator = db.get_iterator_by_names(db.datasets_test)
     else:
         raise ValueError(f'Datset {dataset} unknown')
-    filtered = iterator.filter(CrossTalkFilter(dataset, json_path,
-                                               with_crosstalk=with_crosstalk,
-                                               min_overlap=min_overlap,
-                                               max_overlap=max_overlap)
+    iterator = iterator.filter(CrossTalkFilter(dataset, json_path,
+                                               with_crosstalk='all',
+                                               min_overlap=0.0,
+                                               max_overlap=1.0)
                                )
 
     overlap_durations = dict()
@@ -357,13 +280,11 @@ def calculate_overlap(dataset, sessions, json_path=database_jsons,
 
     for session_id in sessions:
         session_it = iterator.filter(SessionFilter(session_id))
-        session_filtered = filtered.filter(SessionFilter(session_id))
 
-        relative_overlaps = np.array([ex['overlap'] for ex in session_filtered])
+        relative_overlaps = np.array([ex['overlap'] for ex in session_it])
         utterance_durations = np.array([
             int(re.split('[_-]', ex['example_id'])[3]) -
-            int(re.split('[_-]', ex['example_id'])[2]) for ex in
-            session_filtered
+            int(re.split('[_-]', ex['example_id'])[2]) for ex in session_it
         ])
 
         olap_duration = utterance_durations * relative_overlaps
