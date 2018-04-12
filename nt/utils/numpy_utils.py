@@ -463,11 +463,27 @@ def _normalize(op):
     op = ' '.join(c for c in op)
     op = op.replace(' * ', '*')
     op = op.replace('- >', '->')
+    op = op.replace('. . .', '...')
     return op
 
 
 def _only_reshape(array, source, target):
     source, target = source.split(), target.replace(' * ', '*').split()
+
+    if '...' in source:
+        assert '...' in target, (source, target)
+        independent_dims = array.ndim - len(source) + 1
+        import string
+        ascii_letters = [
+            s
+            for s in string.ascii_letters
+            if s not in source and s not in target
+        ]
+        index = source.index('...')
+        source[index:index + 1] = ascii_letters[:independent_dims]
+        index = target.index('...')
+        target[index:index + 1] = ascii_letters[:independent_dims]
+
     input_shape = {key: array.shape[index] for index, key in enumerate(source)}
 
     output_shape = []
@@ -504,7 +520,7 @@ def reshape(array, operation):
     # Transpose
     transposition_operation = operation.replace('1', ' ').replace('*', ' ')
     try:
-        array = np.einsum(transposition_operation, array)
+        array = np.einsum(transposition_operation.replace(' ', ''), array)
     except ValueError as e:
         msg = 'op: {}, shape: {}'.format(transposition_operation,
                                          np.shape(array))
