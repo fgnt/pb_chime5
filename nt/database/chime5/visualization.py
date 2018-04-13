@@ -1,6 +1,10 @@
+"""
+    This module contains all functions related to visualizing data from the
+    CHiME 5 challenge (plots, pandas, ...)
+"""
+
 import itertools
 from operator import itemgetter
-from functools import lru_cache
 import datetime
 from collections import Counter
 from pathlib import Path
@@ -15,11 +19,6 @@ from nt.io.json_module import load_json
 from nt.io.data_dir import database_jsons
 from nt.database.chime5 import Chime5, CrossTalkFilter, SessionFilter
 from nt.database.chime5.get_speaker_activity import get_active_speaker
-
-"""
-    This module contains all functions related to visualizing data from the 
-    CHiME 5 challenge (plots, pandas, ...)
-"""
 
 
 def speaker_activity_per_sess(sessions: list, sample_step=160):
@@ -94,7 +93,8 @@ def speaker_activity_per_sess(sessions: list, sample_step=160):
     return df
 
 
-def plot_speaker_timelines(speaker_activity: dict, left_init):
+def plot_speaker_timelines(speaker_activity: dict, left_init, sample_step=1,
+                           highlight_example=None):
     """
     Prepare time line for every speaker in the session
 
@@ -106,33 +106,65 @@ def plot_speaker_timelines(speaker_activity: dict, left_init):
         Raw speaker time lines
     """
 
+    if highlight_example:
+        target, _, kaldi_start, kaldi_end = re.split(
+            '[_-]', highlight_example['example_id']
+        )
+        target_start = int(kaldi_start) * 160 // sample_step - left_init
+        target_end = int(kaldi_end) * 160 // sample_step - left_init
+    else:
+        target, target_start, target_end = None, None, None
+
+
     plot_list = dict()
     plot_color = dict()
     speaker_numbers = [enum[0] for enum in enumerate(speaker_activity.keys())]
     speaker_size = len(speaker_numbers)
-    _, ax = plt.subplots(figsize=(20, 10))
+
+    fig, ax = plt.subplots(figsize=(20, 10))
     for idx, spk in enumerate(speaker_activity.keys()):
-        bin_id = 0
+        plot_list[idx] = list()
+        plot_color[idx] = list()
         for k, v in itertools.groupby(enumerate(speaker_activity[spk]),
                                       key=itemgetter(1)):
-            if bin_id not in plot_list.keys():
-                plot_list[bin_id] = np.zeros(speaker_size, np.int64)
-                plot_color[bin_id] = np.repeat('w', speaker_size)
             v = list(v)
-            plot_list[bin_id][idx] = (v[-1][0] - v[0][0] + 1)
-            if k:
-                plot_color[bin_id][idx] = 'g'
-            bin_id += 1
+            if spk == target and target_start >= v[0][0] and \
+                            target_end <= v[-1][0] + 1:
+                plot_list[idx].extend([
+                    target_start - v[0][0],
+                    target_end - target_start,
+                    v[-1][0] + 1 - target_end
+                ])
+                plot_color[idx].extend(['g', 'y', 'g'])
+            else:
+                plot_list[idx].append(v[-1][0] - v[0][0] + 1)
+                if k:
+                    plot_color[idx].append('g')
+                else:
+                    plot_color[idx].append('w')
+
+    max_bins = max([len(bin_list) for bin_list in plot_list.values()])
+
+    activity_matrix = np.zeros((4, max_bins), dtype=tuple)
+    for idx, durations, colors in zip(plot_list.keys(), plot_list.values(),
+                                     plot_color.values()):
+        activity_matrix[idx] = list(zip(
+            np.pad(durations, (0, max_bins-len(durations)), 'constant',
+                   constant_values=0),
+            colors + ['w'] * (max_bins - len(colors))
+        ))
 
     num_active_speakers = np.sum(np.asarray(list(speaker_activity.values())), 0)
 
     left_val = np.repeat(left_init, speaker_size)
 
     # Plot time bars
-    for bin_id, dur in plot_list.items():
-        ax.barh(speaker_numbers, dur, 1, color=plot_color[bin_id],
+    for plot_values in activity_matrix.T:
+        durations = list(map(itemgetter(0), plot_values))
+        colors = list(map(itemgetter(1), plot_values))
+        ax.barh(speaker_numbers, durations, 1, color=colors,
                 left=left_val)
-        left_val += dur
+        left_val += durations
 
     # Add visualization for start and end of time frames where only one speaker
     # is active
@@ -143,16 +175,18 @@ def plot_speaker_timelines(speaker_activity: dict, left_init):
             ax.axvline(x=left_init + v[0][0], color='blue', linewidth=1.5)
             ax.axvline(x=left_init + v[-1][0], color='red', linewidth=1.5)
 
-    return ax
+    return fig, ax
 
 
-@lru_cache(maxsize=None)
-def sess_timeline(session: str, start=60, duration=120, sample_step=1):
+def sess_timeline(session: str, start=60.0, end=None, duration=120.0,
+                  sample_step=1, verbose=True, highlight_example=None):
     """
-    Plot timeline for specified session from `start` to `start`+`duration`
+    Plot timeline for specified session
 
     :param session: The session ID, e.g. 'S02'
     :param start: Start time of the time line (in seconds)
+    :param end: End time of the time line (in seconds). If not provided, end
+        time is set to `start` + `duration`
     :param duration: Duration of time frame (in seconds)
     :param sample_step: Consider only every i-th sample in speaker activity
         array for calculation. This may lower accuracy but can greatly speed
@@ -163,14 +197,13 @@ def sess_timeline(session: str, start=60, duration=120, sample_step=1):
     """
 
     sample_rate = 16000
-    end = start + duration
+    if not end:
+        end = start + duration
 
     speaker_json = load_json(str(database_jsons /
                                  'chime5_speech_activity' /
                                  f'{session}.json')
                              )
-
-    print(f"Start time @ {datetime.timedelta(seconds=start)}")
 
     speakers = sorted([spk for spk in speaker_json.keys()
                        if spk.startswith('P')])
@@ -178,7 +211,8 @@ def sess_timeline(session: str, start=60, duration=120, sample_step=1):
     speaker_activity = dict()
 
     for spk_id in speakers:
-        activity = get_active_speaker(start * sample_rate, end * sample_rate,
+        activity = get_active_speaker(int(start * sample_rate),
+                                      int(end * sample_rate),
                                       session, spk_id,
                                       speaker_json=speaker_json,
                                       sample_step=sample_step
@@ -186,22 +220,42 @@ def sess_timeline(session: str, start=60, duration=120, sample_step=1):
 
         speaker_activity[spk_id] = activity[spk_id]['activity']
 
-    for k, v in reversed(list(speaker_activity.items())):
-        print(f"Speaker {k} active: {100*np.sum(v)/len(v):.2f} % in time frame")
+    if verbose:
+        print(f"Start time @ {datetime.timedelta(seconds=start)}")
+        for k, v in reversed(list(speaker_activity.items())):
+            print(f"Speaker {k} active: {100*np.sum(v)/len(v):.2f} % "
+                  f"in time frame")
 
-    ax = plot_speaker_timelines(speaker_activity, start * sample_rate)
+    plt.ioff()
+
+    fig, ax = plot_speaker_timelines(speaker_activity,
+                                     int(start * sample_rate) // sample_step,
+                                     sample_step=sample_step,
+                                     highlight_example=highlight_example
+                                     )
 
     # Format plot and add information
     green_patch = mpatches.Patch(color='green', label='Active')
-    ax.set_xticks(np.linspace(start * sample_rate, end * sample_rate, 8))
-    ax.set_xticklabels(np.linspace(start, end, 8, dtype=np.int64))
+    if highlight_example:
+        yellow_patch = mpatches.Patch(color='yellow', label='Target')
+        patches = [green_patch, yellow_patch]
+    else:
+        patches = [green_patch]
+    ax.set_xticks(np.linspace(start * sample_rate // sample_step,
+                              end * sample_rate // sample_step, 8
+                              )
+                  )
+    ax.set_xticklabels(list(map(lambda x: f'{x:.2f}',
+                                np.linspace(start, end, 8, dtype=np.float32))
+                            )
+                       )
     ax.set_xlabel('Time / s')
     ax.set_ylabel('Speaker ID')
     ax.set_yticks(np.arange(len(speakers)))
     ax.set_yticklabels(speakers)
-    ax.legend(handles=[green_patch])
+    ax.legend(handles=patches)
     ax.set_title(f'Speaker Activity over Time, Session {session}')
-    return ax
+    return fig
 
 
 def _highlight_min(s):
