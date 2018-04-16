@@ -259,12 +259,15 @@ class BadTranscriptionFilter:
         Filter out all examples with bad transcriptions like [inaudible],
             [redacted], [laughs] or [noise]
 
-        :param bad_transcriptions: A string of bad transcriptions that should be
-            filtered out from the iterator. Transcriptions must be separated by
-            a pipe (|). If None, a list of default bad transcriptions is used.
+        :param bad_transcriptions: A list of bad transcriptions that should be
+            filtered out from the iterator. Must be given as regular
+            expressions. If None, a list of default bad transcriptions is used.
         """
         if not bad_transcriptions:
-            self.bad_transcriptions = r'inaudible|redacted|laughs|noise'
+            self.bad_transcriptions = ['\[noise\]', '\[laughs\]',
+                                       '\[redacted\]', '\[inaudible',
+                                       '\w:\w\w:\w\w\.\w\w]'
+                                       ]
         else:
             self.bad_transcriptions = bad_transcriptions
 
@@ -274,10 +277,7 @@ class BadTranscriptionFilter:
         :param example: example_dict with transcription in it
         :return: True if transcription is not in self.bad_transcriptions
         """
-        return not all([re.match(self.bad_transcriptions, words) for words in
-                        list(filter(lambda x: bool(x.strip()),
-                                    re.split('[\[\]]', example[K.TRANSCRIPTION])
-                                    )
-                             )
-                        ]
+        return not all([any([re.match(p, word) for p in
+                             self.bad_transcriptions])
+                        for word in example['transcription'].split()]
                        )
