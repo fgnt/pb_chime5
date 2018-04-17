@@ -12,6 +12,7 @@ META = "meta"
 
 # Information per example
 AUDIO_PATH = "audio_path"
+AUDIO_LENGTH = "audio_length"
 AUDIO_DATA = "audio_data"
 NUM_SAMPLES = 'num_samples'
 NUM_FRAMES = 'num_frames'
