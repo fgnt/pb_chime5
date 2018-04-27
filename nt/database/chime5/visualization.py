@@ -10,11 +10,12 @@ from collections import Counter
 from pathlib import Path
 import re
 
+from nt.visualization import matplotlib_fix
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from nt.visualization import matplotlib_fix
 
 from nt.io.json_module import load_json
 from nt.io.data_dir import database_jsons
