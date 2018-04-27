@@ -98,6 +98,19 @@ def segment_axis_v2(x, length: int, shift: int, axis: int=-1,
     array([[3, 4, 5, 6],
            [1, 2, 3, 4]])
 
+    >>> segment_axis_v2(np.arange(7), 8, 1, axis=0, end='pad').shape
+    (1, 8)
+    >>> segment_axis_v2(np.arange(8), 8, 1, axis=0, end='pad').shape
+    (1, 8)
+    >>> segment_axis_v2(np.arange(9), 8, 1, axis=0, end='pad').shape
+    (2, 8)
+    >>> segment_axis_v2(np.arange(7), 8, 2, axis=0, end='cut').shape
+    (0, 8)
+    >>> segment_axis_v2(np.arange(8), 8, 2, axis=0, end='cut').shape
+    (1, 8)
+    >>> segment_axis_v2(np.arange(9), 8, 2, axis=0, end='cut').shape
+    (1, 8)
+
     >>> x = np.arange(1, 10)
     >>> filter_ = np.array([1, 2, 3])
     >>> np.convolve(x, filter_)
@@ -133,11 +146,17 @@ def segment_axis_v2(x, length: int, shift: int, axis: int=-1,
 
     # Pad
     if end == 'pad':
-        if shift != 1 and (x.shape[axis] + shift - length) % shift != 0:
+        if x.shape[axis] < length:
+            npad = np.zeros([x.ndim, 2], dtype=np.int)
+            npad[axis, 1] = length - x.shape[axis]
+            x = np.pad(x, pad_width=npad, mode=pad_mode,
+                       constant_values=pad_value)
+        elif shift != 1 and (x.shape[axis] + shift - length) % shift != 0:
             npad = np.zeros([x.ndim, 2], dtype=np.int)
             npad[axis, 1] = shift - ((x.shape[axis] + shift - length) % shift)
             x = np.pad(x, pad_width=npad, mode=pad_mode,
                        constant_values=pad_value)
+
     elif end == 'conv_pad':
         assert shift == 1, shift
         npad = np.zeros([x.ndim, 2], dtype=np.int)
@@ -156,6 +175,7 @@ def segment_axis_v2(x, length: int, shift: int, axis: int=-1,
 
     # Calculate desired shape and strides
     shape = list(x.shape)
+    # assert shape[axis] >= length, shape
     del shape[axis]
     shape.insert(axis, (x.shape[axis] + shift - length) // shift)
     shape.insert(axis + 1, length)
