@@ -1,7 +1,5 @@
-from datetime import datetime
 from pathlib import Path
 import re
-from collections import defaultdict
 
 import numpy as np
 from nt.database import HybridASRJSONDatabaseTemplate
@@ -12,6 +10,8 @@ from nt.database.iterator import AudioReader
 from nt.io.audioread import audioread
 from nt.io.data_dir import database_jsons
 from nt.io.json_module import load_json
+from nt.options import Options
+from nt.utils.numpy_utils import segment_axis_v2
 
 FORMAT_STRING = '%H:%M:%S.%f'
 
@@ -183,12 +183,83 @@ class OverlapMapper:
         return example
 
 
+class SpeakerActivityMapper:
+    def __init__(self, options: Options, context=0, json_path=database_jsons):
+        """
+        Add speaker activity per STFT frame to each example.
+        :param options: nt.Options object containing arguments for STFT length
+            and shift.
+        :param context: Speaker activity added before and after actual
+            utterance. Context is given in seconds.
+        :param json_path: Path to database json files.
+        """
+        assert 'frame_length' in options.keys() and \
+               'frame_step' in options.keys(), \
+            'Options object must specify STFT parameters "frame_length" and ' \
+            '"frame_step"'
+        self.frame_length = options['frame_length']
+        self.frame_step = options['frame_step']
+        self.context = context
+        self.speaker_activity = dict()
+
+        if isinstance(json_path, str):
+            json_path = Path(json_path)
+        db = Chime5()
+        sessions = [sess for sess_list in db.map_dataset_to_sessions.values()
+                    for sess in sess_list]
+
+        for session_id in sessions:
+            try:
+                json_sess = load_json(json_path / 'chime5_speech_activity'
+                                      / f'{session_id}.json'
+                                      )
+            except FileNotFoundError:
+                continue
+
+            target_speakers = sorted([key for key in json_sess.keys() if
+                                      key.startswith('P')]
+                                     )
+            speaker_activity = {
+                target: to_numpy(json_sess[target][target], 0, 10800*16000,
+                                 sample_step=1, dtype=np.int16)
+                for target in target_speakers
+            }
+            self.speaker_activity[session_id] = speaker_activity
+
+    def __call__(self, example):
+        """
+
+        :param example: example_dict
+        :return: example_dict with add. key "speaker_activity_per_frame"
+        """
+        _, session_id, kaldi_start, kaldi_end = re.split('[_-]',
+                                                         example[K.EXAMPLE_ID])
+        start = (int(kaldi_start) - self.context * 100) * 160
+        end = (int(kaldi_end) + self.context * 100) * 160
+
+        speaker_activity = self.speaker_activity[session_id]
+        pad_width = self.frame_length - self.frame_step  # Consider fading
+
+        speaker_activity_per_frame = {
+            target: segment_axis_v2(np.pad(activity[start:end], pad_width,
+                                           mode='constant'),
+                                    length=self.frame_length,
+                                    shift=self.frame_step,
+                                    end='pad'  # Consider padding
+                                    ).any(1)
+            for target, activity in speaker_activity.items()
+        }
+
+        example['speaker_activity_per_frame'] = speaker_activity_per_frame
+        return example
+
+
 class CrossTalkFilter:
     def __init__(self, dataset: str, json_path=database_jsons,
                  with_crosstalk='no', min_overlap=0.0, max_overlap=0.0):
         """
-        Filter examples according to with_crosstalk and left_overlap and
-            right_overlap
+        Filter examples according to with_crosstalk and min_overlap and
+            max_overlap
         :param dataset: Chime5 dataset ('train', 'dev' or 'test')
         :param json_path: Path to json database. May be a string or Path object
         :param with_crosstalk: A string from ['yes', 'no', 'all']. If 'yes',
@@ -254,7 +325,7 @@ class SessionFilter:
 
 
 class BadTranscriptionFilter:
-    def __init__(self, bad_transcriptions=None):
+    def __init__(self, bad_transcriptions=None, keep_bad=False):
         """
         Filter out all examples with bad transcriptions like [inaudible],
             [redacted], [laughs] or [noise]
@@ -262,6 +333,9 @@ class BadTranscriptionFilter:
         :param bad_transcriptions: A list of bad transcriptions that should be
             filtered out from the iterator. Must be given as regular
             expressions. If None, a list of default bad transcriptions is used.
+        :param keep_bad: If False, return examples with good transcriptions
+            only. Else, return examples whose transcriptions match with
+            `bad_transcriptions`. Defaults to False.
         """
         if not bad_transcriptions:
             self.bad_transcriptions = ['\[noise\]', '\[laughs\]',
@@ -270,14 +344,14 @@ class BadTranscriptionFilter:
                                        ]
         else:
             self.bad_transcriptions = bad_transcriptions
+        self.keep_bad = keep_bad
 
     def __call__(self, example):
         """
 
         :param example: example_dict with transcription in it
-        :return: True if transcription is not in self.bad_transcriptions
+        :return: True if transcription matches with `keep_bad`
         """
-        return not all([any([re.match(p, word) for p in
-                             self.bad_transcriptions])
-                        for word in example['transcription'].split()]
-                       )
+        return (all([any([re.match(p, word) for p in self.bad_transcriptions])
+                    for word in example['transcription'].split()])
+                == self.keep_bad)
