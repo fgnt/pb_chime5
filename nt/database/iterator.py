@@ -145,7 +145,7 @@ class BaseIterator:
         """
         return MapIterator(map_fn, self)
 
-    def filter(self, filter_fn):
+    def filter(self, filter_fn, lazy=True):
         """
         Filtering examples. If possible this method should be called before
         applying expensive map functions.
@@ -153,7 +153,10 @@ class BaseIterator:
             and returns True if example should be kept, else False.
         :return: FilterIterator iterating over filtered examples.
         """
-        return FilterIterator(filter_fn, self)
+        if lazy:
+            return FilterIterator(filter_fn, self)
+        else:
+            return self[[i for i, e in enumerate(self) if filter_fn(e)]]
 
     def concatenate(self, *others):
         """
@@ -479,7 +482,17 @@ class SliceIterator(BaseIterator):
         return len(self.slice)
 
     def __str__(self):
-        return f'{self.__class__.__name__}({self._slice})'
+        if isinstance(self._slice, list):
+            slice_str = textwrap.shorten(
+                str(self._slice)[1:-1],
+                width=50,
+                placeholder=' ...',
+            )
+            slice_str = f'[{slice_str}]'
+        else:
+            slice_str = str(self._slice)
+
+        return f'{self.__class__.__name__}({slice_str})'
 
     def __iter__(self):
         for idx in self.slice:
@@ -524,7 +537,7 @@ class FilterIterator(BaseIterator):
 
     def __getitem__(self, key):
         assert isinstance(key, str), (
-            f'key == {key}\n{self.__class__} does not support __getitem__ '
+            f'key == {key!r}\n{self.__class__} does not support __getitem__ '
             f'for type(key) == {type(key)},\n'
             f'Only type str is allowed.\n'
             f'self:\n{repr(self)}'
