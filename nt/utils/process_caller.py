@@ -30,12 +30,13 @@ def run_process(
 ):
     """
     This is a wrapper around subprocess.run with changed defaults.
-     - stdout and stderr is captured
+     - stdout and stderr is captured (disable with stdout=None, stderr=None)
      - output is checked
      - shell is True when cmd is a string
-        - The shell need to split the command
-        - Wildcard support
-        - environment variable support
+        - If shell is True:
+          - The shell need to split the command
+          - Wildcard support
+          - environment variable support
      - universal_newlines:
         - https://stackoverflow.com/a/38182530
         - Enable text_mode i.e. use strings and not bytes
