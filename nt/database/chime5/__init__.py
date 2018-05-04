@@ -355,3 +355,10 @@ class BadTranscriptionFilter:
         return (all([any([re.match(p, word) for p in self.bad_transcriptions])
                     for word in example['transcription'].split()])
                 == self.keep_bad)
+
+
+# cyclic import, has to be at the end of the __init__ file
+from nt.database.chime5.mapping import (
+    session_speakers_mapping,
+    session_dataset_mapping,
+)
