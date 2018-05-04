@@ -30,3 +30,73 @@ RANK = RankInt(COMM.rank)
 SIZE = COMM.size
 MASTER = RankInt(0)
 IS_MASTER = (RANK == MASTER)
+
+
+def map_unordered(func, iterator, disable_pbar=True):
+    """
+    A master process push tasks to the workers and receives the result.
+    Required at least 2 mpi processes, but to produce a speedup 3 are required.
+    Only rank 0 get the results.
+    This map is lazy.
+
+    Assume function body is fast.
+
+    Parallel: The execution of func.
+
+    """
+    from tqdm import tqdm
+    import itertools
+    from enum import IntEnum, auto
+
+    if SIZE == 1:
+        if disable_pbar:
+            return map(func, iterator)
+        else:
+            return tqdm(map(func, iterator))
+
+    status = MPI.Status()
+    workers = SIZE - 1
+
+    class tags(IntEnum):
+        start = auto()
+        stop = auto()
+        default = auto()
+
+    COMM.Barrier()
+
+    if RANK == 0:
+        i = 0
+        with tqdm(itertools.count(), total=len(iterator), disable=disable_pbar) as pbar:
+            pbar.set_description(f'busy: {workers}')
+            while workers > 0:
+                res = COMM.recv(
+                    source=MPI.ANY_SOURCE,
+                    tag=MPI.ANY_TAG,
+                    status=status)
+                if status.tag == tags.default:
+                    COMM.send(i, dest=status.source)
+                    yield res
+                    i += 1
+                    pbar.update()
+                elif status.tag == tags.start:
+                    COMM.send(i, dest=status.source)
+                    i += 1
+                    pbar.update()
+                elif status.tag == tags.stop:
+                    workers -= 1
+                    pbar.set_description(f'busy: {workers}')
+                else:
+                    raise ValueError(status.tag)
+
+        assert workers == 0
+    else:
+        try:
+            COMM.send(None, dest=0, tag=tags.start)
+            next_index = COMM.recv(source=0)
+            for i, val in enumerate(iterator):
+                if i == next_index:
+                    res = func(val)
+                    COMM.send(res, dest=0, tag=tags.default)
+                    next_index = COMM.recv(source=0)
+        finally:
+            COMM.send(None, dest=0, tag=tags.stop)
