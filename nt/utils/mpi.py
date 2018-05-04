@@ -66,7 +66,7 @@ def map_unordered(func, iterator, disable_pbar=True):
 
     if RANK == 0:
         i = 0
-        with tqdm(itertools.count(), total=len(iterator), disable=disable_pbar) as pbar:
+        with tqdm(total=len(iterator), disable=disable_pbar) as pbar:
             pbar.set_description(f'busy: {workers}')
             while workers > 0:
                 res = COMM.recv(
