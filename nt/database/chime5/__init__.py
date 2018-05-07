@@ -17,8 +17,7 @@ FORMAT_STRING = '%H:%M:%S.%f'
 
 
 class Chime5(HybridASRJSONDatabaseTemplate):
-    def __init__(self):
-        path = database_jsons / 'chime5.json'
+    def __init__(self, path=database_jsons / 'chime5.json'):
         super().__init__(path)
 
     @property
