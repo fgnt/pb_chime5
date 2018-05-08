@@ -1,6 +1,5 @@
 from pathlib import Path
 import re
-
 import numpy as np
 from nt.database import HybridASRJSONDatabaseTemplate
 from nt.database import keys as K
@@ -12,6 +11,8 @@ from nt.io.data_dir import database_jsons
 from nt.io.json_module import load_json
 from nt.options import Options
 from nt.utils.numpy_utils import segment_axis_v2
+
+kaldi_root = Path('/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/')
 
 FORMAT_STRING = '%H:%M:%S.%f'
 
@@ -32,12 +33,35 @@ class Chime5(HybridASRJSONDatabaseTemplate):
     def datasets_test(self):
         return ['test']
 
+    @property
+    def ali_path_train(self):
+        """Path containing the kaldi alignments for train data."""
+        return kaldi_root / 'egs' / 'chime5' / 's5' / 'exp' / 'tri3_all_train_worn_ali'
+
+
+    @property
+    def ali_path_eval(self):
+        """Path containing the kaldi alignments for train data."""
+        return kaldi_root / 'egs' / 'chime5' / 's5' / 'exp' / 'tri3_all_dev_worn_ali'
+
+    @property
+    def hclg_path(self):
+        """Path to HCLG directory created by Kaldi."""
+        return kaldi_root / 'egs' / 'chime5' / 's5' / 'exp' \
+                   / 'tri3_all' / 'graph'
+
+    @property
+    def occs_file(self):
+        return str(self.ali_path_train / 'final.occs')
+
     def get_lengths(self, datasets, length_transform_fn=lambda x: x[0]):
         it = self.get_iterator_by_names(datasets)
         lengths = []
         for example in it:
             num_samples = example[K.NUM_SAMPLES]
             speaker_id = example[CHiME5_Keys.TARGET_SPEAKER]
+            if speaker_id == 'original':
+                speaker_id = example[K.SPEAKER_ID][0]
             if isinstance(num_samples, dict):
                 num_samples = num_samples[CHiME5_Keys.WORN][speaker_id]
             lengths.append(length_transform_fn(num_samples))
@@ -51,6 +75,43 @@ class Chime5(HybridASRJSONDatabaseTemplate):
                 'dev': ['S02', 'S09'],
                 'test': ['S01', 'S21']
                 }
+
+    @property
+    def example_id_map_fn(self):
+        def _map_example_id(example):
+            speaker, session, time = example[K.EXAMPLE_ID].split('_')
+            dataset_name = example[K.DATASET_NAME]
+            location = example[CHiME5_Keys.LOCATION]
+            if not location == 'unkown':
+                return '_'.join([speaker, session, location.upper() + '.L-']) + time
+            else:
+                # is_simu = 'simu' in dataset_name.lower()
+                # example_id = example_id.upper()
+                # if is_simu:
+                #     return f'{example_id}.CH5_SIMU'
+                # else:
+                #     return f'{example_id}.CH5_REAL'
+                return '_'.join([speaker, session, 'NOLOCATION.L-']) + time
+
+        return _map_example_id
+
+    def add_num_samples(self, example):
+        speaker = example[CHiME5_Keys.TARGET_SPEAKER]
+        if speaker == 'original':
+            speaker = example[K.SPEAKER_ID][0]
+        example[K.NUM_SAMPLES] = example[K.NUM_SAMPLES][CHiME5_Keys.WORN][speaker]
+        return example
+
+    def word2id(self, word):
+        """Returns the integer ID for a given word.
+
+        If the word is not found, it returns the ID for `<UNK>`.
+        """
+        try:
+            return self._word2id_dict[word]
+        except KeyError:
+            return self._word2id_dict['<eps>']
+
 
 
 class Chime5AudioReader(AudioReader):
@@ -356,8 +417,3 @@ class BadTranscriptionFilter:
                 == self.keep_bad)
 
 
-# cyclic import, has to be at the end of the __init__ file
-from nt.database.chime5.mapping import (
-    session_speakers_mapping,
-    session_dataset_mapping,
-)
