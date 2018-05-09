@@ -162,16 +162,22 @@ def time_to_string_format(time):
     # format to time string to fit time in kaldi example_ids
     return str(int(to_samples(time) * 100 / SAMPLE_RATE)).zfill(7)
 
+
 def get_audio_path_dict(arrays, speaker_ids, session_id, audio_path):
     audio_path_dict = {keys.OBSERVATION: {array: [
         str(audio_path / '_'.join([session_id, array])) + f'.CH{mic+1}.wav'
         for mic in range(NUM_MICS)] for array in arrays}}
-    audio_path_dict.update({CH_K.WORN: {speaker: [
-        str(audio_path / '_'.join([session_id, speaker])) + '.wav'] for speaker in speaker_ids}})
+    audio_path_dict.update({
+        CH_K.WORN: {
+            speaker: str(audio_path / '_'.join([session_id, speaker])) + '.wav'
+            for speaker in speaker_ids
+        }
+    })
     for key, audio_path in audio_path_dict.items():
         assert [Path(p).is_file() for path in audio_path.values()
                 for p in path], f'For {key} at least one audio_path is no file'
     return audio_path_dict
+
 
 def get_num_samples(start_time_dict, end_time_dict):
     def get_num_samples_recursive(start_time, end_time):
