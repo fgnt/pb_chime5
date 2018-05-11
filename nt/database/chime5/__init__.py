@@ -130,14 +130,19 @@ class Chime5AudioReader(AudioReader):
         :return: example dict with audio data added
         """
         if self.audio_keys is not None:
-            data = {
-                audio_key: recursive_transform(
-                    self._read_fn, example[self.src_key][audio_key],
-                    example[K.START][audio_key],
-                    example[K.END][audio_key], list2array=True
-                )
-                for audio_key in self.audio_keys
-            }
+            try:
+                data = {
+                    audio_key: recursive_transform(
+                        self._read_fn, example[self.src_key][audio_key],
+                        example[K.START][audio_key],
+                        example[K.END][audio_key], list2array=True
+                    )
+                    for audio_key in self.audio_keys
+                }
+            except KeyError as e:
+                raise KeyError(
+                    f'{e} not in {example[self.src_key].keys()}'
+                ) from e
         else:
             data = recursive_transform(
                 self._read_fn, example[self.src_key], example[K.START],
