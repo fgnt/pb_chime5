@@ -476,7 +476,7 @@ class SliceIterator(BaseIterator):
         self.input_iterator = input_iterator
 
     def keys(self):
-        return self.input_iterator.keys()[self.slice]
+        return tuple([self.input_iterator.keys()[i] for i in self.slice])
 
     def __len__(self):
         return len(self.slice)
