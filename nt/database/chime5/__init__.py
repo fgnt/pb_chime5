@@ -427,4 +427,5 @@ class BadTranscriptionFilter:
 from nt.database.chime5.mapping import (
     session_speakers_mapping,
     session_dataset_mapping,
+    session_array_to_num_samples_mapping,
 )
