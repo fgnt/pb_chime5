@@ -210,7 +210,7 @@ def get_time_from_dict(time, speaker_ids, arrays):
 
 
 @click.command()
-@click_common_options('chime.json', chime_5)
+@click_common_options('chime5.json', chime_5)
 def main(database_path, json_path):
     json = create_database(database_path)
     dump_database_as_json(json_path, json)
