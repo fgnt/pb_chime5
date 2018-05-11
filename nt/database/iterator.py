@@ -235,6 +235,31 @@ class BaseIterator:
         else:
             raise ValueError(reshuffle, self)
 
+    def groupby(self, function):
+        """
+        >>> from IPython.lib.pretty import pprint
+        >>> examples = {'a': {'z': 1}, 'b': {'z': 2}, 'c': {'z': 1}, 'd': {'z': 1}, 'e': {'z': 3}}
+        >>> it = ExamplesIterator(examples)
+        >>> for k, v in it.groupby(lambda ex: ex['z']).items():
+        ...     print(f'{k}:', list(v), v.keys())
+        ...     print(f'{v!r}')
+        1: [{'z': 1}, {'z': 1}, {'z': 1}] ('a', 'c', 'd')
+          ExamplesIterator(len=5)
+        SliceIterator([0, 2, 3])
+        2: [{'z': 2}] ('b',)
+          ExamplesIterator(len=5)
+        SliceIterator([1])
+        3: [{'z': 3}] ('e',)
+          ExamplesIterator(len=5)
+        SliceIterator([4])
+        """
+        iterable = enumerate(list(self.map(function)))
+        groups = collections.defaultdict(list)
+        for k, g in itertools.groupby(iterable, lambda ele: ele[1]):
+            indices = [ele[0] for ele in g]
+            groups[k] += indices
+        return {k: self[v] for k, v in groups.items()}
+
     def split(self, sections):
         """
         >>> examples = {'a': {}, 'b': {}, 'c': {}}
