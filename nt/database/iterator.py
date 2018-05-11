@@ -262,14 +262,15 @@ class BaseIterator:
 
     def split(self, sections):
         """
-        >>> examples = {'a': {}, 'b': {}, 'c': {}}
+        >>> examples = {'a': {}, 'b': {}, 'c': {}, 'd': {}, 'e': {}}
         >>> it = ExamplesIterator(examples)
         >>> it = it.items().map(lambda x: {'example_id': x[0], **x[1]})
         >>> its = it.split(2)
         >>> list(its[0])
-        [{'example_id': 'a'}, {'example_id': 'b'}]
+        [{'example_id': 'a'}, {'example_id': 'b'}, {'example_id': 'c'}]
         >>> list(its[1])
-        [{'example_id': 'c'}]
+        [{'example_id': 'd'}, {'example_id': 'e'}]
+        >>> list(its[1].keys())
         """
         if sections < 1:
             raise ValueError("sections must be >= 1")
