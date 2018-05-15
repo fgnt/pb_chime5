@@ -8,10 +8,16 @@ import click
 import tqdm
 from pathlib import Path
 from nt.database import keys
-from nt.database.helper import dump_database_as_json, click_common_options
+from nt.database.helper import (
+    dump_database_as_json,
+    click_common_options,
+    check_audio_files_exsist,
+    click_convert_to_path,
+)
 from nt.database.chime5.get_speaker_activity import to_samples
 from nt.io.data_dir import chime_5
 from nt.io.json_module import load_json
+
 
 class CHiME5_Keys:
     WORN = 'worn_microphone'
@@ -50,24 +56,114 @@ set_length = dict(
 )
 
 
-def create_database(database_path):
+def create_database(database_path, transcription_realigned_path):
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
     datasets = dict()
+
+    transcription_realigned_pathes = {
+        p.name: p
+        for p in Path(transcription_realigned_path).glob('**/*.json')
+    }
+
     for dataset in set_length.keys():
-        out_dict = get_dataset(database_path, dataset)
+        out_dict = get_dataset(database_path, dataset, transcription_realigned_pathes)
         datasets[dataset] = out_dict
     return {keys.DATASETS: datasets}
 
 
-def get_dataset(database_path, dataset):
+def transform_transciption_list(transciption_list):
+    """
+    >>> transciption_list = [{
+    ...     "end_time": {
+    ...         "original": "0:01:0.3800000",
+    ...         "U01": "0:01:0.3753125",
+    ...         "U02": "0:01:0.3863125",
+    ...         "U03": "0:01:0.3755625",
+    ...         "U04": "0:01:0.3663125",
+    ...         "U05": "0:01:0.3827500",
+    ...         "U06": "0:01:0.3565625",
+    ...         "P09": "0:01:0.3802500",
+    ...         "P10": "0:01:0.3799375",
+    ...         "P11": "0:01:0.3795000",
+    ...         "P12": "0:01:0.3800000"
+    ...     },
+    ...     "start_time": {
+    ...         "original": "0:00:57.5400000",
+    ...         "U01": "0:00:57.5353125",
+    ...         "U02": "0:00:57.5463750",
+    ...         "U03": "0:00:57.5355000",
+    ...         "U04": "0:00:57.5271250",
+    ...         "U05": "0:00:57.5426875",
+    ...         "U06": "0:00:57.5176875",
+    ...         "P09": "0:00:57.5402500",
+    ...         "P10": "0:00:57.5399375",
+    ...         "P11": "0:00:57.5395625",
+    ...         "P12": "0:00:57.5400000"
+    ...     },
+    ...     "words": "[noise] What were we talking about again? [inaudible 0:00:58.96]",
+    ...     "speaker": "P12",
+    ...     "session_id": "S03"
+    ... }]
+    >>> from IPython.lib.pretty import pprint
+    >>> pprint(transform_transciption_list(transciption_list))
+    [{'end_time': {'original': 966080,
+       'U01': 966005,
+       'U02': 966181,
+       'U03': 966009,
+       'U04': 965861,
+       'U05': 966124,
+       'U06': 965705,
+       'P09': 966084,
+       'P10': 966079,
+       'P11': 966072,
+       'P12': 966080},
+      'start_time': {'original': 920640,
+       'U01': 920565,
+       'U02': 920742,
+       'U03': 920568,
+       'U04': 920434,
+       'U05': 920683,
+       'U06': 920283,
+       'P09': 920644,
+       'P10': 920639,
+       'P11': 920633,
+       'P12': 920640},
+      'words': '[noise] What were we talking about again? [inaudible 0:00:58.96]',
+      'speaker': 'P12',
+      'session_id': 'S03'}]
+
+    """
+
+    def transform(entry):
+
+        return {
+            k: {
+                array_id: to_samples(time)
+                for array_id, time in v.items()
+            } if isinstance(v, dict) else v
+            for k, v in entry.items()
+        }
+
+    return list(map(transform, transciption_list))
+
+
+def load_transciption_json(path):
+    return transform_transciption_list(load_json(path))
+
+
+def get_dataset(database_path, dataset, transcription_realigned_path):
     database_path = database_path / 'CHiME5'
     dataset_transciption_path = database_path / 'transcriptions' / dataset
+    dataset_transciption_realigned_path = transcription_realigned_path #  / dataset
     dataset_audio_path = database_path / 'audio' / dataset
     json_dict = dict()
     for session_path in dataset_transciption_path.glob('*.json'):
         session_id = session_path.name.split('.')[0]
-        trans = load_json(session_path)
+        trans = load_transciption_json(session_path)
+        trans_realigned = load_transciption_json(dataset_transciption_realigned_path[session_path.name])
+
         total = len(trans)
+        assert len(trans) == len(trans_realigned), (len(trans), len(trans_realigned))
         if total < set_length[dataset][session_id]:
             raise ValueError(
                 f'missing utterances in session {session_id} expected length'
@@ -80,7 +176,8 @@ def get_dataset(database_path, dataset):
             for example_id, example in tqdm.tqdm(
                     ex.map(
                         partial(get_example, audio_path=dataset_audio_path),
-                        trans
+                        trans,
+                        trans_realigned,
                     ),
                     total=total,
                     desc=dataset
@@ -89,37 +186,59 @@ def get_dataset(database_path, dataset):
     return json_dict
 
 
-def get_example(transcription, audio_path):
+def get_example(transcription, transcription_realigned, audio_path):
     session_id = transcription['session_id']
     notes = list()
-    speaker_ids = [key for key in transcription['start_time'].keys()
-                   if 'P' in key]
+    speaker_ids = [
+        key
+        for key in transcription['start_time'].keys()
+        if 'P' in key
+    ]
     try:
         target_speaker_id = transcription['speaker']
     except KeyError as e:
-        warn(f'{e}; keys allowed are: {transcription.keys()} for '
-             f'session_id: {transcription["session_id"]}')
-        target_speaker_id = [
-            ids for ids in speaker_ids
-            if transcription['start_time'][ids] == transcription['start_time'][
-                'original']
-            if transcription['end_time'][ids] == transcription['end_time'][
-                   'original']
-        ]
-        if len(target_speaker_id) == 1:
-            target_speaker_id = target_speaker_id[0]
-            notes.append('target_speaker_id is missing and was inferred')
-        else:
-            target_speaker_id = 'original'
-            notes.append('target_speaker_id is missing')
+        target_speaker_id = 'unknown'
+        # target_speaker_id = None
+        notes.append('target_speaker_id is missing')
+
+        # warn(f'{e}; keys allowed are: {transcription.keys()} for '
+        #      f'session_id: {transcription["session_id"]}')
+        # target_speaker_id = [
+        #     ids for ids in speaker_ids
+        #     if transcription['start_time'][ids] == transcription['start_time'][
+        #         'original']
+        #     if transcription['end_time'][ids] == transcription['end_time'][
+        #            'original']
+        # ]
+        # if len(target_speaker_id) == 1:
+        #     target_speaker_id = target_speaker_id[0]
+        #     notes.append('target_speaker_id is missing and was inferred')
+        # else:
+        #     target_speaker_id = 'original'
+        #     notes.append('target_speaker_id is missing')
     # Format time to fit kaldi example ids
-    example_time = '-'.join([
-        time_to_string_format(transcription['start_time'][target_speaker_id]),
-        time_to_string_format(transcription['end_time'][target_speaker_id])
-    ])
-    example_id = '_'.join(
-        [target_speaker_id, session_id, example_time]
+    # example_time = '-'.join([
+    #     time_to_string_format(transcription['start_time'][target_speaker_id]),
+    #     time_to_string_format(transcription['end_time'][target_speaker_id])
+    # ])
+
+    if target_speaker_id != 'unknown':
+        start_sample = transcription['start_time'][target_speaker_id]
+        end_sample = transcription['end_time'][target_speaker_id]
+    else:
+        start_sample = transcription['start_time']['original']
+        end_sample = transcription['end_time']['original']
+
+    example_id = get_example_id(
+        start_sample=start_sample,
+        end_sample=end_sample,
+        session_id=session_id,
+        speaker_id=target_speaker_id,
     )
+
+    # example_id = '_'.join(
+    #     [target_speaker_id, session_id, example_time]
+    # )
     arrays = [f'U0{array+1}' for array in range(NUM_ARRAYS)]
     if session_id in ['S05', 'S22']:
         del arrays[2]
@@ -127,12 +246,22 @@ def get_example(transcription, audio_path):
     elif session_id == 'S09':
         del arrays[4]
         notes.append('Array U05 is missing, this is expected')
-    audio_path_dict = get_audio_path_dict(arrays, speaker_ids,
-                                          session_id, audio_path)
-    start_time_dict = get_time_from_dict(transcription['start_time'],
-                                         speaker_ids, arrays)
-    end_time_dict = get_time_from_dict(transcription['end_time'],
-                                       speaker_ids, arrays)
+    audio_path_dict = get_audio_path_dict(
+        arrays,
+        speaker_ids,
+        session_id,
+        audio_path,
+    )
+    start_time_dict = get_time_from_dict(
+        transcription_realigned['start_time'],
+        speaker_ids,
+        arrays,
+    )
+    end_time_dict = get_time_from_dict(
+        transcription_realigned['end_time'],
+        speaker_ids,
+        arrays,
+    )
     num_samples = get_num_samples(start_time_dict, end_time_dict)
     gender = {id: 'male' for id in speaker_ids}
     gender.update({id: 'female' for id in speaker_ids if id in FEMALE_SPEAKER})
@@ -140,22 +269,24 @@ def get_example(transcription, audio_path):
         location = transcription['location']
         ref_array = transcription['ref']
     else:
-        location = 'unkown'
-        ref_array = 'unkown'
+        location = 'unknown'
+        ref_array = 'unknown'
     if session_id in NOTES_DICT:
         notes.append(NOTES_DICT[session_id])
-    return example_id, {CH_K.SESSION_ID: session_id,
-                        CH_K.TARGET_SPEAKER: target_speaker_id,
-                        keys.SPEAKER_ID: speaker_ids,
-                        keys.GENDER: gender,
-                        keys.NUM_SAMPLES: num_samples,
-                        keys.AUDIO_PATH: audio_path_dict,
-                        CH_K.NOTES: notes,
-                        keys.START: start_time_dict,
-                        keys.END: end_time_dict,
-                        CH_K.REF_ARRAY: ref_array,
-                        CH_K.LOCATION: location,
-                        keys.TRANSCRIPTION: transcription['words']}
+    return example_id, {
+        CH_K.SESSION_ID: session_id,
+        CH_K.TARGET_SPEAKER: target_speaker_id,
+        keys.SPEAKER_ID: speaker_ids,
+        keys.GENDER: gender,
+        keys.NUM_SAMPLES: num_samples,
+        keys.AUDIO_PATH: audio_path_dict,
+        CH_K.NOTES: notes,
+        keys.START: start_time_dict,
+        keys.END: end_time_dict,
+        CH_K.REF_ARRAY: ref_array,
+        CH_K.LOCATION: location,
+        keys.TRANSCRIPTION: transcription['words']
+    }
 
 
 def time_to_string_format(time):
@@ -163,30 +294,60 @@ def time_to_string_format(time):
     return str(int(to_samples(time) * 100 / SAMPLE_RATE)).zfill(7)
 
 
+def get_example_id(
+        start_sample,
+        end_sample,
+        speaker_id,
+        session_id,
+):
+    """
+    >>> get_example_id(45963520, 45987360, 'P09', 'S03')
+    'P09_S03_0287272-0287421'
+
+    """
+    start_sample_str = str(int(start_sample * 100 / SAMPLE_RATE)).zfill(7)
+    end_sample_str = str(int(end_sample * 100 / SAMPLE_RATE)).zfill(7)
+    return f'{speaker_id}_{session_id}_{start_sample_str}-{end_sample_str}'
+
+
+from functools import lru_cache
+
+
 def get_audio_path_dict(arrays, speaker_ids, session_id, audio_path):
-    audio_path_dict = {keys.OBSERVATION: {array: [
-        str(audio_path / '_'.join([session_id, array])) + f'.CH{mic+1}.wav'
-        for mic in range(NUM_MICS)] for array in arrays}}
-    audio_path_dict.update({
+    audio_path_dict = {
+        keys.OBSERVATION: {
+            array: [
+                str(audio_path / f'{session_id}_{array}.CH{mic}.wav')
+                for mic in range(1, 1+NUM_MICS)
+            ]
+            for array in arrays
+        },
         CH_K.WORN: {
-            speaker: str(audio_path / '_'.join([session_id, speaker])) + '.wav'
+            speaker: str(audio_path / f'{session_id}_{speaker}.wav')
             for speaker in speaker_ids
         }
-    })
-    for key, audio_path in audio_path_dict.items():
-        assert [Path(p).is_file() for path in audio_path.values()
-                for p in path], f'For {key} at least one audio_path is no file'
+    }
+    # for key, audio_path in audio_path_dict.items():
+    #     assert [
+    #         Path(p).is_file()
+    #         for path in audio_path.values()
+    #         for p in path
+    #     ], f'For {key} at least one audio_path is no file'
     return audio_path_dict
 
 
 def get_num_samples(start_time_dict, end_time_dict):
     def get_num_samples_recursive(start_time, end_time):
         if isinstance(start_time, dict):
-            return {key: get_num_samples_recursive(value, end_time[key])
-                    for key, value in start_time.items()}
+            return {
+                key: get_num_samples_recursive(value, end_time[key])
+                for key, value in start_time.items()
+            }
         elif isinstance(start_time, list):
-            return [end_time[idx]- start_time[idx]
-                    for idx in range(len(start_time))]
+            return [
+                e_time - s_time
+                for s_time, e_time in zip(start_time, end_time)
+            ]
         elif isinstance(start_time, int):
             return end_time - start_time
         else:
@@ -202,17 +363,35 @@ def get_duration(start_time, end_time):
 
 
 def get_time_from_dict(time, speaker_ids, arrays):
-    time_dict = {keys.OBSERVATION: {array: [to_samples(
-        time[array])for mic in range(NUM_MICS)] for array in arrays}}
-    time_dict.update({CH_K.WORN: {speaker: to_samples(
-        time[speaker]) for speaker in speaker_ids}})
+    time_dict = {
+        keys.OBSERVATION: {
+            array: [time[array]] * NUM_MICS
+            for array in arrays
+        },
+        CH_K.WORN: {
+            speaker: time[speaker]
+            for speaker in speaker_ids
+        }
+    }
     return time_dict
 
 
 @click.command()
 @click_common_options('chime5.json', chime_5)
-def main(database_path, json_path):
-    json = create_database(database_path)
+@click.option(
+    '--transcription-path',
+    # '-j',
+    default='/net/vol/boeddeker/deploy/git/hub/chime5-synchronisation/transcriptions_aligned',
+    type=click.Path(),
+    callback=click_convert_to_path
+)
+def main(database_path, json_path, transcription_path):
+
+    json = create_database(database_path, transcription_path)
+
+    print('Check that all wav files in the json exsist.')
+    check_audio_files_exsist(json, speedup='thread')
+    print('Finished check.')
     dump_database_as_json(json_path, json)
 
 

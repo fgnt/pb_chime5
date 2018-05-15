@@ -74,11 +74,65 @@ def get_time_from_dict(start, end, speaker_ids):
                      end=to_samples(end[speaker])) for speaker in speaker_ids}
     return time_dict
 
+from decimal import Decimal
 
-def to_samples(time):
-    return int((
-                   datetime.strptime(time, FORMAT_STRING) - TIME_ZERO
-                ).total_seconds() * SAMPLE_RATE)
+
+def to_samples(time: str):
+    """
+    >>> def from_samples(samples):
+    ...     hours = samples // (60 * 60 * 16000)
+    ...     samples = samples - hours * 60 * 60 * 16000
+    ...     minutes = samples // (60 * 16000)
+    ...     samples = samples - minutes * 60 * 16000
+    ...     seconds = samples / 16000
+    ...     return f'{hours}:{minutes}:{seconds}'
+    >>> to_samples('0:47:52.708375')
+    45963334
+    >>> from_samples(45963334)
+    '0:47:52.708375'
+    >>> to_samples('0:47:52.7083750')
+    45963334
+    >>> to_samples('0:47:54.1956875')
+    45987131
+    >>> from_samples(45987131)
+    '0:47:54.1956875'
+    >>> to_samples('1000:47:54.1956875')
+    57645987131
+    >>> from_samples(57645987131)
+    '1000:47:54.1956875'
+    >>> from_samples(57645987130)
+    '1000:47:54.195625'
+    >>> to_samples('1000:47:54.195625')
+    57645987130
+    >>> to_samples('0:01:04.62')
+    1033920
+    >>> from_samples(1033920)
+    '0:1:4.62'
+    """
+    # datetime.strptime can only handle 6 digits after the comma, but 16000 Hz
+    # requires a resolution of 7 digits after the comma
+
+    hours, minutes, seconds = [t for t in time.split(':')]
+
+    hours = int(hours)
+    minutes = int(minutes)
+    seconds = Decimal(seconds)
+
+    seconds_samples = seconds * SAMPLE_RATE
+
+    assert seconds_samples == int(seconds_samples), (seconds_samples, seconds, time)
+
+    samples = (
+        hours * 3600 * SAMPLE_RATE
+        + minutes * 60 * SAMPLE_RATE
+        + seconds_samples
+    ) 
+
+    # samples = (
+    #                   datetime.strptime(time.rstrip('0'), FORMAT_STRING) - TIME_ZERO
+    #           ).total_seconds() * SAMPLE_RATE
+    assert samples == int(samples), (samples, time)
+    return int(samples)
 
 
 def combine_dicts(speaker_dict, org_dict):
@@ -128,8 +182,6 @@ def get_cross_talk_per_mic(speaker_dict):
                             cross_talk[speaker_mic]['end'].append(
                                 second_speaker_mics[speaker_mic]['end'][idy])
     return cross_talk
-
-
 
 
 def get_active_speaker(start_sample, end_sample, session_id, mic_id,
