@@ -6,7 +6,7 @@ if not __package__:
 from .helper import *
 
 
-def share_master(iterator, disable_pbar=False):
+def share_master(iterator, disable_pbar=False, allow_single_worker=False):
     """
     A master process pushes tasks to the workers.
     Required at least 2 mpi processes, but to produce a speedup 3 are required.
@@ -23,10 +23,16 @@ def share_master(iterator, disable_pbar=False):
         Change it that the execution get canceled.
 
     """
+    from tqdm import tqdm
+
+    if allow_single_worker and size == 1:
+        if disable_pbar:
+            yield from iterator
+        else:
+            yield from tqdm(iterator)
+        return
 
     assert size > 1, size
-    from tqdm import tqdm
-    import itertools
 
     status = MPI.Status()
     workers = size - 1
@@ -35,7 +41,7 @@ def share_master(iterator, disable_pbar=False):
 
     if rank == 0:
         i = 0
-        with tqdm(itertools.count(), total=len(iterator), disable=disable_pbar) as pbar:
+        with tqdm(total=len(iterator), disable=disable_pbar) as pbar:
             pbar.set_description(f'busy: {workers}')
             while workers > 0:
                 source = comm.recv(
