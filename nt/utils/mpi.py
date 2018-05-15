@@ -18,6 +18,7 @@ except ImportError:
 
     MPI = _dummy_MPI()
 
+
 class RankInt(int):
     def __bool__(self):
         raise NotImplementedError(
@@ -50,9 +51,9 @@ def map_unordered(func, iterator, disable_pbar=True):
 
     if SIZE == 1:
         if disable_pbar:
-            return map(func, iterator)
+            yield from map(func, iterator)
         else:
-            return tqdm(map(func, iterator))
+            yield from tqdm(map(func, iterator))
 
     status = MPI.Status()
     workers = SIZE - 1
