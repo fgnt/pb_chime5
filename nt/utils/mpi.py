@@ -77,7 +77,6 @@ def map_unordered(func, iterator, progress_bar=False):
         i = 0
         with tqdm(total=len(iterator), disable=not progress_bar) as pbar:
             pbar.set_description(f'busy: {workers}')
-            print('asdf')
             while workers > 0:
                 result = COMM.recv(
                     source=MPI.ANY_SOURCE,
