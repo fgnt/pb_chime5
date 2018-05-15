@@ -6,6 +6,11 @@ try:
     from mpi4py import MPI
     _mpi_available = False
 except ImportError:
+    import os
+    if 'CCS' in os.environ:
+        # CCS indicate PC2
+        raise
+
     class DUMMY_COMM_WORLD:
         size = 1
         rank = 0
