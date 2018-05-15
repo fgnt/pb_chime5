@@ -320,6 +320,55 @@ class SpeakerActivityMapper:
         return example
 
 
+def activity_time_to_frequency(
+        time_activity,
+        stft_window_length,
+        stft_shift,
+        stft_fading,
+):
+    """
+    >>> from nt.transform import stft
+    >>> signal = np.array([0, 0, 0, 0, 0, 1, -3, 0, 5, 0, 0, 0, 0, 0])
+    >>> vad = np.array(   [0, 0, 0, 0, 0, 1,  1, 0, 1, 0, 0, 0, 0, 0])
+    >>> np.set_printoptions(suppress=True)
+    >>> print(stft(signal, size=4, shift=2, fading=True, window=np.ones))
+    [[ 0.+0.j  0.+0.j  0.+0.j]
+     [ 0.+0.j  0.+0.j  0.+0.j]
+     [ 1.+0.j  0.+1.j -1.+0.j]
+     [-2.+0.j  3.-1.j -4.+0.j]
+     [ 2.+0.j -8.+0.j  2.+0.j]
+     [ 5.+0.j  5.+0.j  5.+0.j]
+     [ 0.+0.j  0.+0.j  0.+0.j]
+     [ 0.+0.j  0.+0.j  0.+0.j]]
+    >>> activity_time_to_frequency(vad, stft_window_length=4, stft_shift=2, stft_fading=True)
+    array([False, False,  True,  True,  True,  True, False, False])
+    >>> print(stft(signal, size=4, shift=2, fading=False, window=np.ones))
+    [[ 0.+0.j  0.+0.j  0.+0.j]
+     [ 1.+0.j  0.+1.j -1.+0.j]
+     [-2.+0.j  3.-1.j -4.+0.j]
+     [ 2.+0.j -8.+0.j  2.+0.j]
+     [ 5.+0.j  5.+0.j  5.+0.j]
+     [ 0.+0.j  0.+0.j  0.+0.j]]
+    >>> activity_time_to_frequency(vad, stft_window_length=4, stft_shift=2, stft_fading=False)
+    array([False,  True,  True,  True,  True, False])
+
+    """
+    if stft_fading:
+        pad_width = stft_window_length - stft_shift  # Consider fading
+    else:
+        pad_width = 0
+    return segment_axis_v2(
+        np.pad(
+            time_activity,
+            pad_width,
+            mode='constant'
+        ),
+        length=stft_window_length,
+        shift=stft_shift,
+        end='pad'  # Consider padding
+    ).any(axis=1)
+
+
 class CrossTalkFilter:
     def __init__(self, dataset: str, json_path=database_jsons,
                  with_crosstalk='no', min_overlap=0.0, max_overlap=0.0):
