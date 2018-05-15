@@ -125,10 +125,10 @@ def default_dict():
     """
     Defaultdict for json structure.
     """
-    database = defaultdict(
-        lambda: defaultdict(
-            lambda: defaultdict(
-                lambda: defaultdict(dict)
+    database = collections.defaultdict(
+        lambda: collections.defaultdict(
+            lambda: collections.defaultdict(
+                lambda: collections.defaultdict(dict)
             )
         )
     )
