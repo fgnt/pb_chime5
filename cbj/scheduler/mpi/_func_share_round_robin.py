@@ -6,7 +6,7 @@ if not __package__:
 from .helper import *
 
 
-def share_round_robin(iterator):
+def share_round_robin(iterator, disable_pbar=True):
     """
     Shares the work in round robin fashion
 
@@ -19,7 +19,19 @@ def share_round_robin(iterator):
     [1, 3]
     """
     from itertools import islice
-    return islice(iterator, rank, None, size)
+    if disable_pbar or not ismaster:
+        return islice(iterator, rank, None, size)
+    else:
+        from tqdm import tqdm
+
+        def gen():
+            with tqdm(total=len(iterator), desc='MasterPbar') as pbar:
+                for ele in islice(iterator, rank, None, size):
+                    yield ele
+                    pbar.update(size)
+
+        return gen()
+        # return tqdm(islice(iterator, rank, None, size), desc='MasterPbar')
 
 
 if __name__ == '__main__':
@@ -32,5 +44,10 @@ if __name__ == '__main__':
 
     for i in share_round_robin(it):
         print('loop body:', i, rank)
+
+    # it = range(60)
+    # for i in share_round_robin(it, disable_pbar=False):
+        # import time
+        # time.sleep(0.1)
 
     print('Exit', rank)
