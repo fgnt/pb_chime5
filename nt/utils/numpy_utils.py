@@ -518,7 +518,7 @@ def _shrinking_reshape(array, source, target):
     return array.reshape(output_shape)
 
 
-def _expanding_reshape(array, source, **shape_hints):
+def _expanding_reshape(array, source, target, **shape_hints):
 
     def _get_source_grouping(source):
         """
@@ -533,6 +533,22 @@ def _expanding_reshape(array, source, **shape_hints):
 
     if '*' not in source:
         return array
+
+    source, target = source.split(), target.replace(' * ', '*').split()
+
+    if '...' in source:
+        assert '...' in target, (source, target)
+        independent_dims = array.ndim - len(source) + 1
+        import string
+        ascii_letters = [
+            s
+            for s in string.ascii_letters
+            if s not in source and s not in target
+        ]
+        index = source.index('...')
+        source[index:index + 1] = ascii_letters[:independent_dims]
+        index = target.index('...')
+        target[index:index + 1] = ascii_letters[:independent_dims]
 
     target_shape = []
 
@@ -561,10 +577,10 @@ def morph(operation, array, **shape_hints):
     See test cases for examples.
     """
     operation = _normalize(operation)
-    source, target = map(str.lower, operation.split('->'))
+    source, target = operation.split('->')
 
-    # expanding reshape
-    array = _expanding_reshape(array, source, **shape_hints)
+    # Expanding reshape
+    array = _expanding_reshape(array, source, target, **shape_hints)
 
     # Initial squeeze
     squeeze_operation = operation.split('->')[0].split()
