@@ -487,7 +487,7 @@ def _normalize(op):
     return op
 
 
-def _only_reshape(array, source, target):
+def _shrinking_reshape(array, source, target):
     source, target = source.split(), target.replace(' * ', '*').split()
 
     if '...' in source:
@@ -518,18 +518,53 @@ def _only_reshape(array, source, target):
     return array.reshape(output_shape)
 
 
-def reshape(array, operation):
-    """ This is an experimental version of a generalized reshape.
+def _expanding_reshape(array, source, **shape_hints):
 
+    def _get_source_grouping(source):
+        """
+        Gets axis as alphanumeric.
+        """
+
+        source = ' '.join(source)
+        source = source.replace(' * ', '*')
+        groups = source.split()
+        groups = [group.split('*') for group in groups]
+        return groups
+
+    if '*' not in source:
+        return array
+
+    target_shape = []
+
+    for axis, group in enumerate(_get_source_grouping(source)):
+        if len(group) == 1:
+            target_shape.append(array.shape[axis:axis + 1])
+        else:
+            shape_wildcard_remaining = True
+            for member in group:
+                if member in shape_hints:
+                    target_shape.append([shape_hints[member]])
+                else:
+                    if shape_wildcard_remaining:
+                        shape_wildcard_remaining = False
+                        target_shape.append([-1])
+                    else:
+                        raise ValueError('Not enough shape hints provided.')
+
+    target_shape = np.concatenate(target_shape, 0)
+    array = array.reshape(target_shape)
+    return array
+
+
+def morph(operation, array, **shape_hints):
+    """ This is an experimental version of a generalized reshape.
     See test cases for examples.
     """
     operation = _normalize(operation)
+    source, target = map(str.lower, operation.split('->'))
 
-    if '*' in operation.split('->')[0]:
-        raise NotImplementedError(
-            'Unflatten operation not supported by design. '
-            'Actual values for dimensions are not available to this function.'
-        )
+    # expanding reshape
+    array = _expanding_reshape(array, source, **shape_hints)
 
     # Initial squeeze
     squeeze_operation = operation.split('->')[0].split()
@@ -554,7 +589,7 @@ def reshape(array, operation):
     source = transposition_operation.split('->')[-1]
     target = operation.split('->')[-1]
 
-    return _only_reshape(array, source, target)
+    return _shrinking_reshape(array, source, target)
 
 
 def add_context(data, left_context=0, right_context=0, step=1,
