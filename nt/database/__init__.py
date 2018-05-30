@@ -142,9 +142,11 @@ class DictDatabase:
     ):
         try:
             lengths = self.get_lengths(datasets, length_transform_fn)
+            lengths_list = [length for length in lengths.values()]
             percentiles = np.linspace(
                 0, 100, num_buckets + 1, endpoint=True)[1:-1]
-            return np.percentile(lengths, percentiles, interpolation='higher')
+            return np.percentile(lengths_list, percentiles,
+                                 interpolation='higher')
         except NotImplementedError:
             assert num_buckets == 1, num_buckets
             return []
@@ -172,12 +174,13 @@ class JsonDatabase(DictDatabase):
 
     def get_lengths(self, datasets, length_transform_fn=lambda x: x):
         it = self.get_iterator_by_names(datasets)
-        lengths = []
+        lengths = dict()
         for example in it:
             num_samples = example[keys.NUM_SAMPLES]
             if isinstance(num_samples, dict):
                 num_samples = num_samples[keys.OBSERVATION]
-            lengths.append(length_transform_fn(num_samples))
+            example_id = example[keys.EXAMPLE_ID]
+            lengths[example_id] = (length_transform_fn(num_samples))
         return lengths
 
     def add_num_samples(self, example):
