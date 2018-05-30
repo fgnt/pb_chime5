@@ -56,16 +56,19 @@ class Chime5(HybridASRJSONDatabaseTemplate):
         return str(self.ali_path_train / 'final.occs')
 
     def get_lengths(self, datasets, length_transform_fn=lambda x: x[0]):
+        # The output is a dictionary with the approximative lengths per example
+        #  no exact length is necessary to specify the bucket boundaries
         it = self.get_iterator_by_names(datasets)
-        lengths = []
+        lengths = dict()
         for example in it:
             num_samples = example[K.NUM_SAMPLES]
             speaker_id = example[CHiME5_Keys.TARGET_SPEAKER]
-            if speaker_id == 'original':
+            if speaker_id == 'unknown':
                 speaker_id = example[K.SPEAKER_ID][0]
             if isinstance(num_samples, dict):
                 num_samples = num_samples[CHiME5_Keys.WORN][speaker_id]
-            lengths.append(length_transform_fn(num_samples))
+            example_id = example[K.EXAMPLE_ID]
+            lengths[example_id] = (length_transform_fn(num_samples))
         return lengths
 
     @property
@@ -92,7 +95,7 @@ class Chime5(HybridASRJSONDatabaseTemplate):
 
     def add_num_samples(self, example):
         speaker = example[CHiME5_Keys.TARGET_SPEAKER]
-        if speaker == 'original':
+        if speaker == 'unknown':
             speaker = example[K.SPEAKER_ID][0]
         example[K.NUM_SAMPLES] = example[K.NUM_SAMPLES][CHiME5_Keys.WORN][speaker]
         return example
