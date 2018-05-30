@@ -83,15 +83,9 @@ class Chime5(HybridASRJSONDatabaseTemplate):
             speaker, session, time = example[K.EXAMPLE_ID].split('_')
             dataset_name = example[K.DATASET_NAME]
             location = example[CHiME5_Keys.LOCATION]
-            if not location == 'unkown':
+            if not location == 'unknown':
                 return '_'.join([speaker, session, location.upper() + '.L-']) + time
             else:
-                # is_simu = 'simu' in dataset_name.lower()
-                # example_id = example_id.upper()
-                # if is_simu:
-                #     return f'{example_id}.CH5_SIMU'
-                # else:
-                #     return f'{example_id}.CH5_REAL'
                 return '_'.join([speaker, session, 'NOLOCATION.L-']) + time
 
         return _map_example_id
