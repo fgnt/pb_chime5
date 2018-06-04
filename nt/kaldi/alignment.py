@@ -133,7 +133,6 @@ def import_alignment_data(
 
 def import_occs(occs_file):
     """ Reads data from an oocs file
-
     """
     try:
         with open(occs_file) as fid:
@@ -147,6 +146,7 @@ def import_occs(occs_file):
             with open(tmpfile.name) as fid:
                 occs = fid.readline().strip()
     occs = occs.replace('[', '').replace(']', '').split()
+    occs = [occ.split('.')[0] for occ in occs]
     return np.array(occs, dtype=np.int32)
 
 def write_occs(occs, occs_file):
