@@ -86,7 +86,7 @@ def load_json(path, **kwargs):
     :param kwargs: See ``json.dump()``.
     :return: Content of the JSON file.
     """
-    assert isinstance(path, (str, Path))
+    assert isinstance(path, (str, Path)), path
     path = Path(path).expanduser()
 
     with path.open() as fid:
