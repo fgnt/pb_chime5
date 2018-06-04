@@ -128,6 +128,7 @@ def dump_audio(
     <BLANKLINE>
 
     """
+    assert isinstance(path, (str, Path)), path
     if isinstance(path, Path):
         path = str(path)
 
@@ -207,6 +208,7 @@ def audiowrite(data, path, sample_rate=16000, normalize=False, threaded=True):
         thread
     :return: The number of clipped samples
     """
+    assert isinstance(path, (str, Path)), path
     assert data.dtype.kind in ['i', 'f'], (data.shape, data.dtype)
 
     if isinstance(path, Path):
