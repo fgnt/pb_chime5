@@ -49,28 +49,28 @@ def flatten_with_key_paths(d, sep=None, flat_list=True, reverse_key_value=False)
     return res
 
 
-def check_audio_files_exsist(
+def check_audio_files_exist(
         database_dict,
         speedup=None,
 ):
     """
 
-    >>> check_audio_files_exsist({2: [1, '/net/db/timit/pcm/train/dr1/fcjf0/sa1.wav', 'abc.wav']})
+    >>> check_audio_files_exist({2: [1, '/net/db/timit/pcm/train/dr1/fcjf0/sa1.wav', 'abc.wav']})
     Traceback (most recent call last):
     ...
     AssertionError: ('abc.wav', (2, '2'))
-    >>> check_audio_files_exsist(1)
-    >>> check_audio_files_exsist('abc.wav')
+    >>> check_audio_files_exist(1)
+    >>> check_audio_files_exist('abc.wav')
     Traceback (most recent call last):
     ...
     AssertionError: ('abc.wav', ())
-    >>> check_audio_files_exsist('/net/db/timit/pcm/train/dr1/fcjf0/sa1.wav')
-    >>> check_audio_files_exsist(1, speedup='thread')
-    >>> check_audio_files_exsist('abc.wav', speedup='thread')
+    >>> check_audio_files_exist('/net/db/timit/pcm/train/dr1/fcjf0/sa1.wav')
+    >>> check_audio_files_exist(1, speedup='thread')
+    >>> check_audio_files_exist('abc.wav', speedup='thread')
     Traceback (most recent call last):
     ...
     AssertionError: ('abc.wav', ())
-    >>> check_audio_files_exsist('/net/db/timit/pcm/train/dr1/fcjf0/sa1.wav', speedup='thread')
+    >>> check_audio_files_exist('/net/db/timit/pcm/train/dr1/fcjf0/sa1.wav', speedup='thread')
     """
 
     def path_exists(path):
