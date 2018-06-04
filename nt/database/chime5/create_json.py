@@ -11,7 +11,7 @@ from nt.database import keys
 from nt.database.helper import (
     dump_database_as_json,
     click_common_options,
-    check_audio_files_exsist,
+    check_audio_files_exist,
     click_convert_to_path,
 )
 from nt.database.chime5.get_speaker_activity import to_samples
@@ -390,7 +390,7 @@ def main(database_path, json_path, transcription_path):
     json = create_database(database_path, transcription_path)
 
     print('Check that all wav files in the json exsist.')
-    check_audio_files_exsist(json, speedup='thread')
+    check_audio_files_exist(json, speedup='thread')
     print('Finished check.')
     dump_database_as_json(json_path, json)
 
