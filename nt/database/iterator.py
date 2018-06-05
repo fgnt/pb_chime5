@@ -64,6 +64,7 @@ import pickle
 import numbers
 import textwrap
 import collections
+import itertools
 from copy import deepcopy
 from pathlib import Path
 
@@ -361,10 +362,6 @@ class MapIterator(BaseIterator):
     Iterator that iterates over an input_iterator and applies a transformation
     map_function to each element.
 
-    .. note: This Iterator makes a (deep)copy of the example before applying the
-        function.
-
-
     """
 
     def __init__(self, map_function, input_iterator):
@@ -480,8 +477,12 @@ class ReShuffleIterator(BaseIterator):
     def __getitem__(self, item):
         if isinstance(item, str):
             return self.input_iterator[item]
-        elif isinstance(item, numbers.Integral):
-            raise TypeError(item)
+        elif isinstance(item, (numbers.Integral, slice, tuple, list)):
+            raise TypeError(
+                f'{self.__class__.__name__} does not support '
+                f'integers and slices as argument of __getitem__.'
+                f'Got argument "{item}" of type {type(item)}.'
+            )
         else:
             return super().__getitem__(item)
 
@@ -601,13 +602,15 @@ class ConcatenateIterator(BaseIterator):
 
     def keys(self):
         """
-        >>> examples = {'a': {}, 'b': {}, 'c': {}}
+        >>> examples = {'a': 1, 'b': 2, 'c': 3}
         >>> it = ExamplesIterator(examples)
         >>> it.concatenate(it).keys()
         Traceback (most recent call last):
         ...
         AssertionError: Keys are not unique. There are 3 duplicates.
         ['a', 'b', 'c']
+        >>> list(it.concatenate(it.map(lambda x: x+10)))
+        [1, 2, 3, 11, 12, 13]
         """
         if self._keys is None:
             keys = []
