@@ -148,7 +148,7 @@ def dump_audio(
         # Correction, because the allowed values are in the range [-1, 1).
         # => "1" is not a vaild value
         correction = (2**15 - 1) / (2**15)
-        obj = obj * correction / np.amax(np.abs(obj))
+        obj = obj * (correction / np.amax(np.abs(obj)))
 
     if start is None or not Path(path).exists():
         obj = np.asarray(obj)
@@ -168,6 +168,10 @@ def dump_audio(
         )
 
     dtype_map = Dispatcher({
+        np.int16: 'PCM_16',
+        np.dtype('int16'): 'PCM_16',
+        np.int32: 'PCM_32',
+        np.dtype('int32'): 'PCM_32',
         np.float32: 'FLOAT',
         np.dtype('float32'): 'FLOAT',
         np.float64: 'DOUBLE',
@@ -176,7 +180,7 @@ def dump_audio(
 
     if dtype in [np.int16]:
         pass
-    elif dtype in [np.float32, np.float64]:
+    elif dtype in [np.float32, np.float64, np.int32]:
         sf_args['subtype'] = dtype_map[dtype]
     elif dtype is None:
         sf_args['subtype'] = dtype_map[obj.dtype]
@@ -228,7 +232,7 @@ def audiowrite(data, path, sample_rate=16000, normalize=False, threaded=True):
     if sample_to_clip > 0:
         print('Warning, clipping {} sample{}.'.format(
             sample_to_clip, '' if sample_to_clip == 1 else 's'
-            ))
+        ))
     data = np.clip(data, int16_min, int16_max)
     data = data.astype(np.int16)
 
