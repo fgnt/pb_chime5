@@ -82,6 +82,22 @@ class Chime5(HybridASRJSONDatabaseTemplate):
 
     @property
     def example_id_map_fn(self):
+        """
+        >>> ex = {
+        ...     K.EXAMPLE_ID: 'P05_S02_0004060-0004382',
+        ...     K.DATASET_NAME: 'dev',
+        ...     CHiME5_Keys.LOCATION: 'kitchen',
+        ... }
+        >>> Chime5.example_id_map_fn(ex)
+        'P05_S02_KITCHEN.L-0004060-0004382'
+        >>> ex = {
+        ...     K.EXAMPLE_ID: 'P09_S03_0005948-0006038',
+        ...     K.DATASET_NAME: 'train',
+        ...     CHiME5_Keys.LOCATION: 'unkown',
+        ... }
+        >>> Chime5.example_id_map_fn(ex)
+        'P09_S03_NOLOCATION.L-0005948-0006038'
+        """
         def _map_example_id(example):
             speaker, session, time = example[K.EXAMPLE_ID].split('_')
             dataset_name = example[K.DATASET_NAME]
