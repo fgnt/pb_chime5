@@ -6,5 +6,5 @@ class Dispatcher(dict):
             return super().__getitem__(item)
         except KeyError:
             raise KeyError(
-                f'Invalid option {item}. Possible keys are {self.keys()}.'
+                f'Invalid option {item!r}. Possible keys are {self.keys()!r}.'
             )
