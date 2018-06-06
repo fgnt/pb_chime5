@@ -144,25 +144,27 @@ def segment_axis_v2(x, length: int, shift: int, axis: int=-1,
     else:
         raise ValueError(shift)
 
+    if pad_mode == 'constant':
+        pad_kwargs = {'constant_values': pad_value}
+    else:
+        pad_kwargs = {}
+
     # Pad
     if end == 'pad':
         if x.shape[axis] < length:
             npad = np.zeros([x.ndim, 2], dtype=np.int)
             npad[axis, 1] = length - x.shape[axis]
-            x = np.pad(x, pad_width=npad, mode=pad_mode,
-                       constant_values=pad_value)
+            x = np.pad(x, pad_width=npad, mode=pad_mode, **pad_kwargs)
         elif shift != 1 and (x.shape[axis] + shift - length) % shift != 0:
             npad = np.zeros([x.ndim, 2], dtype=np.int)
             npad[axis, 1] = shift - ((x.shape[axis] + shift - length) % shift)
-            x = np.pad(x, pad_width=npad, mode=pad_mode,
-                       constant_values=pad_value)
+            x = np.pad(x, pad_width=npad, mode=pad_mode, **pad_kwargs)
 
     elif end == 'conv_pad':
         assert shift == 1, shift
         npad = np.zeros([x.ndim, 2], dtype=np.int)
         npad[axis, :] = length - shift
-        x = np.pad(x, pad_width=npad, mode=pad_mode,
-                   constant_values=pad_value)
+        x = np.pad(x, pad_width=npad, mode=pad_mode, **pad_kwargs)
     elif end is None:
         assert (x.shape[axis] + shift - length) % shift == 0, \
             '{} = x.shape[axis]({}) + shift({}) - length({})) % shift({})' \
