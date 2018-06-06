@@ -3,6 +3,7 @@ This file contains the STFT function and related helper functions.
 """
 import typing
 import string
+import itertools
 from math import ceil
 
 import numpy as np
@@ -147,12 +148,21 @@ def stft_with_kaldi_dimensions(
     )
 
 
-def _samples_to_stft_frames(samples, size, shift):
+def _samples_to_stft_frames(
+        samples,
+        size,
+        shift,
+        *,
+        fading=False,
+):
     """
     Calculates STFT frames from samples in time domain.
     :param samples: Number of samples in time domain.
-    :param size: FFT size.
+    :param size: window_length often equal to FFT size.
+                 The name size should be marked as deprecated and replaced with
+                 window_length.
     :param shift: Hop in samples.
+    :param fading: See stft. Note to keep old behavior, default value is False.
     :return: Number of STFT frames.
 
     >>> _samples_to_stft_frames(19, 16, 4)
@@ -161,12 +171,45 @@ def _samples_to_stft_frames(samples, size, shift):
     2
     >>> _samples_to_stft_frames(21, 16, 4)
     3
+
+    >>> stft(np.zeros(19), 16, 4, fading=False).shape
+    (2, 9)
+    >>> stft(np.zeros(20), 16, 4, fading=False).shape
+    (2, 9)
+    >>> stft(np.zeros(21), 16, 4, fading=False).shape
+    (3, 9)
+
+    >>> _samples_to_stft_frames(19, 16, 4, fading=True)
+    8
+    >>> _samples_to_stft_frames(20, 16, 4, fading=True)
+    8
+    >>> _samples_to_stft_frames(21, 16, 4, fading=True)
+    9
+
+    >>> stft(np.zeros(19), 16, 4).shape
+    (8, 9)
+    >>> stft(np.zeros(20), 16, 4).shape
+    (8, 9)
+    >>> stft(np.zeros(21), 16, 4).shape
+    (9, 9)
+
+    >>> _samples_to_stft_frames(21, 16, 3, fading=True)
+    12
+    >>> stft(np.zeros(21), 16, 3).shape
+    (12, 9)
+    >>> _samples_to_stft_frames(21, 16, 3)
+    3
+    >>> stft(np.zeros(21), 16, 3, fading=False).shape
+    (3, 9)
     """
+    if fading:
+        samples = samples + 2 * (size - shift)
+
     # I changed this from np.ceil to math.ceil, to yield an integer result.
     return ceil((samples - size + shift) / shift)
 
 
-def _stft_frames_to_samples(frames, size, shift):
+def _stft_frames_to_samples(frames, size, shift, fading=False):
     """
     Calculates samples in time domain from STFT frames
     :param frames: Number of STFT frames.
@@ -177,8 +220,76 @@ def _stft_frames_to_samples(frames, size, shift):
     >>> _stft_frames_to_samples(2, 16, 4)
     20
     """
+    if fading:
+        assert 'Not implemented'
     return frames * shift + size - shift
 
+
+def sample_id_to_stft_frame_id(sample, window_length, shift, fading=True):
+    """
+    Calculates the best frame index for a given sample index
+    :param sample: Sample index in time domain.
+    :param size: FFT size.
+    :param shift: Hop in samples.
+    :return: Best STFT frame index.
+
+
+    ## ## ## ##
+       ## ## ## ##
+          ## ## ## ##
+             ## ## ## ##
+    00 00 01 12 23 34 45
+
+
+    ## ## ## ##
+     # ## ## ## #
+       ## ## ## ##
+        # ## ## ## #
+    00 00 01 23 5 ...
+          12 34 6 ...
+
+    ## ## ## #
+       ## ## ## #
+          ## ## ## #
+             ## ## ## #
+    ## ## ## #
+    00 00 01 12 23 34 45
+
+    >>> [sample_id_to_stft_frame_id(i, 8, 1, fading=False) for i in range(12)]
+    [0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8]
+    >>> [sample_id_to_stft_frame_id(i, 8, 2, fading=False) for i in range(10)]
+    [0, 0, 0, 0, 1, 1, 2, 2, 3, 3]
+    >>> [sample_id_to_stft_frame_id(i, 7, 2, fading=False) for i in range(10)]
+    [0, 0, 0, 0, 1, 1, 2, 2, 3, 3]
+    >>> [sample_id_to_stft_frame_id(i, 7, 1, fading=False) for i in range(10)]
+    [0, 0, 0, 0, 1, 2, 3, 4, 5, 6]
+
+    >>> [sample_id_to_stft_frame_id(i, 8, 1, fading=True) for i in range(12)]
+    [7, 7, 7, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    >>> [sample_id_to_stft_frame_id(i, 8, 2, fading=True) for i in range(10)]
+    [3, 3, 3, 3, 4, 4, 5, 5, 6, 6]
+    >>> [sample_id_to_stft_frame_id(i, 7, 2, fading=True) for i in range(10)]
+    [3, 3, 3, 3, 4, 4, 5, 5, 6, 6]
+    >>> [sample_id_to_stft_frame_id(i, 7, 1, fading=True) for i in range(10)]
+    [6, 6, 6, 6, 7, 8, 9, 10, 11, 12]
+
+    >>> stft(np.zeros([8]), size=8, shift=2).shape
+    (7, 5)
+    >>> stft(np.zeros([8]), size=8, shift=1).shape
+    (15, 5)
+    >>> stft(np.zeros([8]), size=8, shift=4).shape
+    (3, 5)
+    """
+
+    if (window_length + 1) // 2 > sample:
+        frame = 0
+    else:
+        frame = (sample - (window_length + 1) // 2) // shift + 1
+
+    if fading:
+        frame = frame + ceil((window_length - shift) / shift)
+
+    return frame
 
 def _biorthogonal_window_loopy(analysis_window, shift):
     """
