@@ -46,13 +46,13 @@ OBSERVATION_HEADSET = 'observation_headset'
 SPEECH_SOURCE = 'speech_source'
 SPEECH_IMAGE = 'speech_image'
 NOISE_IMAGE = 'noise_image'
-LOG_WEIGHTS = 'log_weights'
+LOG_WEIGHTS = 'log_weights'  # Stupid name. Should be e.g. ratio_decibel.
 
 # SPEECH_REVERBARATON
 SPEECH_REVERBERATION_DIRECT = 'speech_reverberation_direct'
 SPEECH_REVERBERATION_TAIL = 'speech_reverberation_tail'
 
-
+SOUND_DECAY_TIME = 'sound_decay_time'  # Also referred to as T60 time.
 RIR = 'rir'
 RIR_DIRECT = 'rir_direct'
 RIR_TAIL = 'rir_tail'
@@ -74,4 +74,8 @@ SAMPLE_RATE = "sample_rate"
 LABELS = "labels"
 MAPPINGS = "mappings"
 
+# Scenario related keys
 LOCATION = 'location'
+ROOM_DIMENSIONS = 'room_dimensions'
+SOURCE_POSITION = 'source_position'
+SENSOR_POSITION = 'sensor_position'
