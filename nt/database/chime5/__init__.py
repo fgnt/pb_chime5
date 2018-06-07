@@ -7,11 +7,12 @@ from nt.database import keys as K
 from nt.database.chime5.create_json import CHiME5_Keys, SAMPLE_RATE
 from nt.database.chime5.get_speaker_activity import to_numpy, get_active_speaker
 from nt.database.iterator import AudioReader
-from nt.io.audioread import audioread
+# from nt.io.audioread import audioread
 from nt.io.data_dir import database_jsons
-from nt.io.json_module import load_json
+from nt.io import load_json
 from nt.options import Options
 from nt.utils.numpy_utils import segment_axis_v2
+import nt.io
 
 kaldi_root = Path('/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/')
 
@@ -126,13 +127,32 @@ class Chime5(HybridASRJSONDatabaseTemplate):
         except KeyError:
             return self._word2id_dict['<eps>']
 
+    def get_iterator_for_session(self, session, audio_read=False):
+        if isinstance(session, str):
+            session = (session, )
+
+        it = self.get_iterator_by_names(['train', 'dev']).filter(
+            lambda ex: ex['session_id'] in session, lazy=False
+        )
+        if audio_read is False:
+            pass
+        elif audio_read is True:
+            it = it.map(nt.database.chime5.Chime5AudioReader(audio_keys=None))
+        else:
+            raise TypeError(audio_read)
+
+        return it
 
 
 class Chime5AudioReader(AudioReader):
-    def __init__(self, src_key='audio_path', dst_key='audio_data',
-                 audio_keys='observation',
-                 read_fn=lambda x, offset, duration:
-                 audioread(path=x, offset=offset, duration=duration)[0]):
+    def __init__(
+            self,
+            src_key='audio_path',
+            dst_key='audio_data',
+            audio_keys='observation',
+            # audio_keys=None,  # is this not better for chime5? Low overhead.
+            read_fn=nt.io.load_audio,
+    ):
         super().__init__(src_key=src_key, dst_key=dst_key,
                          audio_keys=audio_keys,
                          read_fn=read_fn)
@@ -186,32 +206,48 @@ def recursive_transform(func, dict_list_val, start, end, list2array=False):
     if isinstance(dict_list_val, dict):
         # Recursively call itself
         return {
-            key: recursive_transform(func, val, start[key], end[key],
-                                     list2array)
-            for key, val in dict_list_val.items()}
-    if isinstance(dict_list_val, (list, tuple)):
+            key: recursive_transform(
+                func,
+                val,
+                start=start[key],
+                end=end[key],
+                list2array=list2array,
+            )
+            for key, val in dict_list_val.items()
+        }
+    elif isinstance(dict_list_val, (list, tuple)):
         if type(start) == type(dict_list_val):
             # Recursively call itself
-            l = [recursive_transform(func, dict_list_val[idx], start[idx], end[idx],
-                                     list2array)
-                 for idx in range(len(dict_list_val))]
-
+            l = [
+                recursive_transform(
+                    func,
+                    l,
+                    start=s,
+                    end=e,
+                    list2array=list2array,
+                )
+                for l, s, e in zip(dict_list_val, start, end)
+            ]
             if list2array:
                 return np.array(l)
             return l
         else:
+            assert False, \
+                'CB: This branch has no valid code. Fix the code. ' \
+                'I do not know when this branch is reached.'
             return recursive_transform(func, dict_list_val[0], start, end,
                                         list2array)
     elif isinstance(dict_list_val, (list, tuple)):
+        assert False, \
+            'CB: This branch is unreachable. ' \
+            'This branch has no valid code. Fix the code.'
         l = start
         if list2array:
             return np.array(l)
         return l
     else:
         # applies function to a leaf value which is not a dict or list
-        offset = start / SAMPLE_RATE
-        duration = (end - start) / SAMPLE_RATE
-        return func(dict_list_val, offset, duration)
+        return func(dict_list_val, start=start, stop=end)
 
 
 class OverlapMapper:
