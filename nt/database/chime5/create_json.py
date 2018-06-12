@@ -20,12 +20,20 @@ from nt.io.json_module import load_json
 
 
 class CHiME5_Keys:
+    """
+    >>> print(dir(keys))
+    """
     WORN = 'worn_microphone'
     TARGET_SPEAKER = 'target_speaker'
     NOTES = 'notes'
     SESSION_ID = 'session_id'
     LOCATION = 'location'
     REF_ARRAY = 'reference_array'
+
+
+for k in dir(keys):
+    if k == k.upper():
+        setattr(CHiME5_Keys, k, getattr(keys, k))
 
 
 CH_K = CHiME5_Keys

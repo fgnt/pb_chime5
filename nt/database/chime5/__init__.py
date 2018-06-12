@@ -20,6 +20,8 @@ FORMAT_STRING = '%H:%M:%S.%f'
 
 
 class Chime5(HybridASRJSONDatabaseTemplate):
+    K = CHiME5_Keys
+
     def __init__(self, path=database_jsons / 'chime5.json'):
         super().__init__(path)
 
@@ -391,6 +393,9 @@ def activity_time_to_frequency(
      [ 0.+0.j  0.+0.j  0.+0.j]]
     >>> activity_time_to_frequency(vad, stft_window_length=4, stft_shift=2, stft_fading=True)
     array([False, False,  True,  True,  True,  True, False, False])
+    >>> activity_time_to_frequency([vad, vad], stft_window_length=4, stft_shift=2, stft_fading=True)
+    array([[False, False,  True,  True,  True,  True, False, False],
+           [False, False,  True,  True,  True,  True, False, False]])
     >>> print(stft(signal, size=4, shift=2, fading=False, window=np.ones))
     [[ 0.+0.j  0.+0.j  0.+0.j]
      [ 1.+0.j  0.+1.j -1.+0.j]
@@ -400,22 +405,28 @@ def activity_time_to_frequency(
      [ 0.+0.j  0.+0.j  0.+0.j]]
     >>> activity_time_to_frequency(vad, stft_window_length=4, stft_shift=2, stft_fading=False)
     array([False,  True,  True,  True,  True, False])
+    >>> activity_time_to_frequency([vad, vad], stft_window_length=4, stft_shift=2, stft_fading=False)
+    array([[False,  True,  True,  True,  True, False],
+           [False,  True,  True,  True,  True, False]])
 
     """
+    time_activity = np.array(time_activity)
+
     if stft_fading:
-        pad_width = stft_window_length - stft_shift  # Consider fading
-    else:
-        pad_width = 0
-    return segment_axis_v2(
-        np.pad(
+        pad_width = np.array([(0, 0)] * time_activity.ndim)
+        pad_width[-1, :] = stft_window_length - stft_shift  # Consider fading
+        time_activity = np.pad(
             time_activity,
             pad_width,
             mode='constant'
-        ),
+        )
+
+    return segment_axis_v2(
+        time_activity,
         length=stft_window_length,
         shift=stft_shift,
         end='pad'  # Consider padding
-    ).any(axis=1)
+    ).any(axis=-1)
 
 
 class CrossTalkFilter:
