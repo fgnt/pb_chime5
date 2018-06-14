@@ -480,6 +480,69 @@ def pad_to(array, to, constant_value=0):
     return result
 
 
+def pad_axis(array, pad_width, *, axis, mode='constant', **pad_kwargs):
+    """ Wrapper around np.pad to support the axis argument.
+    This function has mode='constant' as default.
+
+    >>> pad_axis(np.ones([3, 4]), 1, axis=0)
+    array([[0., 0., 0., 0.],
+           [1., 1., 1., 1.],
+           [1., 1., 1., 1.],
+           [1., 1., 1., 1.],
+           [0., 0., 0., 0.]])
+    >>> pad_axis(np.ones([3, 4]), 1, axis=1)
+    array([[0., 1., 1., 1., 1., 0.],
+           [0., 1., 1., 1., 1., 0.],
+           [0., 1., 1., 1., 1., 0.]])
+    >>> pad_axis(np.ones([3, 4]), (0, 1), axis=1)
+    array([[1., 1., 1., 1., 0.],
+           [1., 1., 1., 1., 0.],
+           [1., 1., 1., 1., 0.]])
+    >>> pad_axis(np.ones([3, 4]), (1, 0), axis=1)
+    array([[0., 1., 1., 1., 1.],
+           [0., 1., 1., 1., 1.],
+           [0., 1., 1., 1., 1.]])
+
+    Since np.pad has no axis argument the behaviour for
+    isinstance(pad_width, int) is rarely the desired behaviour:
+
+    >>> np.pad(np.ones([3, 4]), 1, mode='constant')
+    array([[0., 0., 0., 0., 0., 0.],
+           [0., 1., 1., 1., 1., 0.],
+           [0., 1., 1., 1., 1., 0.],
+           [0., 1., 1., 1., 1., 0.],
+           [0., 0., 0., 0., 0., 0.]])
+
+    Here the corresponding np.pad calls for above examples:
+
+    >>> np.pad(np.ones([3, 4]), ((1,), (0,)), mode='constant')
+    array([[0., 0., 0., 0.],
+           [1., 1., 1., 1.],
+           [1., 1., 1., 1.],
+           [1., 1., 1., 1.],
+           [0., 0., 0., 0.]])
+    >>> np.pad(np.ones([3, 4]), ((0,), (1,)), mode='constant')
+    array([[0., 1., 1., 1., 1., 0.],
+           [0., 1., 1., 1., 1., 0.],
+           [0., 1., 1., 1., 1., 0.]])
+    >>> np.pad(np.ones([3, 4]), ((0, 0), (0, 1)), mode='constant')
+    array([[1., 1., 1., 1., 0.],
+           [1., 1., 1., 1., 0.],
+           [1., 1., 1., 1., 0.]])
+    >>> np.pad(np.ones([3, 4]), ((0, 0), (1, 0)), mode='constant')
+    array([[0., 1., 1., 1., 1.],
+           [0., 1., 1., 1., 1.],
+           [0., 1., 1., 1., 1.]])
+
+
+    """
+    array = np.asarray(array)
+
+    npad = np.zeros([array.ndim, 2], dtype=np.int)
+    npad[axis, :] = pad_width
+    return np.pad(array, pad_width=npad, mode=mode, **pad_kwargs)
+
+
 def _normalize(op):
     op = op.replace(',', '')
     op = op.replace(' ', '')
