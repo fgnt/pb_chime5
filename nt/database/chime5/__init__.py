@@ -209,6 +209,16 @@ class Chime5AudioReader(AudioReader):
         return example
 
 
+def kaldi_to_nt_example_id(example_id):
+    """
+    >>> kaldi_to_nt_example_id('P28_S09_LIVING.R-0714562-0714764')
+    'P28_S09_0714562-0714764'
+    """
+    P, S, remaining = example_id.split('_')
+    _, start, end = remaining.split('-')
+    return f'{P}_{S}_{start}-{end}'
+
+
 def recursive_transform(func, dict_list_val, start, end, list2array=False):
     """
     Applies a function func to all leaf values in a dict or list or directly to
