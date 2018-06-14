@@ -129,13 +129,31 @@ class Chime5(HybridASRJSONDatabaseTemplate):
         except KeyError:
             return self._word2id_dict['<eps>']
 
-    def get_iterator_for_session(self, session, audio_read=False):
+    def get_iterator_for_session(
+            self,
+            session,
+            *,
+            audio_read=False,
+            drop_unknown_target_speaker=False,
+            adjust_times=False,
+    ):
         if isinstance(session, str):
             session = (session, )
 
         it = self.get_iterator_by_names(['train', 'dev']).filter(
             lambda ex: ex['session_id'] in session, lazy=False
         )
+        if drop_unknown_target_speaker:
+            it = it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False)
+
+        if adjust_times:
+            assert drop_unknown_target_speaker, (
+                'adjust_times is undefined for '
+                'ex["target_speaker"] == "unknown". '
+                'Set adjust_times to True.'
+            )
+            it = it.map(adjust_start_end)
+
         if audio_read is False:
             pass
         elif audio_read is True:
@@ -489,6 +507,108 @@ class CrossTalkFilter:
             return True
         else:
             return False
+
+
+def _adjust_start_end(
+        worn_start,
+        worn_end,
+        array_start,
+        array_end,
+):
+    """
+
+    >>> w_s = np.random.randint(0, 100)
+    >>> w_e = w_s + np.random.randint(1, 100)
+    >>> a_s = np.random.randint(0, 100)
+    >>> a_e = a_s + w_e - w_s
+    >>> def test(a_s, a_e, delta_s, delta_e):
+    ...     res = _adjust_start_end(w_s, w_e, a_s, a_e)
+    ...     if (a_s + delta_s, a_e + delta_e) != res:
+    ...         raise AssertionError(f'Expected changes {delta_s} {delta_e}, got {res[0] - a_s} {res[1] - a_e}. {(w_s, w_e, a_s, a_e)}')
+    >>> test(a_s, a_e, 0, 0)
+    >>> test(a_s, a_e+1, 0, -1)
+    >>> test(a_s, a_e-1, 0, +1)
+    >>> test(a_s+1, a_e, 0, +1)
+    >>> test(a_s-1, a_e, 0, -1)
+
+    >>> test(a_s, a_e+2, 1, -1)
+    >>> test(a_s, a_e-2, -1, 1)
+
+    >>> test(a_s, a_e+3, 1, -2)
+    >>> test(a_s, a_e-3, -1, +2)
+    >>> test(a_s, a_e+4, 2, -2)
+    >>> test(a_s, a_e-4, -2, +2)
+    >>> test(a_s, a_e+5, 2, -3)
+    >>> test(a_s, a_e-5, -2, +3)
+
+    >>> _adjust_start_end(10, 20, 10, 19)
+    (10, 20)
+    >>> _adjust_start_end(10, 20, 10, 21)
+    (10, 20)
+    """
+    worn_duration = worn_end - worn_start
+    array_duration = array_end - array_start
+
+    if worn_duration == array_duration:
+        new_start, new_end = array_start, array_end
+    elif worn_duration > array_duration:
+        delta = worn_duration - array_duration
+        delta_start = delta // 2
+        delta_end = (delta + 1) // 2
+        new_start, new_end = array_start - delta_start, array_end + delta_end
+    elif worn_duration < array_duration:
+        delta = array_duration - worn_duration
+        delta_start = delta // 2
+        delta_end = (delta + 1) // 2
+        new_start, new_end = array_start + delta_start, array_end - delta_end
+    else:
+        raise Exception('Can not happen.')
+
+    assert new_end - new_start == worn_duration, (
+        f'worn: {worn_end} - {worn_start} = {worn_duration}, '
+        f'array: {array_end} - {array_start} = {array_duration}, '
+        f'new: {new_end} - {new_start} = {new_end - new_start}, \n'
+        f'delta: {delta}, delta_start: {delta_start}, delta_end: {delta_end}'
+    )
+
+    return new_start, new_end
+
+
+def adjust_start_end(ex):
+
+    target_speaker = ex['target_speaker']
+
+    worn_start = ex[K.START]['worn_microphone'][target_speaker]
+    worn_end = ex[K.END]['worn_microphone'][target_speaker]
+
+    for array_id in ex['audio_path']['observation'].keys():
+        array_start = ex[K.START]['observation'][array_id]
+        array_end = ex[K.END]['observation'][array_id]
+
+        array_start, = list(set(array_start))  # assert len 1
+        array_end, = list(set(array_end))  # assert len 1
+
+        array_start, array_end = _adjust_start_end(
+            worn_start,
+            worn_end,
+            array_start,
+            array_end,
+        )
+        ex[K.START]['observation'][array_id] = [array_start] * 4
+        ex[K.END]['observation'][array_id] = [array_end] * 4
+        ex[K.NUM_SAMPLES]['observation'][array_id] = [array_end - array_start] * 4
+
+    for mic_id in ex['audio_path']['worn_microphone'].keys():
+        array_start, array_end = _adjust_start_end(
+            worn_start,
+            worn_end,
+            ex[K.START]['worn_microphone'][mic_id],
+            ex[K.END]['worn_microphone'][mic_id]
+        )
+        ex[K.START]['worn_microphone'][mic_id] = array_start
+        ex[K.END]['worn_microphone'][mic_id] = array_end
+        ex[K.NUM_SAMPLES]['worn_microphone'][mic_id] = array_end - array_start
+    return ex
 
 
 class SessionFilter:
