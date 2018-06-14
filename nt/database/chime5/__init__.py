@@ -12,6 +12,7 @@ from nt.io.data_dir import database_jsons
 from nt.io import load_json
 from nt.options import Options
 from nt.utils.numpy_utils import segment_axis_v2
+from nt.utils.numpy_utils import pad_axis
 import nt.io
 
 kaldi_root = Path('/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/')
@@ -397,6 +398,87 @@ class SpeakerActivityMapper:
 
         example['speaker_activity_per_frame'] = speaker_activity_per_frame
         return example
+
+
+def activity_frequency_to_time(
+        frequency_activity,
+        stft_window_length,
+        stft_shift,
+        stft_fading,
+        time_length=None,
+):
+    """
+
+    >>> from nt.transform import istft
+    >>> vad = np.array(   [0, 1, 0, 1, 0, 0, 1, 0, 0])
+    >>> np.set_printoptions(suppress=True)
+    >>> activity_frequency_to_time(vad, stft_window_length=4, stft_shift=2, stft_fading=False)
+    array([False, False,  True,  True,  True,  True,  True,  True,  True,
+            True, False, False,  True,  True,  True,  True, False, False,
+           False, False])
+    >>> activity_frequency_to_time([vad, vad], stft_window_length=4, stft_shift=2, stft_fading=False)
+    array([[False, False,  True,  True,  True,  True,  True,  True,  True,
+             True, False, False,  True,  True,  True,  True, False, False,
+            False, False],
+           [False, False,  True,  True,  True,  True,  True,  True,  True,
+             True, False, False,  True,  True,  True,  True, False, False,
+            False, False]])
+
+    """
+    if stft_fading:
+        raise NotImplementedError(stft_fading)
+
+    frequency_activity = np.asarray(frequency_activity)
+    # import from nt.transform import istft
+    # cbj.istft
+    # frequency_activity = frequency_activity
+    frequency_activity = np.broadcast_to(
+        frequency_activity[..., None], (*frequency_activity.shape, stft_window_length)
+    )
+
+    time_activity = np.zeros(
+        (*frequency_activity.shape[:-2],
+         frequency_activity.shape[-2] * stft_shift + stft_window_length - stft_shift)
+    )
+
+    # Get the correct view to time_signal
+    time_signal_seg = segment_axis_v2(
+        time_activity, stft_window_length, stft_shift, end=None
+    )
+
+    # Unbuffered inplace add
+    # np.add.at(
+    #     time_signal_seg,
+    #     ...,
+    #     frequency_activity
+    # )
+    # It is not nessesary to do a unbuffered assignment, because it is alwais
+    # the same value that gets assigned.
+    time_signal_seg[frequency_activity > 0] = 1
+    time_activity = time_activity != 0
+
+    if time_length is not None:
+        if time_length == time_activity.shape[-1]:
+            pass
+        elif time_length < time_activity.shape[-1]:
+            delta = time_activity.shape[-1] - time_length
+            assert delta < stft_window_length - stft_shift, (delta, stft_window_length, stft_shift)
+            time_activity = time_activity[..., :time_length]
+
+        elif time_length > time_activity.shape[-1]:
+            delta = time_length - time_activity.shape[-1]
+            assert delta < stft_window_length - stft_shift, (delta, stft_window_length, stft_shift)
+
+            time_activity = pad_axis(
+                time_activity[..., :time_length],
+                pad_width=(0, delta),
+                axis=-1,
+            )
+        else:
+            raise Exception('Can not happen')
+        assert time_length == time_activity.shape[-1], (time_length, time_activity.shape)
+
+    return time_activity != 0
 
 
 def activity_time_to_frequency(
