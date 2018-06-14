@@ -63,6 +63,7 @@ import logging
 import pickle
 import numbers
 import textwrap
+import operator
 import collections
 import itertools
 from copy import deepcopy
@@ -502,8 +503,16 @@ class SliceIterator(BaseIterator):
 
         self.input_iterator = input_iterator
 
+    _keys = None
+
     def keys(self):
-        return tuple([self.input_iterator.keys()[i] for i in self.slice])
+        if self._keys is None:
+            keys = self.input_iterator.keys()
+            # itemgetter makes the same as
+            # "tuple([keys[i] for i in self.slice])"
+            # but is 10 times faster
+            self._keys = operator.itemgetter(*self.slice)(keys)
+        return self._keys
 
     def __len__(self):
         return len(self.slice)
