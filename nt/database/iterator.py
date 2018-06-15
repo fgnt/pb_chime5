@@ -338,9 +338,8 @@ class ExamplesIterator(BaseIterator):
 
     def __getitem__(self, item):
         if isinstance(item, str):
-            key = item
             try:
-                example = self.examples[key]
+                example = self.examples[item]
             except Exception:
                 import difflib
                 similar = difflib.get_close_matches(item, self.keys())
@@ -535,13 +534,10 @@ class SliceIterator(BaseIterator):
             yield self.input_iterator[idx]
 
     def __getitem__(self, key):
-        if isinstance(key, numbers.Integral):
+        if isinstance(key, str):
+            return self.input_iterator[key]
+        elif isinstance(key, numbers.Integral):
             return self.input_iterator[self.slice[key]]
-        elif isinstance(key, str):
-            if key in self.keys():
-                return self.input_iterator[key]
-            else:
-                raise IndexError(key)
         else:
             return super().__getitem__(key)
 
@@ -728,8 +724,12 @@ class ZipIterator(BaseIterator):
     def __len__(self):
         return len(self.input_iterators[0])
 
+    _keys = None
+
     def keys(self):
-        return self.input_iterators[0].keys()
+        if self._keys is None:
+            self._keys = self.input_iterators[0].keys()
+        return self._keys
 
     def __getitem__(self, item):
         if isinstance(item, numbers.Integral):
