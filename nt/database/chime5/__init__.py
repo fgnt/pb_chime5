@@ -486,6 +486,7 @@ def activity_time_to_frequency(
         stft_window_length,
         stft_shift,
         stft_fading,
+        stft_pad=True,
 ):
     """
     >>> from nt.transform import stft
@@ -519,8 +520,15 @@ def activity_time_to_frequency(
     array([[False,  True,  True,  True,  True, False],
            [False,  True,  True,  True,  True, False]])
 
+
+    >>> activity_time_to_frequency(np.zeros(200000), stft_window_length=1024, stft_shift=256, stft_fading=False, stft_pad=False).shape
+    (778,)
+    >>> from nt.transform import stft
+    >>> stft(np.zeros(200000), size=1024, shift=256, fading=False, pad=False).shape
+    (778, 513)
     """
-    time_activity = np.array(time_activity)
+    assert np.asarray(time_activity).dtype != np.object, (type(time_activity), np.asarray(time_activity).dtype)
+    time_activity = np.asarray(time_activity)
 
     if stft_fading:
         pad_width = np.array([(0, 0)] * time_activity.ndim)
@@ -535,7 +543,7 @@ def activity_time_to_frequency(
         time_activity,
         length=stft_window_length,
         shift=stft_shift,
-        end='pad'  # Consider padding
+        end='pad' if stft_pad else 'cut'
     ).any(axis=-1)
 
 
