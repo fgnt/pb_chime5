@@ -75,6 +75,19 @@ class Chime5(HybridASRJSONDatabaseTemplate):
             lengths[example_id] = (length_transform_fn(num_samples))
         return lengths
 
+    def write_text_file(self, filename, datasets):
+        iterator = self.get_iterator_by_names(datasets)
+        with open(filename, 'w') as fid:
+            for example in iterator:
+                if example[CHiME5_Keys.TARGET_SPEAKER] == 'unknown':
+                    continue
+                transcription = example[K.TRANSCRIPTION]
+                transcription.replace('/', '')
+                fid.write(
+                    f'{example[K.EXAMPLE_ID]} '
+                    f'{transcription}\n'
+                )
+
     @property
     def map_dataset_to_sessions(self):
         return {'train': ['S03', 'S04', 'S05', 'S06', 'S07', 'S08', 'S12',
@@ -104,13 +117,11 @@ class Chime5(HybridASRJSONDatabaseTemplate):
         """
         def _map_example_id(example):
             speaker, session, time = example[K.EXAMPLE_ID].split('_')
-            dataset_name = example[K.DATASET_NAME]
             location = example[CHiME5_Keys.LOCATION]
             if not location == 'unknown':
                 return '_'.join([speaker, session, location.upper() + '.L-']) + time
             else:
                 return '_'.join([speaker, session, 'NOLOCATION.L-']) + time
-
         return _map_example_id
 
     def add_num_samples(self, example):
