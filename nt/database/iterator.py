@@ -283,26 +283,18 @@ class BaseIterator:
         slices = np.array_split(np.arange(len(self)), sections)
         return [self[list(s)] for s in slices]
 
-    def sort(self, key_list, sort_fn=sorted):
+    def sort(self, key_fn, sort_fn=sorted):
         '''
         Sorts the iterator with the entry described by key_list
         >>> examples = {'a': {'x': 1}, 'b': {'x': 3},  'c': {'x': 12}, 'd': {'x': 2}}
         >>> it = ExamplesIterator(examples)
-        >>> it_sorted = it.sort(['x'])
+        >>> it_sorted = it.sort(lambda ex: ex['x'])
         >>> list(it_sorted)
         [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 12}]
         '''
-        key_list = to_list(key_list)
-        def get_sort_value(example):
-            out = example
-            for key in key_list:
-                out = out[key]
-            return out
-
-        sort_values = [get_sort_value(self[key]) for key in self.keys()]
+        sort_values = [key_fn(self[key]) for key in self.keys()]
         return self[tuple([key for _, key in
                            sort_fn(zip(sort_values, self.keys()))])]
-
 
     def shard(self, num_shards, shard_index):
         """
