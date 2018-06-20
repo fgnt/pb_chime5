@@ -17,10 +17,12 @@ def get_function_add_non_sil_alignment(ali_path):
     non_sil_alignment_dict = Dispatcher({k: v != 'sil' for k, v in alignment.items()})
 
     def transform_add_non_sil_alignment(
-            ex
+            ex,
+            perspective_mic_array,
     ):
+        # ignore perspective_mic_array
         if ex['example_id'] in non_sil_alignment_dict:
-            ex['non_sil_alignment'] = activity_frequency_to_time(
+            return activity_frequency_to_time(
                 non_sil_alignment_dict[ex['example_id']],
                 stft_window_length=400,
                 stft_shift=160,
@@ -31,9 +33,7 @@ def get_function_add_non_sil_alignment(ali_path):
         else:
             print(
                 f"Warning: Could not find {ex['example_id']} in non_sil_alignment.")
-            ex['non_sil_alignment'] = 1
-
-        return ex
+            return 1
 
     return transform_add_non_sil_alignment
 
@@ -46,7 +46,7 @@ def get_activity(
         perspective,
         garbage_class,
         dtype=np.bool,
-        non_sil_alignment=False,
+        non_sil_alignment_fn=None,
         debug=False
 ):
     """
@@ -112,6 +112,7 @@ def get_activity(
 
             for pers in perspective_tmp:
                 target_speaker = ex['target_speaker']
+                example_id = ex['example_id']
 
                 if pers == 'global_worn':
                     perspective_mic_array = target_speaker
@@ -133,15 +134,17 @@ def get_activity(
                 start = start
                 end = end
 
-                if non_sil_alignment:
-                    value = ex['non_sil_alignment']
-                else:
+                if non_sil_alignment_fn is None:
                     value = 1
+                else:
+                    # value = ex['non_sil_alignment']
+                    value = non_sil_alignment_fn(ex, perspective_mic_array)
 
                 if debug:
                     acitivity[pers][target_speaker][start:end] += value
                 else:
                     acitivity[pers][target_speaker][start:end] = value
+
         all_acitivity[session_id] = acitivity
         del acitivity
         del it_S
@@ -156,11 +159,11 @@ def _dummy():
     >>> it = db.get_iterator_by_names(['dev'])
     >>> ali_path = ['/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/egs/chime5/s5/exp/tri3_all_dev_worn_ali']
     >>> activity = get_activity(
-    ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end).map(get_function_add_non_sil_alignment(ali_path)),
+    ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end),
     ...     perspective='worn',
     ...     garbage_class=None,
     ...     dtype=np.bool,
-    ...     non_sil_alignment=True,
+    ...     non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
     ... )  #doctest: +ELLIPSIS
     Warning: Could not find P05_S02_0038340-0039534 ...
     >>> activity.keys()
@@ -203,12 +206,54 @@ def _dummy():
        'P26': array(mean=0.17939263866217411),
        'P27': array(mean=0.1926943769924331),
        'P28': array(mean=0.22845449328140732)}}}
+
     >>> activity = get_activity(
-    ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end).map(get_function_add_non_sil_alignment(ali_path)),
+    ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end),
+    ...     perspective='worn',
+    ...     garbage_class=None,
+    ...     dtype=np.bool,
+    ...     # non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
+    ... )  #doctest: +ELLIPSIS
+    >>> pprint(activity)
+    {'S02': {'P05': {'P05': array(mean=0.4502383187856299),
+       'P06': array(mean=0.476081643838078),
+       'P07': array(mean=0.31896532360591373),
+       'P08': array(mean=0.3996792116275309)},
+      'P06': {'P05': array(mean=0.45023821349634546),
+       'P06': array(mean=0.476081643838078),
+       'P07': array(mean=0.31896532360591373),
+       'P08': array(mean=0.3996791133575321)},
+      'P07': {'P05': array(mean=0.45023813628420356),
+       'P06': array(mean=0.47608122268094033),
+       'P07': array(mean=0.31896532360591373),
+       'P08': array(mean=0.3996790150875333)},
+      'P08': {'P05': array(mean=0.4502383187856299),
+       'P06': array(mean=0.476081643838078),
+       'P07': array(mean=0.31896532360591373),
+       'P08': array(mean=0.399679246723959)}},
+     'S09': {'P25': {'P25': array(mean=0.35883135724927984),
+       'P26': array(mean=0.2900560656541185),
+       'P27': array(mean=0.2554168348118473),
+       'P28': array(mean=0.3141167508207114)},
+      'P26': {'P25': array(mean=0.35883135724927984),
+       'P26': array(mean=0.29005637110816634),
+       'P27': array(mean=0.2554168348118473),
+       'P28': array(mean=0.3141170126384667)},
+      'P27': {'P25': array(mean=0.3588308947045788),
+       'P26': array(mean=0.29005573401829515),
+       'P27': array(mean=0.2554168348118473),
+       'P28': array(mean=0.314116384275854)},
+      'P28': {'P25': array(mean=0.35883135724927984),
+       'P26': array(mean=0.29005637110816634),
+       'P27': array(mean=0.2554168348118473),
+       'P28': array(mean=0.3141170737292763)}}}
+
+    >>> activity = get_activity(
+    ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end),
     ...     perspective='array',
     ...     garbage_class=None,
     ...     dtype=np.bool,
-    ...     non_sil_alignment=True,
+    ...     non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
     ... )  #doctest: +ELLIPSIS
     Warning: Could not find P05_S02_0038340-0039534 ...
     >>> pprint(activity)
@@ -257,11 +302,11 @@ def _dummy():
        'P27': array(mean=0.1926943769924331),
        'P28': array(mean=0.22845449328140732)}}}
     >>> activity = get_activity(
-    ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end).map(get_function_add_non_sil_alignment(ali_path)),
+    ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end),
     ...     perspective='global_worn',
     ...     garbage_class=None,
     ...     dtype=np.bool,
-    ...     non_sil_alignment=True,
+    ...     non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
     ... )  #doctest: +ELLIPSIS
     Warning: Could not find P05_S02_0038340-0039534 ...
     >>> pprint(activity)
