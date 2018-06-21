@@ -29,28 +29,21 @@ def _import_alignment(ark, model_file, extract_cmd, extract_cmd_finish,
     dest_param = 'ark,t:-'
     if import_options is None:
         import_options = []
-    copy_process = subprocess.Popen(
-        [extract_cmd, *import_options, model_file, src_param, dest_param],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE, env=get_kaldi_env())
-    out, err = copy_process.communicate()
-    try:
-        if copy_process.returncode != 0:
-            raise ValueError("Returncode of{} was != 0. Stderr "
-                             "output is:\n{}".format(extract_cmd, err))
-        out = out.decode('utf-8')
-        err = err.decode('utf-8')
-        pos = err.find(extract_cmd_finish) + 1 + len(extract_cmd_finish)
-        matrix_number = int(err[pos:].split()[0])
-        for line in out.split('\n'):
-            split = line.split()
-            if len(split) > 0:
-                utt_id = split[0]
-                ali = np.asarray(split[1:], dtype=np.int32)
-                data[utt_id] = ali
-    except Exception as e:
-        print('Exception during reading the alignments: {}'.format(e))
-        print('Stderr: {}'.format(err))
+    from nt.utils.process_caller import run_process
+
+    completed_process = run_process([extract_cmd, *import_options, model_file, src_param, dest_param],
+                                    environment=get_kaldi_env())
+    out = completed_process.stdout
+    err = completed_process.stderr
+    pos = err.find(extract_cmd_finish) + 1 + len(extract_cmd_finish)
+    matrix_number = int(err[pos:].split()[0])
+    for line in out.split('\n'):
+        split = line.split()
+        if len(split) > 0:
+            utt_id = split[0]
+            ali = np.asarray(split[1:], dtype=np.int32)
+            data[utt_id] = ali
+
     assert len(data) == matrix_number, \
         '{cmd} converted {num_matrix} alignments, ' \
         'but we read {num_data}'. \
