@@ -188,7 +188,7 @@ def get_dataset(database_path, dataset, transcription_realigned_path):
                         trans_realigned,
                     ),
                     total=total,
-                    desc=dataset
+                    desc=dataset + '/' + session_id
             ):
                 json_dict[example_id] = example
     return json_dict
@@ -206,29 +206,7 @@ def get_example(transcription, transcription_realigned, audio_path):
         target_speaker_id = transcription['speaker']
     except KeyError as e:
         target_speaker_id = 'unknown'
-        # target_speaker_id = None
         notes.append('target_speaker_id is missing')
-
-        # warn(f'{e}; keys allowed are: {transcription.keys()} for '
-        #      f'session_id: {transcription["session_id"]}')
-        # target_speaker_id = [
-        #     ids for ids in speaker_ids
-        #     if transcription['start_time'][ids] == transcription['start_time'][
-        #         'original']
-        #     if transcription['end_time'][ids] == transcription['end_time'][
-        #            'original']
-        # ]
-        # if len(target_speaker_id) == 1:
-        #     target_speaker_id = target_speaker_id[0]
-        #     notes.append('target_speaker_id is missing and was inferred')
-        # else:
-        #     target_speaker_id = 'original'
-        #     notes.append('target_speaker_id is missing')
-    # Format time to fit kaldi example ids
-    # example_time = '-'.join([
-    #     time_to_string_format(transcription['start_time'][target_speaker_id]),
-    #     time_to_string_format(transcription['end_time'][target_speaker_id])
-    # ])
 
     if target_speaker_id != 'unknown':
         start_sample = transcription['start_time'][target_speaker_id]
@@ -244,9 +222,6 @@ def get_example(transcription, transcription_realigned, audio_path):
         speaker_id=target_speaker_id,
     )
 
-    # example_id = '_'.join(
-    #     [target_speaker_id, session_id, example_time]
-    # )
     arrays = [f'U0{array+1}' for array in range(NUM_ARRAYS)]
     if session_id in ['S05', 'S22']:
         del arrays[2]
@@ -254,6 +229,7 @@ def get_example(transcription, transcription_realigned, audio_path):
     elif session_id == 'S09':
         del arrays[4]
         notes.append('Array U05 is missing, this is expected')
+
     audio_path_dict = get_audio_path_dict(
         arrays,
         speaker_ids,
@@ -271,6 +247,17 @@ def get_example(transcription, transcription_realigned, audio_path):
         arrays,
     )
     num_samples = get_num_samples(start_time_dict, end_time_dict)
+    empty_keys =  [key for mic_samples in num_samples.values()
+                   for key, value in mic_samples.items()
+                   if (isinstance(value, int) and value==0) or
+                   (isinstance(value, list) and value[0] == 0)]
+    for key in empty_keys:
+        del num_samples[keys.OBSERVATION][key]
+        del start_time_dict[keys.OBSERVATION][key]
+        del end_time_dict[keys.OBSERVATION][key]
+        del audio_path_dict[keys.OBSERVATION][key]
+        notes.append(f'Array {key} is missing, this may be expected')
+
     gender = {id: 'male' for id in speaker_ids}
     gender.update({id: 'female' for id in speaker_ids if id in FEMALE_SPEAKER})
     if 'location' in transcription:
