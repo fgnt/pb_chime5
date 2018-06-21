@@ -11,6 +11,8 @@ from nt.database.chime5.mapping import (
 from chime5.decode.alignment import get_phone_alignment
 from nt.database.chime5 import activity_frequency_to_time, adjust_start_end
 
+from chime5.util.intervall_array import ArrayIntervall
+
 
 def get_function_add_non_sil_alignment(ali_path):
     alignment = get_phone_alignment(ali_path)
@@ -47,7 +49,8 @@ def get_activity(
         garbage_class,
         dtype=np.bool,
         non_sil_alignment_fn=None,
-        debug=False
+        debug=False,
+        use_ArrayIntervall=False,
 ):
     """
 
@@ -88,19 +91,32 @@ def get_activity(
         num_samples = session_array_to_num_samples_mapping[f'{session_id}_P']
         speaker_ids = session_speakers_mapping[session_id]
 
+        if use_ArrayIntervall:
+            assert dtype == np.bool, dtype
+            zeros = ArrayIntervall
+        else:
+            import functools
+            zeros = functools.partial(np.zeros, dtype=dtype)
+
         acitivity = {
             p: {
-                s: np.zeros(shape=[num_samples], dtype=dtype)
+                s: zeros(shape=[num_samples])
+                # s: ArrayIntervall(shape=[num_samples])
                 for s in speaker_ids
             }
             for p in perspective_tmp
         }
         if garbage_class is True:
-            noise = np.ones(shape=[num_samples], dtype=dtype)
+            if use_ArrayIntervall:
+                noise = zeros(shape=[num_samples])
+                noise[:] = 1
+            else:
+                noise = np.ones(shape=[num_samples], dtype=dtype)
+
             for p in perspective_tmp:
                 acitivity[p]['Noise'] = noise
         elif garbage_class is False:
-            noise = np.ones(shape=[num_samples], dtype=dtype)
+            noise = zeros(shape=[num_samples])
             for p in perspective_tmp:
                 acitivity[p]['Noise'] = noise
         elif garbage_class is None:
@@ -164,8 +180,22 @@ def _dummy():
     ...     garbage_class=None,
     ...     dtype=np.bool,
     ...     non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
+    ...     use_ArrayIntervall=True,
     ... )  #doctest: +ELLIPSIS
     Warning: Could not find P05_S02_0038340-0039534 ...
+    >>> from cbj.mem import get_size_bosswissam, get_size_hall
+    >>> get_size_hall(activity)
+    ByteSize('11_336_640 B')
+    >>> activity = get_activity(
+    ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end),
+    ...     perspective='worn',
+    ...     garbage_class=None,
+    ...     dtype=np.bool,
+    ...     non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
+    ... )  #doctest: +ELLIPSIS
+    Warning: Could not find P05_S02_0038340-0039534 ...
+    >>> get_size_hall(activity)
+    ByteSize('4_112_776_792 B')
     >>> activity.keys()
     dict_keys(['S02', 'S09'])
     >>> activity['S02'].keys()
@@ -210,7 +240,7 @@ def _dummy():
     >>> activity = get_activity(
     ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end),
     ...     perspective='worn',
-    ...     garbage_class=None,
+    ...     garbage_class=False,
     ...     dtype=np.bool,
     ...     # non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
     ... )  #doctest: +ELLIPSIS
@@ -218,40 +248,47 @@ def _dummy():
     {'S02': {'P05': {'P05': array(mean=0.4502383187856299),
        'P06': array(mean=0.476081643838078),
        'P07': array(mean=0.31896532360591373),
-       'P08': array(mean=0.3996792116275309)},
+       'P08': array(mean=0.3996792116275309),
+       'Noise': array(mean=0.0)},
       'P06': {'P05': array(mean=0.45023821349634546),
        'P06': array(mean=0.476081643838078),
        'P07': array(mean=0.31896532360591373),
-       'P08': array(mean=0.3996791133575321)},
+       'P08': array(mean=0.3996791133575321),
+       'Noise': array(mean=0.0)},
       'P07': {'P05': array(mean=0.45023813628420356),
        'P06': array(mean=0.47608122268094033),
        'P07': array(mean=0.31896532360591373),
-       'P08': array(mean=0.3996790150875333)},
+       'P08': array(mean=0.3996790150875333),
+       'Noise': array(mean=0.0)},
       'P08': {'P05': array(mean=0.4502383187856299),
        'P06': array(mean=0.476081643838078),
        'P07': array(mean=0.31896532360591373),
-       'P08': array(mean=0.399679246723959)}},
+       'P08': array(mean=0.399679246723959),
+       'Noise': array(mean=0.0)}},
      'S09': {'P25': {'P25': array(mean=0.35883135724927984),
        'P26': array(mean=0.2900560656541185),
        'P27': array(mean=0.2554168348118473),
-       'P28': array(mean=0.3141167508207114)},
+       'P28': array(mean=0.3141167508207114),
+       'Noise': array(mean=0.0)},
       'P26': {'P25': array(mean=0.35883135724927984),
        'P26': array(mean=0.29005637110816634),
        'P27': array(mean=0.2554168348118473),
-       'P28': array(mean=0.3141170126384667)},
+       'P28': array(mean=0.3141170126384667),
+       'Noise': array(mean=0.0)},
       'P27': {'P25': array(mean=0.3588308947045788),
        'P26': array(mean=0.29005573401829515),
        'P27': array(mean=0.2554168348118473),
-       'P28': array(mean=0.314116384275854)},
+       'P28': array(mean=0.314116384275854),
+       'Noise': array(mean=0.0)},
       'P28': {'P25': array(mean=0.35883135724927984),
        'P26': array(mean=0.29005637110816634),
        'P27': array(mean=0.2554168348118473),
-       'P28': array(mean=0.3141170737292763)}}}
-
+       'P28': array(mean=0.3141170737292763),
+       'Noise': array(mean=0.0)}}}
     >>> activity = get_activity(
     ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end),
     ...     perspective='array',
-    ...     garbage_class=None,
+    ...     garbage_class=True,
     ...     dtype=np.bool,
     ...     non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
     ... )  #doctest: +ELLIPSIS
@@ -260,47 +297,58 @@ def _dummy():
     {'S02': {'U01': {'P05': array(mean=0.27750043800342317),
        'P06': array(mean=0.33762820023270335),
        'P07': array(mean=0.20708050783689202),
-       'P08': array(mean=0.24962333109464918)},
+       'P08': array(mean=0.24962333109464918),
+       'Noise': array(mean=1.0)},
       'U02': {'P05': array(mean=0.27750043800342317),
        'P06': array(mean=0.3376276176319963),
        'P07': array(mean=0.20707807916406484),
-       'P08': array(mean=0.2496243278332083)},
+       'P08': array(mean=0.2496243278332083),
+       'Noise': array(mean=1.0)},
       'U03': {'P05': array(mean=0.27750043800342317),
        'P06': array(mean=0.3376279756155633),
        'P07': array(mean=0.2070824030440115),
-       'P08': array(mean=0.2496243278332083)},
+       'P08': array(mean=0.2496243278332083),
+       'Noise': array(mean=1.0)},
       'U04': {'P05': array(mean=0.27750043800342317),
        'P06': array(mean=0.3376276176319963),
        'P07': array(mean=0.20707770012264096),
-       'P08': array(mean=0.24962263618537203)},
+       'P08': array(mean=0.24962263618537203),
+       'Noise': array(mean=1.0)},
       'U05': {'P05': array(mean=0.27750043800342317),
        'P06': array(mean=0.337627905422707),
        'P07': array(mean=0.2070824030440115),
-       'P08': array(mean=0.2496243278332083)},
+       'P08': array(mean=0.2496243278332083),
+       'Noise': array(mean=1.0)},
       'U06': {'P05': array(mean=0.27750043800342317),
        'P06': array(mean=0.33762788436485014),
        'P07': array(mean=0.2070824030440115),
-       'P08': array(mean=0.24962399090749818)}},
+       'P08': array(mean=0.24962399090749818),
+       'Noise': array(mean=1.0)}},
      'S09': {'U01': {'P25': array(mean=0.24691648502332622),
        'P26': array(mean=0.17939263866217411),
        'P27': array(mean=0.19269398426580017),
-       'P28': array(mean=0.22845449328140732)},
+       'P28': array(mean=0.22845449328140732),
+       'Noise': array(mean=1.0)},
       'U02': {'P25': array(mean=0.24691648502332622),
        'P26': array(mean=0.17939263866217411),
        'P27': array(mean=0.19269401917483422),
-       'P28': array(mean=0.22845440600882222)},
+       'P28': array(mean=0.22845440600882222),
+       'Noise': array(mean=1.0)},
       'U03': {'P25': array(mean=0.24691595266055713),
        'P26': array(mean=0.17939263866217411),
        'P27': array(mean=0.1926943769924331),
-       'P28': array(mean=0.22845449328140732)},
+       'P28': array(mean=0.22845449328140732),
+       'Noise': array(mean=1.0)},
       'U04': {'P25': array(mean=0.24691648502332622),
        'P26': array(mean=0.17939263866217411),
        'P27': array(mean=0.1926943769924331),
-       'P28': array(mean=0.22845355946474677)},
+       'P28': array(mean=0.22845355946474677),
+       'Noise': array(mean=1.0)},
       'U06': {'P25': array(mean=0.24691605738765923),
        'P26': array(mean=0.17939263866217411),
        'P27': array(mean=0.1926943769924331),
-       'P28': array(mean=0.22845449328140732)}}}
+       'P28': array(mean=0.22845449328140732),
+       'Noise': array(mean=1.0)}}}
     >>> activity = get_activity(
     ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end),
     ...     perspective='global_worn',
@@ -318,5 +366,8 @@ def _dummy():
        'P26': array(mean=0.17939263866217411),
        'P27': array(mean=0.1926943769924331),
        'P28': array(mean=0.22845449328140732)}}}
-    """
+    >>> from cbj.mem import get_size_bosswissam
+    >>> get_size_bosswissam(activity)
+    ByteSize('2_835_276 B')
 
+    """
