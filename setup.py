@@ -11,6 +11,8 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
+from Cython.Build import cythonize
+
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
@@ -194,4 +196,8 @@ setup(
         # 'Say Thanks!': 'http://saythanks.io/to/example',
         'Source': 'ntgit:projects/2018/chime5',
     },
+
+    ext_modules=cythonize([
+        "chime5/util/intervall_array_util.pyx"
+    ])
 )
