@@ -14,17 +14,26 @@ from nt.database.chime5 import activity_frequency_to_time, adjust_start_end
 from chime5.util.intervall_array import ArrayIntervall
 
 
-def get_function_add_non_sil_alignment(ali_path):
+def get_function_example_to_non_sil_alignment(ali_path):
     alignment = get_phone_alignment(ali_path)
     non_sil_alignment_dict = Dispatcher({k: v != 'sil' for k, v in alignment.items()})
 
-    def transform_add_non_sil_alignment(
+    # Because of perspective_mic_array is is usefull to use a cache
+    last = None
+
+    def example_to_non_sil_alignment(
             ex,
             perspective_mic_array,
     ):
+        nonlocal last
+        if last is not None:
+            example_id, value = last
+            if example_id == ex['example_id']:
+                return value
+
         # ignore perspective_mic_array
         if ex['example_id'] in non_sil_alignment_dict:
-            return activity_frequency_to_time(
+            ret = activity_frequency_to_time(
                 non_sil_alignment_dict[ex['example_id']],
                 stft_window_length=400,
                 stft_shift=160,
@@ -35,9 +44,11 @@ def get_function_add_non_sil_alignment(ali_path):
         else:
             print(
                 f"Warning: Could not find {ex['example_id']} in non_sil_alignment.")
-            return 1
+            ret = 1
 
-    return transform_add_non_sil_alignment
+        last = ex['example_id'], ret
+        return ret
+    return example_to_non_sil_alignment
 
 
 def get_activity(
@@ -98,7 +109,7 @@ def get_activity(
             import functools
             zeros = functools.partial(np.zeros, dtype=dtype)
 
-        acitivity = {
+        all_acitivity[session_id] = {
             p: {
                 s: zeros(shape=[num_samples])
                 # s: ArrayIntervall(shape=[num_samples])
@@ -114,21 +125,20 @@ def get_activity(
                 noise = np.ones(shape=[num_samples], dtype=dtype)
 
             for p in perspective_tmp:
-                acitivity[p]['Noise'] = noise
+                all_acitivity[session_id][p]['Noise'] = noise
         elif garbage_class is False:
             noise = zeros(shape=[num_samples])
             for p in perspective_tmp:
-                acitivity[p]['Noise'] = noise
+                all_acitivity[session_id][p]['Noise'] = noise
         elif garbage_class is None:
             pass
         else:
             raise ValueError(garbage_class)
 
         for ex in it_S:
-
             for pers in perspective_tmp:
                 target_speaker = ex['target_speaker']
-                example_id = ex['example_id']
+                # example_id = ex['example_id']
 
                 if pers == 'global_worn':
                     perspective_mic_array = target_speaker
@@ -157,12 +167,10 @@ def get_activity(
                     value = non_sil_alignment_fn(ex, perspective_mic_array)
 
                 if debug:
-                    acitivity[pers][target_speaker][start:end] += value
+                    all_acitivity[session_id][pers][target_speaker][start:end] += value
                 else:
-                    acitivity[pers][target_speaker][start:end] = value
+                    all_acitivity[session_id][pers][target_speaker][start:end] = value
 
-        all_acitivity[session_id] = acitivity
-        del acitivity
         del it_S
     return all_acitivity
 
@@ -179,19 +187,21 @@ def _dummy():
     ...     perspective='worn',
     ...     garbage_class=None,
     ...     dtype=np.bool,
-    ...     non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
+    ...     non_sil_alignment_fn=get_function_example_to_non_sil_alignment(ali_path),
     ...     use_ArrayIntervall=True,
     ... )  #doctest: +ELLIPSIS
     Warning: Could not find P05_S02_0038340-0039534 ...
     >>> from cbj.mem import get_size_bosswissam, get_size_hall
     >>> get_size_hall(activity)
-    ByteSize('11_336_640 B')
+    ByteSize('10_628_415 B')
+    >>> np.mean(activity['S02']['P05']['P05'][:])
+    0.27750043800342317
     >>> activity = get_activity(
     ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end),
     ...     perspective='worn',
     ...     garbage_class=None,
     ...     dtype=np.bool,
-    ...     non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
+    ...     non_sil_alignment_fn=get_function_example_to_non_sil_alignment(ali_path),
     ... )  #doctest: +ELLIPSIS
     Warning: Could not find P05_S02_0038340-0039534 ...
     >>> get_size_hall(activity)
@@ -290,7 +300,7 @@ def _dummy():
     ...     perspective='array',
     ...     garbage_class=True,
     ...     dtype=np.bool,
-    ...     non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
+    ...     non_sil_alignment_fn=get_function_example_to_non_sil_alignment(ali_path),
     ... )  #doctest: +ELLIPSIS
     Warning: Could not find P05_S02_0038340-0039534 ...
     >>> pprint(activity)
@@ -354,7 +364,7 @@ def _dummy():
     ...     perspective='global_worn',
     ...     garbage_class=None,
     ...     dtype=np.bool,
-    ...     non_sil_alignment_fn=get_function_add_non_sil_alignment(ali_path),
+    ...     non_sil_alignment_fn=get_function_example_to_non_sil_alignment(ali_path),
     ... )  #doctest: +ELLIPSIS
     Warning: Could not find P05_S02_0038340-0039534 ...
     >>> pprint(activity)
@@ -368,6 +378,6 @@ def _dummy():
        'P28': array(mean=0.22845449328140732)}}}
     >>> from cbj.mem import get_size_bosswissam
     >>> get_size_bosswissam(activity)
-    ByteSize('2_835_276 B')
+    ByteSize('1_028_195_238 B')
 
     """
