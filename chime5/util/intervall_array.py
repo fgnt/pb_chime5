@@ -1,4 +1,5 @@
 import numpy as np
+from chime5.util.intervall_array_util import cy_non_intersection
 
 
 def ArrayIntervall_from_str(string, shape):
@@ -17,8 +18,8 @@ def ArrayIntervall_from_str(string, shape):
 class ArrayIntervall:
     from_str = staticmethod(ArrayIntervall_from_str)
 
-    @classmethod
-    def from_array(cls, array):
+    @staticmethod
+    def from_array(array):
         """
         >>> ai = ArrayIntervall.from_array(np.array([1, 1, 0, 1, 0, 0, 1, 1, 0], dtype=np.bool))
         >>> ai
@@ -84,12 +85,72 @@ class ArrayIntervall:
         assert len(shape) == 1, shape
 
         self.shape = shape
-        self.intervals = []
+        # self._intervals = (,)
+
+    _intervals_normalized = True
+    # _normalized_intervals = ()
+    _intervals = ()
+
+    @property
+    def normalized_intervals(self):
+        if not self._intervals_normalized:
+            # print('normalized_intervals', self._intervals)
+            self._intervals = self._normalize(self._intervals)
+            # print('normalized_intervals', self._intervals)
+        return self._intervals
+
+    @property
+    def intervals(self):
+        return self._intervals
+
+    @intervals.setter
+    def intervals(self, item):
+        self._intervals_normalized = False
+        self._intervals = tuple(item)
+
+    # @intervals.setter
+    # def intervals(self, value):
+    #     self._intervals_normalized = False
+    #     self._intervals = value
+
+    @staticmethod
+    def _normalize(intervals):
+        """
+        >>> ArrayIntervall._normalize([])
+        ()
+        >>> ArrayIntervall._normalize([(0, 1)])
+        ((0, 1),)
+        >>> ArrayIntervall._normalize([(0, 1), (2, 3)])
+        ((0, 1), (2, 3))
+        >>> ArrayIntervall._normalize([(0, 1), (20, 30)])
+        ((0, 1), (20, 30))
+        >>> ArrayIntervall._normalize([(0, 1), (1, 3)])
+        ((0, 3),)
+        >>> ArrayIntervall._normalize([(0, 1), (1, 3), (3, 10)])
+        ((0, 10),)
+        """
+        intervals = [(s, e) for s, e in sorted(intervals) if s < e]
+        for i in range(len(intervals)):
+            try:
+                s, e = intervals[i]
+            except IndexError:
+                break
+            try:
+                next_s, next_e = intervals[i+1]
+                while next_s <= e:
+                    e = max(e, next_e)
+                    del intervals[i+1]
+                    next_s, next_e = intervals[i+1]
+            except IndexError:
+                pass
+            finally:
+                intervals[i] = (s, e)
+        return tuple(intervals)
 
     @property
     def _intervals_as_str(self):
         i_str = []
-        for i in self.intervals:
+        for i in self.normalized_intervals:
             start, end = i
             #             i_str += [f'[{start}, {end})']
             i_str += [f'{start}:{end}']
@@ -164,14 +225,21 @@ class ArrayIntervall:
         start, stop = self._parse_item(item)
 
         if np.isscalar(value) and value == 1:
-            self.intervals = self._union([start, stop], self.intervals)
+            self.intervals = self.intervals + ((start, stop),)
+            # self.intervals = self._union([start, stop], self.intervals)
         elif isinstance(value, (tuple, list, np.ndarray)):
+            assert len(value) == stop - start, (start, stop, len(value), value)
             ai = ArrayIntervall.from_array(value)
             intervals = self.intervals
-            intervals = self._non_intersection([start, stop], intervals)
-            for i_start, i_stop in ai.intervals:
-                intervals = self._union([i_start + start, start + i_stop], intervals)
-            self.intervals = intervals
+            # intervals = self._non_intersection([start, stop], intervals)
+
+            intervals = cy_non_intersection((start, stop), intervals)
+
+            self.intervals = intervals + tuple([(s+start, e+start) for s, e in ai.intervals])
+            # self.append_intervals(*ai.intervals)
+            # for i_start, i_stop in ai.intervals:
+                # intervals = self._union([i_start + start, start + i_stop], intervals)
+            # self.intervals = intervals
         else:
             raise NotImplementedError(value)
 
@@ -180,7 +248,7 @@ class ArrayIntervall:
         start, end = interval
         new_interval = []
 
-        intervals = np.asarray(intervals)
+        # intervals = np.asarray(intervals)
 
         for i in intervals:
             i_start, i_end = i
@@ -196,18 +264,26 @@ class ArrayIntervall:
     @staticmethod
     def _intersection(interval, intervals):
         start, end = interval
-        new_interval = []
+        # new_interval = []
+        #
+        # for i in intervals:
+        #     i_start, i_end = i
+        #     i_start = max(start, i_start)
+        #     i_end = min(end, i_end)
+        #     if i_start < i_end:
+        #         new_interval.append((i_start, i_end))
+        #
+        # return list(sorted(new_interval))
+        if len(intervals) > 0:
+            new_interval = np.array(intervals, copy=True)
+            new_interval[:, 0] = np.maximum(start, new_interval[:, 0])
+            new_interval[:, 1] = np.minimum(end, new_interval[:, 1])
+            return [(s, e) for s, e in new_interval if s < e]
+        else:
+            return intervals
 
-        for i in intervals:
-            i_start, i_end = i
-            i_start = max(start, i_start)
-            i_end = min(end, i_end)
-            if i_start < i_end:
-                new_interval.append((i_start, i_end))
-
-        return list(sorted(new_interval))
-
-    def _non_intersection(self, interval, intervals):
+    @staticmethod
+    def _non_intersection(interval, intervals):
         start, end = interval
         new_interval = []
 
@@ -226,6 +302,20 @@ class ArrayIntervall:
                 new_interval.append((i_start, i_end))
 
         return list(sorted(new_interval))
+        # if len(intervals) > 0:
+        #     new_interval = np.array(intervals, copy=True)
+        #
+        #     index = np.logical_and(start < new_interval[:, 0], new_interval[:, 0] < end)
+        #     new_interval[index, 0] = end
+        #     index = np.logical_and(start < new_interval[:, 1], new_interval[:, 1] < end)
+        #     new_interval[index, 1] = start
+        #     index = np.logical_and(new_interval[:, 0] < start, end < new_interval[:, 1])
+        #     further = [[i_start, start] for i_start in new_interval[index, 0]]
+        #     new_interval[index, 0] = end
+        #
+        #     return tuple(map(tuple, new_interval.tolist())) + tuple(map(tuple, further))
+        # else:
+        #     return intervals
 
     def __getitem__(self, item):
         """
@@ -241,11 +331,11 @@ class ArrayIntervall:
         """
         start, stop = self._parse_item(item)
 
-        intervals = self._intersection((start, stop), self.intervals)
+        intervals = self._intersection((start, stop), self.normalized_intervals)
 
         arr = np.zeros(stop - start, dtype=np.bool)
 
         for i_start, i_end in intervals:
-            arr[i_start - start:i_end - start] = 1
+            arr[i_start - start:i_end - start] = True
 
         return arr
