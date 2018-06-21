@@ -51,6 +51,42 @@ def get_function_example_to_non_sil_alignment(ali_path):
     return example_to_non_sil_alignment
 
 
+from chime5.io.file_cache import file_cache
+
+
+@file_cache('get_all_activity_for_worn_alignments')
+def get_all_activity_for_worn_alignments(
+        perspective,
+        garbage_class,
+        ali_path,
+        # use_ArrayIntervall=True,
+):
+    """
+    >>> get_all_activity_for_worn_alignments('worn', None, None)
+    >>> ali_path = ['/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/egs/chime5/s5/exp/tri3_all_dev_worn_ali']
+    >>> get_all_activity_for_worn_alignments('worn', None, ali_path)
+    """
+    from nt.database.chime5 import Chime5
+    it = Chime5().get_iterator_by_names(['train', 'dev'])
+    it = it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False)
+
+    if ali_path:
+        non_sil_alignment_fn = get_function_example_to_non_sil_alignment(ali_path)
+        it = it.map(adjust_start_end)
+    else:
+        non_sil_alignment_fn = None
+
+    activity = get_activity(
+        it,
+        perspective=perspective,
+        garbage_class=garbage_class,
+        dtype=np.bool,
+        non_sil_alignment_fn=non_sil_alignment_fn,
+        use_ArrayIntervall=True,
+    )
+    return activity
+
+
 def get_activity(
         iterator,
         # session_id,
