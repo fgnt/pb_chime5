@@ -188,6 +188,8 @@ def get_activity(
                     start = ex['start']['worn_microphone'][perspective_mic_array]
                     end = ex['end']['worn_microphone'][perspective_mic_array]
                 else:
+                    if not perspective_mic_array in ex['audio_path']['observation']:
+                        continue
                     start = ex['start']['observation'][perspective_mic_array]
                     start, = list(set(start))
                     end = ex['end']['observation'][perspective_mic_array]
