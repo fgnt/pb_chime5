@@ -9,9 +9,12 @@ def ArrayIntervall_from_str(string, shape):
 
     """
     ai = ArrayIntervall(shape)
-    for item in eval(f'np.s_[{string}]'):
-        ai[item] = 1
-
+    if string == '':
+        print('empty intervall found')
+        pass
+    else:
+        for item in eval(f'np.s_[{string}]'):
+            ai[item] = 1
     return ai
 
 
