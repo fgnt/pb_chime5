@@ -372,16 +372,16 @@ class OverlapMapper:
         :return: example dict with relative overlap on example added
         """
         target, session, start, end = re.split('[_-]', example[K.EXAMPLE_ID])
-        if target == 'original':
-            example['overlap'] = np.NaN
-            return example
         start_sample, end_sample = int(start), int(end)
 
-        crosstalk_arr = self.crosstalk[session][target][start_sample:end_sample]
-        overlap_samples = crosstalk_arr.sum()
-        overlap_ratio = overlap_samples / (end_sample - start_sample)
-
-        example['overlap'] = overlap_ratio
+        try:
+            crosstalk_arr = self.crosstalk[session][target][start_sample:
+            end_sample]
+            overlap_samples = crosstalk_arr.sum()
+            overlap_ratio = overlap_samples / (end_sample - start_sample)
+            example['overlap'] = overlap_ratio
+        except KeyError:  # target == 'original' or target == 'unknown'
+            example['overlap'] = np.NaN
         return example
 
 
