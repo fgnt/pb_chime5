@@ -176,19 +176,14 @@ def get_dataset(database_path, dataset, transcription_realigned_path):
             raise ValueError(
                 f'missing utterances in session {session_id} expected length'
                 f' {set_length[dataset][session_id]} available length {total}')
-        elif total > set_length[dataset][session_id]:
-            warn(f'there are {total - set_length[dataset][session_id]} examples'
-                  f' more than expected in session {session_id}')
+        # elif total > set_length[dataset][session_id]:
+        #     warn(f'there are {total - set_length[dataset][session_id]} examples'
+        #           f' more than expected in session {session_id}')
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(os.cpu_count()) as ex:
-            for example_id, example in tqdm.tqdm(
-                    ex.map(
-                        partial(get_example, audio_path=dataset_audio_path),
-                        trans,
-                        trans_realigned,
-                    ),
-                    total=total,
-                    desc=dataset + '/' + session_id
+            for example_id, example in ex.map(
+                    partial(get_example, audio_path=dataset_audio_path),
+                    trans, trans_realigned
             ):
                 json_dict[example_id] = example
     return json_dict
