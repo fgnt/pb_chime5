@@ -795,8 +795,10 @@ def recursive_transform(func, dict_list_val, list2array=False):
                 for key, val in dict_list_val.items()}
     if isinstance(dict_list_val, (list, tuple)):
         # Recursively call itself
-        l = [recursive_transform(func, val, list2array)
+        l = type(dict_list_val)(
+            [recursive_transform(func, val, list2array)
              for val in dict_list_val]
+        )
         if list2array:
             return np.array(l)
         return l
