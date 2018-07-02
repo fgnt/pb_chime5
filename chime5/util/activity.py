@@ -53,6 +53,7 @@ def get_function_example_to_non_sil_alignment(ali_path):
 
 from chime5.io.file_cache import file_cache
 
+from nt.io.data_dir import database_jsons
 
 @file_cache('get_all_activity_for_worn_alignments')
 def get_all_activity_for_worn_alignments(
@@ -60,6 +61,7 @@ def get_all_activity_for_worn_alignments(
         garbage_class,
         ali_path,
         # use_ArrayIntervall=True,
+        database_path=database_jsons / 'chime5.json'
 ):
     """
     >>> get_all_activity_for_worn_alignments('worn', None, None)
@@ -67,7 +69,7 @@ def get_all_activity_for_worn_alignments(
     >>> get_all_activity_for_worn_alignments('worn', None, ali_path)
     """
     from nt.database.chime5 import Chime5
-    it = Chime5().get_iterator_by_names(['train', 'dev'])
+    it = Chime5(database_path).get_iterator_by_names(['train', 'dev'])
     it = it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False)
 
     if ali_path:
@@ -232,7 +234,12 @@ def _dummy():
     >>> from cbj.mem import get_size_bosswissam, get_size_hall
     >>> get_size_hall(activity)
     ByteSize('10_628_415 B')
+    >>> activity_S02_P05_P05 = []
+    >>> activity_S02_P05_P05 += [activity['S02']['P05']['P05'][:]]
     >>> np.mean(activity['S02']['P05']['P05'][:])
+    0.27750043800342317
+    >>> activity_S02_P05_P05 += [get_all_activity_for_worn_alignments(perspective='worn', garbage_class=None, ali_path=ali_path[0])['S02']['P05']['P05'][:]]
+    >>> np.mean(get_all_activity_for_worn_alignments(perspective='worn', garbage_class=None, ali_path=ali_path[0])['S02']['P05']['P05'][:])
     0.27750043800342317
     >>> activity = get_activity(
     ...     it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False).map(adjust_start_end),
@@ -242,6 +249,9 @@ def _dummy():
     ...     non_sil_alignment_fn=get_function_example_to_non_sil_alignment(ali_path),
     ... )  #doctest: +ELLIPSIS
     Warning: Could not find P05_S02_0038340-0039534 ...
+    >>> activity_S02_P05_P05 += [activity['S02']['P05']['P05']]
+    >>> for i in range(len(activity_S02_P05_P05)):
+    ...     np.testing.assert_equal(activity_S02_P05_P05[0], activity_S02_P05_P05[1], err_msg=f'{i}')
     >>> get_size_hall(activity)
     ByteSize('4_112_776_792 B')
     >>> activity.keys()
