@@ -25,13 +25,15 @@ class _Beamformer:
         if np.ndim(X_mask) == 4:
             self.X_mask = morph('1DTF->FT', X_mask, reduce=np.median)
             self.N_mask = morph('1DTF->FT', N_mask, reduce=np.median)
-        else:
+        elif np.ndim(X_mask) == 3:
             # elif np.ndim(X_mask) == 3:
             self.X_mask = morph('DTF->FT', X_mask, reduce=np.median)
             self.N_mask = morph('DTF->FT', N_mask, reduce=np.median)
-        # elif np.ndim(X_mask) == 2:
-        #     self.X_mask = morph('TF->FT', X_mask, reduce=np.median)
-        #     self.N_mask = morph('TF->FT', N_mask, reduce=np.median)
+        elif np.ndim(X_mask) == 2:
+            self.X_mask = morph('TF->FT', X_mask, reduce=np.median)
+            self.N_mask = morph('TF->FT', N_mask, reduce=np.median)
+        else:
+            raise NotImplementedError(X_mask.shape)
 
         if self.debug:
             print('Y', repr(self.Y))
@@ -66,8 +68,30 @@ class _Beamformer:
         return w_mvdr_souden
 
     @cached_property
+    def _w_gev(self):
+        w_gev = beamformer.get_gev_vector(self._Cov_X, self._Cov_N, force_cython=True)
+        if self.debug:
+            print('w_gev', repr(w_gev))
+        return w_gev
+
+    @cached_property
+    def _w_gev_ban(self):
+        w_gev_ban = beamformer.blind_analytic_normalization(self._w_gev, self._Cov_N)
+        if self.debug:
+            print('w_gev_ban', repr(w_gev_ban))
+        return w_gev_ban
+
+    @cached_property
     def X_hat_mvdr_souden(self):
         return beamformer.apply_beamforming_vector(self._w_mvdr_souden, self.Y).T
+
+    @cached_property
+    def X_hat_gev(self):
+        return beamformer.apply_beamforming_vector(self._w_gev, self.Y).T
+
+    @cached_property
+    def X_hat_gev_ban(self):
+        return beamformer.apply_beamforming_vector(self._w_gev_ban, self.Y).T
 
 
 def beamform_mvdr_souden_from_masks(
@@ -83,6 +107,23 @@ def beamform_mvdr_souden_from_masks(
         debug=debug,
     ).X_hat_mvdr_souden
 
+def beamform_gev_from_masks(
+        Y,
+        X_mask,
+        N_mask,
+        ban=True,
+        debug=False,
+):
+    bf = _Beamformer(
+        Y=Y,
+        X_mask=X_mask,
+        N_mask=N_mask,
+        debug=debug,
+    )
+    if ban:
+        return bf.X_hat_gev_ban
+    else:
+        return bf.X_hat_gev
 
 def beamform_mvdr_souden_with_lorenz_mask(
         Y,
