@@ -97,8 +97,8 @@ class Chime5(HybridASRJSONDatabaseTemplate):
                 'test': ['S01', 'S21']
                 }
 
-    @property
-    def example_id_map_fn(self):
+    @staticmethod
+    def example_id_map_fn(example):
         """
         >>> ex = {
         ...     K.EXAMPLE_ID: 'P05_S02_0004060-0004382',
@@ -110,19 +110,17 @@ class Chime5(HybridASRJSONDatabaseTemplate):
         >>> ex = {
         ...     K.EXAMPLE_ID: 'P09_S03_0005948-0006038',
         ...     K.DATASET_NAME: 'train',
-        ...     CHiME5_Keys.LOCATION: 'unkown',
+        ...     CHiME5_Keys.LOCATION: 'unknown',
         ... }
         >>> Chime5.example_id_map_fn(ex)
         'P09_S03_NOLOCATION.L-0005948-0006038'
         """
-        def _map_example_id(example):
-            speaker, session, time = example[K.EXAMPLE_ID].split('_')
-            location = example[CHiME5_Keys.LOCATION]
-            if not location == 'unknown':
-                return '_'.join([speaker, session, location.upper() + '.L-']) + time
-            else:
-                return '_'.join([speaker, session, 'NOLOCATION.L-']) + time
-        return _map_example_id
+        speaker, session, time = example[K.EXAMPLE_ID].split('_')
+        location = example[CHiME5_Keys.LOCATION]
+        if not location == 'unknown':
+            return '_'.join([speaker, session, location.upper() + '.L-']) + time
+        else:
+            return '_'.join([speaker, session, 'NOLOCATION.L-']) + time
 
     def add_num_samples(self, example):
         speaker = example[CHiME5_Keys.TARGET_SPEAKER]
@@ -221,15 +219,50 @@ class Chime5AudioReader(AudioReader):
         return example
 
 
-def kaldi_to_nt_example_id(example_id):
+def kaldi_to_nt_example_id(example_id: str):
     """
     >>> kaldi_to_nt_example_id('P28_S09_LIVING.R-0714562-0714764')
     'P28_S09_0714562-0714764'
+    >>> kaldi_to_nt_example_id('P05_S02_U02_KITCHEN.ENH-0007012-0007298')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    NotImplementedError: Array IDs like "P05_S02_U02_KITCHEN.ENH-0007012-0007298"" are currently unsupported, becasuse they have different timestamps.
+    >>> kaldi_to_nt_example_id('P09_S03_U01_NOLOCATION.CH1-0005948-0006038')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    NotImplementedError: Array IDs like "P09_S03_U01_NOLOCATION.CH1-0005948-0006038"" are currently unsupported, becasuse they have different timestamps.
     """
     try:
-        P, S, remaining = example_id.split('_')
+        split = example_id.split('_')
+        if len(split) == 4:
+            raise NotImplementedError(
+                f'Array IDs like "{example_id}"" are currently unsupported, '
+                f'becasuse they have different timestamps.'
+            )
+        P, S, remaining = split
         _, start, end = remaining.split('-')
         return f'{P}_{S}_{start}-{end}'
+    except NotImplementedError as e:
+        raise
+    except Exception as e:
+        raise ValueError(example_id) from e
+
+
+def kaldi_id_to_channel(example_id):
+    """
+    >>> kaldi_id_to_channel('P28_S09_LIVING.R-0714562-0714764')
+    'R'
+    >>> kaldi_id_to_channel('P28_S09_LIVING.L-0714562-0714764')
+    'L'
+    >>> kaldi_id_to_channel('P05_S02_U02_KITCHEN.ENH-0007012-0007298')
+    'ENH'
+    >>> kaldi_id_to_channel('P09_S03_U01_NOLOCATION.CH1-0005948-0006038')
+    'CH1'
+    """
+    try:
+        _, post = example_id.split('.')
+        channel, _, _ = post.split('-')
+        return channel
     except Exception as e:
         raise ValueError(example_id) from e
 
