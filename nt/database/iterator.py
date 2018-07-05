@@ -286,7 +286,7 @@ class BaseIterator:
         return [self[list(s)] for s in slices]
 
     def sort(self, key_fn, sort_fn=sorted):
-        '''
+        """
         Sorts the iterator with the entry described by key_list
         >>> examples = {'a': {'x': 1}, 'b': {'x': 3},  'c': {'x': 12}, 'd': {'x': 2}}
         >>> it = ExamplesIterator(examples)
