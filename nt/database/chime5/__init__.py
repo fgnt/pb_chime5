@@ -146,6 +146,7 @@ class Chime5(HybridASRJSONDatabaseTemplate):
             audio_read=False,
             drop_unknown_target_speaker=False,
             adjust_times=False,
+            context_samples=0,
     ):
         if isinstance(session, str):
             session = (session, )
@@ -155,6 +156,9 @@ class Chime5(HybridASRJSONDatabaseTemplate):
         )
         if drop_unknown_target_speaker:
             it = it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False)
+
+        if context_samples is not 0:
+            it = it.map(AddContext(context_samples))
 
         if adjust_times:
             assert drop_unknown_target_speaker, (
@@ -756,6 +760,236 @@ def adjust_start_end(ex):
         ex[K.END]['worn_microphone'][mic_id] = array_end
         ex[K.NUM_SAMPLES]['worn_microphone'][mic_id] = array_end - array_start
     return ex
+
+
+def nest_broadcast(
+        shallow_tree,
+        input_tree,
+        mapping_type=dict,
+        sequence_type=(tuple, list),
+):
+    """
+
+    >>> shallow_tree = {'a': [1, 2, (3, 4)], 'b': [5, (6,)]}
+    >>> nest_broadcast(shallow_tree, 10)
+    {'a': [10, 10, (10, 10)], 'b': [10, (10,)]}
+    >>> nest_broadcast(shallow_tree, {'a': 11})
+    Traceback (most recent call last):
+    ...
+    AssertionError: ({'a': 11}, {'a': [1, 2, (3, 4)], 'b': [5, (6,)]})
+    >>> nest_broadcast(shallow_tree, {'a': 11, 'b': 12})
+    {'a': [11, 11, (11, 11)], 'b': [12, (12,)]}
+    >>> nest_broadcast(shallow_tree, {'a': 11, 'b': (13, 14)})
+    Traceback (most recent call last):
+    ...
+    AssertionError: (<class 'tuple'>, <class 'list'>, (13, 14), [5, (6,)])
+    >>> nest_broadcast(shallow_tree, {'a': 11, 'b': [13, 14]})
+    {'a': [11, 11, (11, 11)], 'b': [13, (14,)]}
+    >>> nest_broadcast(shallow_tree, (1, 2))
+    Traceback (most recent call last):
+    ...
+    TypeError: (<class 'tuple'>, (1, 2), {'a': [1, 2, (3, 4)], 'b': [5, (6,)]})
+    >>> nest_broadcast(shallow_tree, (1, 2), sequence_type=None)
+    {'a': (1, 2), 'b': (1, 2)}
+
+
+    """
+    def inner(
+        shallow_tree,
+        input_tree,
+    ):
+        if mapping_type is not None and isinstance(shallow_tree, mapping_type):
+            if isinstance(input_tree, mapping_type):
+                assert set(input_tree.keys()) == set(shallow_tree.keys()), (input_tree, shallow_tree)
+                return {
+                    k: inner(v, input_tree[k])
+                    for k, v in shallow_tree.items()
+                }
+            elif sequence_type is not None and isinstance(input_tree, sequence_type):
+                raise TypeError(type(input_tree), input_tree, shallow_tree)
+            else:
+                return {
+                    k: inner(v, input_tree)
+                    for k, v in shallow_tree.items()
+                }
+        elif sequence_type is not None and isinstance(shallow_tree, sequence_type):
+            if isinstance(input_tree, sequence_type):
+                assert type(input_tree) == type(shallow_tree), (type(input_tree), type(shallow_tree), input_tree, shallow_tree)
+                assert len(input_tree) == len(shallow_tree)
+                return shallow_tree.__class__([
+                    inner(s, i)
+                    for s, i in zip(shallow_tree, input_tree)
+                ])
+            elif mapping_type is not None and isinstance(input_tree, mapping_type):
+                raise TypeError(type(input_tree), input_tree, shallow_tree)
+            else:
+                return shallow_tree.__class__([
+                    inner(s, input_tree)
+                    for s in shallow_tree
+                ])
+        else:
+            return input_tree
+    return inner(shallow_tree, input_tree)
+
+
+def AddContext(samples):
+    """
+    >>> from IPython.lib.pretty import pprint
+    >>> db = Chime5()
+    >>> it = db.get_iterator_for_session('S02')
+    >>> pprint(it[0])  # doctest: +ELLIPSIS
+    {...
+     'end': {'observation': {'U01': [701587, 701587, 701587, 701587],
+     ...
+      'worn_microphone': {'P05': 701120,
+      ...
+     'num_samples': {'observation': {'U01': [51520, 51520, 51520, 51520],
+     ...
+      'worn_microphone': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}},
+     ...
+     'start': {'observation': {'U01': [650067, 650067, 650067, 650067],
+      ...
+      'worn_microphone': {'P05': 649600,
+      ...
+    >>> pprint(it.map(AddContext(100))[0])  # doctest: +ELLIPSIS
+    {...
+     'end': {'observation': {'U01': [701687, 701687, 701687, 701687],
+      ...
+      'worn_microphone': {'P05': 701220,
+      ...
+     'num_samples': {'observation': {'U01': [51720, 51720, 51720, 51720],
+      ...
+      'worn_microphone': {'P05': 51720, 'P06': 51720, 'P07': 51720, 'P08': 51720}},
+    ...
+     'start': {'observation': {'U01': [649967, 649967, 649967, 649967],
+      ...
+      'worn_microphone': {'P05': 649500,
+      ...
+    >>> pprint(it.map(AddContext([100, 50]))[0])  # doctest: +ELLIPSIS
+    {...
+     'end': {'observation': {'U01': [701637, 701637, 701637, 701637],
+      ...
+      'worn_microphone': {'P05': 701170,
+      ...
+     'num_samples': {'observation': {'U01': [51670, 51670, 51670, 51670],
+      ...
+      'worn_microphone': {'P05': 51670, 'P06': 51670, 'P07': 51670, 'P08': 51670}},
+     ...
+     'start': {'observation': {'U01': [649967, 649967, 649967, 649967],
+      ...
+      'worn_microphone': {'P05': 649500,
+      ...
+    >>> pprint(it.map(AddContext({'worn_microphone': 0, 'observation': [100, 50]}))[0])  # doctest: +ELLIPSIS
+    {...
+     'end': {'observation': {'U01': [701637, 701637, 701637, 701637],
+      ...
+      'worn_microphone': {'P05': 701120,
+      ...
+     'num_samples': {'observation': {'U01': [51670, 51670, 51670, 51670],
+      ...
+      'worn_microphone': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}},
+     ...
+     'start': {'observation': {'U01': [649967, 649967, 649967, 649967],
+      ...
+      'worn_microphone': {'P05': 649600,
+      ...
+    >>> pprint(it.map(AddContext([100, -50]))[0])
+    Traceback (most recent call last):
+    ...
+    AssertionError: Negative context value (-50) is not supported
+    >>> pprint(it.map(AddContext([-100, 50]))[0])
+    Traceback (most recent call last):
+    ...
+    AssertionError: Negative context value (-100) is not supported
+    >>> pprint(it.map(AddContext([-100, -50]))[0])
+    Traceback (most recent call last):
+    ...
+    AssertionError: Negative context value (-100) is not supported
+    >>> pprint(it.map(AddContext(-50))[0])
+    Traceback (most recent call last):
+    ...
+    AssertionError: Negative context value (-50) is not supported
+    """
+    from tensorflow.python.util import nest
+
+    def split(samples):
+        if isinstance(samples, dict):
+            d = [(k, *split(v)) for k, v in samples.items()]
+            # raise Exception(samples, d)
+            keys, *values = list(zip(*d))
+            ret = tuple([
+                dict(zip(keys, v))
+                for v in values
+            ])
+        elif isinstance(samples, (tuple, list)):
+            if len(samples) == 1 and isinstance(samples[0], int):
+                assert samples[0] >= 0, f'Negative context value ({samples}) is not supported'
+                ret = samples[0], samples[0], samples[0] + samples[0]
+            elif len(samples) == 2 and isinstance(samples[0], int):
+                #  and isinstance(samples[1], int)
+                start, end = samples
+                assert start >= 0, f'Negative context value ({start}) is not supported'
+                assert end >= 0, f'Negative context value ({end}) is not supported'
+                ret = start, end, start + end
+            elif len(samples) == 3 and isinstance(samples[0], int):
+                raise NotImplementedError(samples)
+            else:
+                l = [
+                    split(e) for e in samples
+                ]
+                ret = tuple(map(samples.__class__, zip(*l)))
+                raise NotImplementedError(samples)
+        elif isinstance(samples, int):
+            assert samples >= 0, f'Negative context value ({samples}) is not supported'
+            ret = samples, samples, samples + samples
+        else:
+            raise ValueError(samples, type(samples))
+
+        # assert len(ret) == 3, ret
+        return ret
+
+    start_context, end_context, duration_context = split(samples)
+
+    if isinstance(start_context, int):
+        # Faster implementation than the else Branch
+        def add_context(ex):
+            ex[K.START] = nest.map_structure(
+                lambda time: max(time - start_context, 0),
+                ex[K.START],
+            )
+            ex[K.END] = nest.map_structure(
+                lambda time: time + end_context,
+                ex[K.END],
+            )
+            ex[K.NUM_SAMPLES] = nest.map_structure(
+                lambda time: time + duration_context,
+                ex[K.NUM_SAMPLES],
+            )
+            return ex
+    else:
+        def add_context(ex):
+            bc_start_context = nest_broadcast(ex[K.START], start_context)
+            bc_end_context = nest_broadcast(ex[K.END], end_context)
+            bc_duration_context = nest_broadcast(ex[K.NUM_SAMPLES], duration_context)
+
+            ex[K.START] = nest.map_structure(
+                lambda time, start_context: max(time - start_context, 0),
+                ex[K.START],
+                bc_start_context,
+            )
+            ex[K.END] = nest.map_structure(
+                lambda time, end_context: time + end_context,
+                ex[K.END],
+                bc_end_context,
+            )
+            ex[K.NUM_SAMPLES] = nest.map_structure(
+                lambda time, duration_context: time + duration_context,
+                ex[K.NUM_SAMPLES],
+                bc_duration_context,
+            )
+            return ex
+
+    return add_context
 
 
 class SessionFilter:
