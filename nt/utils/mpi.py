@@ -1,4 +1,13 @@
-"""Wraps imports for mpi4py to allow code to run on non MPI machines, too."""
+"""
+Wraps imports for mpi4py to allow code to run on non MPI machines, too.
+
+http://mpi4py.readthedocs.io/en/latest/tutorial.html:
+Communication of generic Python objects:
+    You have to use all-lowercase ...
+Communication of buffer-like objects:
+    You have to use method names starting with an upper-case ...
+
+"""
 
 _mpi_available = True
 
@@ -36,6 +45,14 @@ RANK = RankInt(COMM.rank)
 SIZE = COMM.size
 MASTER = RankInt(0)
 IS_MASTER = (RANK == MASTER)
+
+
+def barrier():
+    COMM.Barrier()
+
+
+def bcast(obj, root: int=MASTER):
+    return COMM.bcast(obj, root)
 
 
 def map_unordered(func, iterator, progress_bar=False):
