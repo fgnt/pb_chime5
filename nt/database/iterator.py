@@ -99,6 +99,8 @@ class BaseIterator:
     def __getitem__(self, item):
         if isinstance(item, (slice, tuple, list)):
             return SliceIterator(item, self)
+        elif isinstance(item, np.ndarray) and item.ndim == 1:
+            return SliceIterator(item, self)
         raise NotImplementedError(
             f'__getitem__ is not implemented for {self.__class__}[{item}],\n'
             f'where type({item}) == {type(item)} '
@@ -289,9 +291,14 @@ class BaseIterator:
         >>> examples = {'a': {'x': 1}, 'b': {'x': 3},  'c': {'x': 12}, 'd': {'x': 2}}
         >>> it = ExamplesIterator(examples)
         >>> it_sorted = it.sort(lambda ex: ex['x'])
+        >>> it_sorted
+          ExamplesIterator(len=4)
+        SliceIterator(('a', 'd', 'b', 'c'))
+        >>> print(it_sorted.slice)
+        (0, 3, 1, 2)
         >>> list(it_sorted)
         [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 12}]
-        '''
+        """
         sort_values = [key_fn(self[key]) for key in self.keys()]
         return self[tuple([key for _, key in
                            sort_fn(zip(sort_values, self.keys()))])]
@@ -320,6 +327,44 @@ class BaseIterator:
                 s = repr(input_iterator)
                 r += textwrap.indent(s, indent) + '\n'
         return r + str(self)
+
+    def random_choice(
+            self,
+            size=None,
+            replace=False,
+            rng_state: np.random.RandomState=np.random,
+    ):
+        """
+        >>> rng_state = np.random.RandomState(0)
+        >>> examples = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
+        >>> it = ExamplesIterator(examples)
+        >>> def foo(ex):
+        ...     print('foo')
+        ...     return ex
+        >>> it = it.map(foo)
+        >>> print('Number', it.random_choice(rng_state=rng_state))
+        foo
+        Number 3
+
+        >>> print(it.random_choice(1, rng_state=rng_state))
+        SliceIterator([0])
+        >>> print(it.random_choice(2, rng_state=rng_state))
+        SliceIterator([1 3])
+        >>> it_choice = it.random_choice(7, rng_state=rng_state, replace=True)
+        >>> print(it_choice)
+        SliceIterator([0 4 2 1 0 1 1])
+        >>> print(list(it_choice))
+        foo
+        foo
+        foo
+        foo
+        foo
+        foo
+        foo
+        [1, 5, 3, 2, 1, 2, 2]
+        """
+        i = rng_state.choice(len(self), size=size, replace=replace)
+        return self[i]
 
 
 class ExamplesIterator(BaseIterator):
@@ -508,7 +553,7 @@ class SliceIterator(BaseIterator):
             if isinstance(slice, (tuple, list)) and isinstance(slice[0], str):
                 # Assume sequence of str
                 keys = {k: i for i, k in enumerate(input_iterator.keys())}
-                self.slice = [keys[k] for k in slice]
+                self.slice = operator.itemgetter(*slice)(keys)
             else:
                 raise
 
@@ -529,7 +574,7 @@ class SliceIterator(BaseIterator):
         return len(self.slice)
 
     def __str__(self):
-        if isinstance(self._slice, list):
+        if isinstance(self._slice, (tuple, list)):
             slice_str = textwrap.shorten(
                 str(self._slice)[1:-1],
                 width=50,
