@@ -14,18 +14,30 @@ from nt.database.chime5 import activity_frequency_to_time, adjust_start_end
 from chime5.util.intervall_array import ArrayIntervall
 
 
-def get_function_example_to_non_sil_alignment(ali_path):
-    alignment = get_phone_alignment(ali_path)
+def get_function_example_to_non_sil_alignment(
+        ali_path,
+        channel_preference,
+        add_statistics=False,
+):
+    alignment = get_phone_alignment(
+        ali_path,
+        channel_preference=channel_preference
+    )
     non_sil_alignment_dict = Dispatcher({k: v != 'sil' for k, v in alignment.items()})
 
     # Because of perspective_mic_array is is usefull to use a cache
     last = None
+
+    import collections
+
+    statistics = collections.defaultdict(set)
 
     def example_to_non_sil_alignment(
             ex,
             perspective_mic_array,
     ):
         nonlocal last
+        nonlocal statistics
         if last is not None:
             example_id, value = last
             if example_id == ex['example_id']:
@@ -43,11 +55,19 @@ def get_function_example_to_non_sil_alignment(ali_path):
             )
         else:
             print(
-                f"Warning: Could not find {ex['example_id']} in non_sil_alignment.")
+                f"Warning: Could not find {ex['example_id']} in non_sil_alignment."
+            )
             ret = 1
+            if add_statistics:
+                session_id = ex['session_id']
+                target_speaker = ex['target_speaker']
+                statistics[f'{target_speaker}_{session_id}'].add(ex['example_id'])
 
         last = ex['example_id'], ret
         return ret
+
+    example_to_non_sil_alignment.statistics = statistics
+
     return example_to_non_sil_alignment
 
 
@@ -55,25 +75,44 @@ from chime5.io.file_cache import file_cache
 
 from nt.io.data_dir import database_jsons
 
+
 @file_cache('get_all_activity_for_worn_alignments')
 def get_all_activity_for_worn_alignments(
         perspective,
+        *,
         garbage_class,
         ali_path,
         # use_ArrayIntervall=True,
-        database_path=database_jsons / 'chime5.json'
+        session_id=None,
+        channel_preference=None,
+        database_path=database_jsons / 'chime5.json',
+        add_statistics=False,
 ):
     """
+    session_id: When None than all sessions, when given only one session
+
     >>> get_all_activity_for_worn_alignments('worn', None, None)
     >>> ali_path = ['/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/egs/chime5/s5/exp/tri3_all_dev_worn_ali']
     >>> get_all_activity_for_worn_alignments('worn', None, ali_path)
     """
     from nt.database.chime5 import Chime5
-    it = Chime5(database_path).get_iterator_by_names(['train', 'dev'])
+    from nt.database.chime5.mapping import session_dataset_mapping
+    if session_id is None:
+        it = Chime5(database_path).get_iterator_by_names(['train', 'dev'])
+    else:
+        it = Chime5(database_path).get_iterator_by_names(
+            session_dataset_mapping[session_id]
+        )
+        it = it.filter(lambda ex: ex['session_id'] == session_id, lazy=False)
+
     it = it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False)
 
     if ali_path:
-        non_sil_alignment_fn = get_function_example_to_non_sil_alignment(ali_path)
+        non_sil_alignment_fn = get_function_example_to_non_sil_alignment(
+            ali_path,
+            channel_preference=channel_preference,
+            add_statistics=add_statistics,
+        )
         it = it.map(adjust_start_end)
     else:
         non_sil_alignment_fn = None
@@ -86,6 +125,10 @@ def get_all_activity_for_worn_alignments(
         non_sil_alignment_fn=non_sil_alignment_fn,
         use_ArrayIntervall=True,
     )
+    if add_statistics:
+        print('get_phone_alignment statistics')
+        for k, v in non_sil_alignment_fn.statistics.items():
+            print(k, len(v))
     return activity
 
 
@@ -137,7 +180,7 @@ def get_activity(
             if not isinstance(perspective_tmp, (tuple, list)):
                 perspective_tmp = [perspective_tmp, ]
 
-        num_samples = session_array_to_num_samples_mapping[f'{session_id}_P']
+        # num_samples = session_array_to_num_samples_mapping[f'{session_id}_P']
         speaker_ids = session_speakers_mapping[session_id]
 
         if use_ArrayIntervall:
@@ -149,20 +192,22 @@ def get_activity(
 
         all_acitivity[session_id] = {
             p: {
-                s: zeros(shape=[num_samples])
+                s: zeros(shape=[session_array_to_num_samples_mapping[f'{session_id}_{p}']])
                 # s: ArrayIntervall(shape=[num_samples])
                 for s in speaker_ids
             }
             for p in perspective_tmp
         }
         if garbage_class is True:
-            if use_ArrayIntervall:
-                noise = zeros(shape=[num_samples])
-                noise[:] = 1
-            else:
-                noise = np.ones(shape=[num_samples], dtype=dtype)
-
             for p in perspective_tmp:
+                num_samples = session_array_to_num_samples_mapping[
+                    f'{session_id}_{p}']
+                if use_ArrayIntervall:
+                    noise = zeros(shape=[num_samples])
+                    noise[:] = 1
+                else:
+                    noise = np.ones(shape=[num_samples], dtype=dtype)
+
                 all_acitivity[session_id][p]['Noise'] = noise
         elif garbage_class is False:
             noise = zeros(shape=[num_samples])
