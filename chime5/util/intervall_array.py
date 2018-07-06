@@ -106,6 +106,9 @@ class ArrayIntervall:
     # _normalized_intervals = ()
     _intervals = ()
 
+    def __len__(self):
+        return self.shape[0]
+
     @property
     def normalized_intervals(self):
         if not self._intervals_normalized:
