@@ -4,7 +4,7 @@ from cached_property import cached_property
 
 from nt.utils.numpy_utils import morph
 from nt.speech_enhancement import beamformer
-from nt.speech_enhancement.mask_module import lorenz_mask
+from nt.speech_enhancement.mask_module import lorenz_mask, quantil_mask
 
 
 class _Beamformer:
@@ -107,6 +107,7 @@ def beamform_mvdr_souden_from_masks(
         debug=debug,
     ).X_hat_mvdr_souden
 
+
 def beamform_gev_from_masks(
         Y,
         X_mask,
@@ -125,6 +126,7 @@ def beamform_gev_from_masks(
     else:
         return bf.X_hat_gev
 
+
 def beamform_mvdr_souden_with_lorenz_mask(
         Y,
         X_hat=None,
@@ -135,6 +137,30 @@ def beamform_mvdr_souden_with_lorenz_mask(
 
     X_mask = np.swapaxes(lorenz_mask(np.swapaxes(X_hat, -2, -1)), -2, -1)
     N_mask = 1 - X_mask
+
+    return beamform_mvdr_souden_from_masks(
+        Y=Y,
+        X_mask=X_mask,
+        N_mask=N_mask,
+        debug=debug,
+    )
+
+
+def beamform_mvdr_souden_with_quantil_mask(
+        Y,
+        X_hat=None,
+        debug=False,
+        quantil=[0.1, -0.8],
+):
+    if X_hat is None:
+        X_hat = Y
+
+    X_mask, N_mask = quantil_mask(
+        X_hat,
+        quantil=quantil,
+        sensor_axis=None,
+        axis=-2,
+    )
 
     return beamform_mvdr_souden_from_masks(
         Y=Y,
