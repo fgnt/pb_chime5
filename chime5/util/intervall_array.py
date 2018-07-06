@@ -6,6 +6,10 @@ def ArrayIntervall_from_str(string, shape):
     """
     >>> ArrayIntervall_from_str('1:4, 5:20, 21:25', shape=50)
     ArrayIntervall("1:4, 5:20, 21:25", shape=[50])
+    >>> ArrayIntervall_from_str('1:4', shape=50)
+    ArrayIntervall("1:4", shape=[50])
+    >>> ArrayIntervall_from_str('1:4,', shape=50)
+    ArrayIntervall("1:4", shape=[50])
 
     """
     ai = ArrayIntervall(shape)
@@ -13,8 +17,16 @@ def ArrayIntervall_from_str(string, shape):
         print('empty intervall found')
         pass
     else:
-        for item in eval(f'np.s_[{string}]'):
-            ai[item] = 1
+        if not ',' in string:
+            string = string + ','
+        try:
+            for item in eval(f'np.s_[{string}]'):
+                try:
+                    ai[item] = 1
+                except Exception as e:
+                    raise Exception(item, ai) from e
+        except Exception as e:
+            raise Exception(string) from e
     return ai
 
 
@@ -87,7 +99,7 @@ class ArrayIntervall:
 
         assert len(shape) == 1, shape
 
-        self.shape = shape
+        self.shape = tuple(shape)
         # self._intervals = (,)
 
     _intervals_normalized = True
