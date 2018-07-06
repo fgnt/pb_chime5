@@ -210,8 +210,10 @@ def get_activity(
 
                 all_acitivity[session_id][p]['Noise'] = noise
         elif garbage_class is False:
-            noise = zeros(shape=[num_samples])
             for p in perspective_tmp:
+                num_samples = session_array_to_num_samples_mapping[
+                    f'{session_id}_{p}']
+                noise = zeros(shape=[num_samples])
                 all_acitivity[session_id][p]['Noise'] = noise
         elif garbage_class is None:
             pass
