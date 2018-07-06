@@ -158,6 +158,8 @@ class Chime5(HybridASRJSONDatabaseTemplate):
             it = it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False)
 
         if context_samples is not 0:
+            # adjust_times should be before AddContext, because AddContext
+            # adds the new key start_context that
             it = it.map(AddContext(context_samples))
 
         if adjust_times:
@@ -953,6 +955,10 @@ def AddContext(samples):
     if isinstance(start_context, int):
         # Faster implementation than the else Branch
         def add_context(ex):
+            ex['start_orig'] = ex[K.START]
+            ex['end_orig'] = ex[K.END]
+            ex['num_samples_orig'] = ex[K.NUM_SAMPLES]
+
             ex[K.START] = nest.map_structure(
                 lambda time: max(time - start_context, 0),
                 ex[K.START],
@@ -961,13 +967,24 @@ def AddContext(samples):
                 lambda time: time + end_context,
                 ex[K.END],
             )
+
+            # ToDo: Fix NUM_SAMPLES for start < context
+            # ex[K.NUM_SAMPLES] = nest.map_structure(
+            #     lambda time: time + duration_context,
+            #     ex[K.NUM_SAMPLES],
+            # )
             ex[K.NUM_SAMPLES] = nest.map_structure(
-                lambda time: time + duration_context,
-                ex[K.NUM_SAMPLES],
+                lambda start, end: end - start,
+                ex[K.START],
+                ex[K.END],
             )
             return ex
     else:
         def add_context(ex):
+            ex['start_orig'] = ex[K.START]
+            ex['end_orig'] = ex[K.END]
+            ex['num_samples_orig'] = ex[K.NUM_SAMPLES]
+
             bc_start_context = nest_broadcast(ex[K.START], start_context)
             bc_end_context = nest_broadcast(ex[K.END], end_context)
             bc_duration_context = nest_broadcast(ex[K.NUM_SAMPLES], duration_context)
@@ -977,15 +994,28 @@ def AddContext(samples):
                 ex[K.START],
                 bc_start_context,
             )
+            # ex['start_context'] = nest.map_structure(
+            #     lambda time, start_context: start_context + max(time - start_context, 0),
+            #     ex[K.START],
+            #     bc_start_context,
+            # )
             ex[K.END] = nest.map_structure(
                 lambda time, end_context: time + end_context,
                 ex[K.END],
                 bc_end_context,
             )
+            # ToDo: end_context
+            # ex['num_samples_orig'] = ex[K.NUM_SAMPLES]
+            # ToDo: Fix NUM_SAMPLES for start < context
+            # ex[K.NUM_SAMPLES] = nest.map_structure(
+            #     lambda time, duration_context: time + duration_context,
+            #     ex[K.NUM_SAMPLES],
+            #     bc_duration_context,
+            # )
             ex[K.NUM_SAMPLES] = nest.map_structure(
-                lambda time, duration_context: time + duration_context,
-                ex[K.NUM_SAMPLES],
-                bc_duration_context,
+                lambda start, end: end - start,
+                ex[K.START],
+                ex[K.END],
             )
             return ex
 
