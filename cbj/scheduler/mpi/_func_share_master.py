@@ -18,6 +18,9 @@ def share_master(
     Required at least 2 mpi processes, but to produce a speedup 3 are required.
 
     Parallel: Body of the for loop.
+    Communication: Indices
+    Redundant computation: Each process (except the master) consumes the
+                           iterator.
 
     Note:
         Inside the for loop a break is allowed to mark the current task as
@@ -25,8 +28,12 @@ def share_master(
 
 
     ToDo:
-        When a slave throw a exception, the task is currently ignored.
-        Change it that the execution get canceled.
+        - Make a more efficient scheduling
+          - allow indexable
+          - Use round robin in the beginning and for the last task this
+            scheduler. Or submit chunks of work.
+        - When a slave throw a exception, the task is currently ignored.
+          Change it that the execution get canceled.
 
     """
     from tqdm import tqdm
