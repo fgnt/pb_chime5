@@ -26,7 +26,6 @@ class _Beamformer:
             self.X_mask = morph('1DTF->FT', X_mask, reduce=np.median)
             self.N_mask = morph('1DTF->FT', N_mask, reduce=np.median)
         elif np.ndim(X_mask) == 3:
-            # elif np.ndim(X_mask) == 3:
             self.X_mask = morph('DTF->FT', X_mask, reduce=np.median)
             self.N_mask = morph('DTF->FT', N_mask, reduce=np.median)
         elif np.ndim(X_mask) == 2:
