@@ -17,6 +17,10 @@ from nt.database.helper import (
 from nt.database.chime5.get_speaker_activity import to_samples
 from nt.io.data_dir import chime_5
 from nt.io.json_module import load_json
+from nt.utils.mapping import Dispatcher
+
+
+EVAL_TRANSCRIPTIONS_MISSING = True
 
 
 class CHiME5_Keys:
@@ -68,10 +72,10 @@ def create_database(database_path, transcription_realigned_path):
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
     datasets = dict()
 
-    transcription_realigned_pathes = {
+    transcription_realigned_pathes = Dispatcher({
         p.name: p
         for p in Path(transcription_realigned_path).glob('**/*.json')
-    }
+    })
 
     for dataset in set_length.keys():
         out_dict = get_dataset(database_path, dataset, transcription_realigned_pathes)
@@ -203,12 +207,8 @@ def get_example(transcription, transcription_realigned, audio_path):
         target_speaker_id = 'unknown'
         notes.append('target_speaker_id is missing')
 
-    if target_speaker_id != 'unknown':
-        start_sample = transcription['start_time'][target_speaker_id]
-        end_sample = transcription['end_time'][target_speaker_id]
-    else:
-        start_sample = transcription['start_time']['original']
-        end_sample = transcription['end_time']['original']
+    start_sample = transcription['start_time']['original']
+    end_sample = transcription['end_time']['original']
 
     example_id = get_example_id(
         start_sample=start_sample,
@@ -263,6 +263,12 @@ def get_example(transcription, transcription_realigned, audio_path):
         ref_array = 'unknown'
     if session_id in NOTES_DICT:
         notes.append(NOTES_DICT[session_id])
+
+    if EVAL_TRANSCRIPTIONS_MISSING and session_id == 'eval':
+        assert transcription['words'] == "", transcription['words']
+    else:
+        words_dict = {keys.TRANSCRIPTION: transcription['words']}
+
     return example_id, {
         CH_K.SESSION_ID: session_id,
         CH_K.TARGET_SPEAKER: target_speaker_id,
@@ -275,7 +281,7 @@ def get_example(transcription, transcription_realigned, audio_path):
         keys.END: end_time_dict,
         CH_K.REF_ARRAY: ref_array,
         CH_K.LOCATION: location,
-        keys.TRANSCRIPTION: transcription['words']
+        **words_dict,
     }
 
 
