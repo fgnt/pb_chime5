@@ -149,6 +149,12 @@ class DictDatabase:
                     cutoff=0,
                 )
                 raise KeyError(dataset_name, f'close_matches: {similar}', self)
+            if len(examples) == 0:
+                # When somebody need empty datasets, add an option to this
+                # function to allow empty datasets.
+                raise RuntimeError(
+                    f'The requested dataset {dataset_name!r} is empty. '
+                )
 
             for example_id in examples.keys():
                 examples[example_id][keys.EXAMPLE_ID] = example_id
