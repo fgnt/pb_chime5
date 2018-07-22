@@ -194,13 +194,26 @@ def get_dataset(database_path, dataset, transcription_realigned_path):
 
 
 def get_example(transcription, transcription_realigned, audio_path):
+    from nt.database.chime5.mapping import session_speakers_mapping
+
     session_id = transcription['session_id']
+
+    from .mapping import session_dataset_mapping
+    dataset = session_dataset_mapping[session_id]
+
     notes = list()
     speaker_ids = [
         key
         for key in transcription['start_time'].keys()
         if 'P' in key
     ]
+    if session_id in ['S01', 'S21']:
+        # eval
+        assert speaker_ids == [], (speaker_ids, session_id)
+        speaker_ids = session_speakers_mapping[session_id]
+    else:
+        assert speaker_ids == session_speakers_mapping[session_id], (speaker_ids, session_id)
+
     try:
         target_speaker_id = transcription['speaker']
     except KeyError as e:
@@ -230,16 +243,19 @@ def get_example(transcription, transcription_realigned, audio_path):
         speaker_ids,
         session_id,
         audio_path,
+        dataset,
     )
     start_time_dict = get_time_from_dict(
         transcription_realigned['start_time'],
         speaker_ids,
         arrays,
+        dataset,
     )
     end_time_dict = get_time_from_dict(
         transcription_realigned['end_time'],
         speaker_ids,
         arrays,
+        dataset,
     )
     num_samples = get_num_samples(start_time_dict, end_time_dict)
     empty_keys =  [key for mic_samples in num_samples.values()
@@ -309,26 +325,28 @@ def get_example_id(
 from functools import lru_cache
 
 
-def get_audio_path_dict(arrays, speaker_ids, session_id, audio_path):
-    audio_path_dict = {
+def get_audio_path_dict(arrays, speaker_ids, session_id, audio_path, dataset):
+    observation = {
         keys.OBSERVATION: {
             array: [
                 str(audio_path / f'{session_id}_{array}.CH{mic}.wav')
                 for mic in range(1, 1+NUM_MICS)
             ]
             for array in arrays
-        },
-        CH_K.WORN: {
-            speaker: str(audio_path / f'{session_id}_{speaker}.wav')
-            for speaker in speaker_ids
         }
     }
-    # for key, audio_path in audio_path_dict.items():
-    #     assert [
-    #         Path(p).is_file()
-    #         for path in audio_path.values()
-    #         for p in path
-    #     ], f'For {key} at least one audio_path is no file'
+    if dataset == 'eval':
+        worn_microphone = {}
+    else:
+        worn_microphone = {
+            CH_K.WORN: {
+                speaker: str(audio_path / f'{session_id}_{speaker}.wav')
+                for speaker in speaker_ids
+            }
+        }
+
+    audio_path_dict = {**observation, **worn_microphone}
+
     return audio_path_dict
 
 
@@ -358,17 +376,25 @@ def get_duration(start_time, end_time):
     return int(duration.total_seconds() * SAMPLE_RATE)
 
 
-def get_time_from_dict(time, speaker_ids, arrays):
-    time_dict = {
+def get_time_from_dict(time, speaker_ids, arrays, dataset):
+    observation = {
         keys.OBSERVATION: {
             array: [time[array]] * NUM_MICS
             for array in arrays
-        },
-        CH_K.WORN: {
-            speaker: time[speaker]
-            for speaker in speaker_ids
         }
     }
+    if dataset == 'eval':
+        worn_microphone = {}
+    else:
+        worn_microphone = {
+            CH_K.WORN: {
+                speaker: time[speaker]
+                for speaker in speaker_ids
+            }
+        }
+
+    time_dict = {**observation, **worn_microphone}
+
     return time_dict
 
 
