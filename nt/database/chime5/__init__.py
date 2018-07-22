@@ -23,7 +23,10 @@ FORMAT_STRING = '%H:%M:%S.%f'
 class Chime5(HybridASRJSONDatabaseTemplate):
     K = CHiME5_Keys
 
-    def __init__(self, path=database_jsons / 'chime5.json'):
+    def __init__(
+            self,
+            path  # =database_jsons / 'chime5.json',
+    ):
         super().__init__(path)
 
     @property
@@ -173,7 +176,7 @@ class Chime5(HybridASRJSONDatabaseTemplate):
         if audio_read is False:
             pass
         elif audio_read is True:
-            it = it.map(nt.database.chime5.Chime5AudioReader(audio_keys=None))
+            it = it.map(Chime5AudioReader(audio_keys=None))
         else:
             raise TypeError(audio_read)
 
