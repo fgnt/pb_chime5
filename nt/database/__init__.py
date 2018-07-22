@@ -64,15 +64,18 @@ import logging
 import pickle
 from collections import defaultdict
 from pathlib import Path
-from nt.database.iterator import ExamplesIterator
-import numpy as np
+import weakref
 from cached_property import cached_property
 
+import numpy as np
+
 from nt import kaldi
-from nt.database import keys
 from nt.io import load_json
 from nt.io.audioread import audioread
+
+from nt.database import keys
 from nt.database.iterator import BaseIterator
+from nt.database.iterator import ExamplesIterator
 
 LOG = logging.getLogger('Database')
 
