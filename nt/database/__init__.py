@@ -80,10 +80,37 @@ from nt.database.iterator import ExamplesIterator
 LOG = logging.getLogger('Database')
 
 
-def to_list(x):
-    if isinstance(x, (list, tuple)):
-        return x
-    return [x]
+def to_list(x, item_type=None):
+    """
+    Note:
+        It is recommended to use item_type, when the type of the list is known
+        to catch as much cases as possible.
+        The problem is that many python functions return a type that does not
+        inherit from tuple and/or list.
+        e.g. dict keys, dict values, map, sorted, ...
+
+        The instance check with collections.Sequence could produce problem with
+        str. (isinstance('any str', collections.Sequence) is True)
+
+    >>> to_list(1)
+    [1]
+    >>> to_list([1])
+    [1]
+    >>> to_list((1,))
+    (1,)
+    >>> to_list({1: 2}.keys())  # Wrong
+    [dict_keys([1])]
+    >>> to_list({1: 2}.keys(), item_type=int)
+    [1]
+    """
+    if item_type is None:
+        if isinstance(x, (list, tuple)):
+            return x
+        return [x]
+    else:
+        if isinstance(x, item_type):
+            return [x]
+        return list(x)
 
 
 class DictDatabase:
