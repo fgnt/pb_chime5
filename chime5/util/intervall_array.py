@@ -1,15 +1,20 @@
 import numpy as np
-from chime5.util.intervall_array_util import cy_non_intersection
+from chime5.util.intervall_array_util import (
+    cy_non_intersection,
+    cy_intersection,
+    cy_parse_item,
+    cy_str_to_intervalls,
+)
 
 
 def ArrayIntervall_from_str(string, shape):
     """
     >>> ArrayIntervall_from_str('1:4, 5:20, 21:25', shape=50)
-    ArrayIntervall("1:4, 5:20, 21:25", shape=[50])
+    ArrayIntervall("1:4, 5:20, 21:25", shape=(50,))
     >>> ArrayIntervall_from_str('1:4', shape=50)
-    ArrayIntervall("1:4", shape=[50])
+    ArrayIntervall("1:4", shape=(50,))
     >>> ArrayIntervall_from_str('1:4,', shape=50)
-    ArrayIntervall("1:4", shape=[50])
+    ArrayIntervall("1:4", shape=(50,))
 
     """
     ai = ArrayIntervall(shape)
@@ -20,11 +25,14 @@ def ArrayIntervall_from_str(string, shape):
         if not ',' in string:
             string = string + ','
         try:
-            for item in eval(f'np.s_[{string}]'):
-                try:
-                    ai[item] = 1
-                except Exception as e:
-                    raise Exception(item, ai) from e
+            ai.add_intervals_from_str(string)
+            # intervalls = eval(f'np.s_[{string}]')
+            # ai.add_intervals(intervalls)
+            # for item in eval(f'np.s_[{string}]'):
+            #     try:
+            #         ai[item] = 1
+            #     except Exception as e:
+            #         raise Exception(item, ai) from e
         except Exception as e:
             raise Exception(string) from e
     return ai
@@ -79,11 +87,11 @@ class ArrayIntervall:
         >>> import jsonpickle, json
         >>> ai = ArrayIntervall_from_str('1:4, 5:20, 21:25', shape=50)
         >>> ai
-        ArrayIntervall("1:4, 5:20, 21:25", shape=[50])
+        ArrayIntervall("1:4, 5:20, 21:25", shape=(50,))
         >>> pickle.loads(pickle.dumps(ai))
-        ArrayIntervall("1:4, 5:20, 21:25", shape=[50])
+        ArrayIntervall("1:4, 5:20, 21:25", shape=(50,))
         >>> jsonpickle.loads(jsonpickle.dumps(ai))
-        ArrayIntervall("1:4, 5:20, 21:25", shape=[50])
+        ArrayIntervall("1:4, 5:20, 21:25", shape=(50,))
         >>> pprint(json.loads(jsonpickle.dumps(ai)))
         {'py/reduce': [{'py/function': 'chime5.util.intervall_array.ArrayIntervall_from_str'},
           {'py/tuple': ['1:4, 5:20, 21:25', 50]},
@@ -204,43 +212,60 @@ class ArrayIntervall:
 
         return start, stop
 
+    def add_intervals_from_str(self, string_intervals):
+
+        self.intervals = self.intervals + cy_str_to_intervalls(string_intervals)
+
+    def add_intervals(self, intervals):
+        """
+        for item in intervals:
+            self[item] = 1
+
+        # This function is equal to above example code, but significant faster.
+        """
+        # Short circuit
+        self.intervals = self.intervals + tuple(
+            [cy_parse_item(i, self.shape) for i in intervals]
+        )
+
     def __setitem__(self, item, value):
         """
 
         >>> ai = ArrayIntervall(50)
         >>> ai[10:15] = 1
         >>> ai
-        ArrayIntervall("10:15", shape=[50])
+        ArrayIntervall("10:15", shape=(50,))
         >>> ai[5:10] = 1
         >>> ai
-        ArrayIntervall("5:15", shape=[50])
+        ArrayIntervall("5:15", shape=(50,))
         >>> ai[1:4] = 1
         >>> ai
-        ArrayIntervall("1:4, 5:15", shape=[50])
+        ArrayIntervall("1:4, 5:15", shape=(50,))
         >>> ai[15:20] = 1
         >>> ai
-        ArrayIntervall("1:4, 5:20", shape=[50])
+        ArrayIntervall("1:4, 5:20", shape=(50,))
         >>> ai[21:25] = 1
         >>> ai
-        ArrayIntervall("1:4, 5:20, 21:25", shape=[50])
+        ArrayIntervall("1:4, 5:20, 21:25", shape=(50,))
         >>> ai[10:15] = 1
         >>> ai
-        ArrayIntervall("1:4, 5:20, 21:25", shape=[50])
+        ArrayIntervall("1:4, 5:20, 21:25", shape=(50,))
         >>> ai[0:50] = 1
         >>> ai[0:0] = 1
         >>> ai
-        ArrayIntervall("0:50", shape=[50])
+        ArrayIntervall("0:50", shape=(50,))
         >>> ai[3:6]
         array([ True,  True,  True])
         >>> ai[3:6] = np.array([ True,  False,  True])
         >>> ai
-        ArrayIntervall("0:4, 5:50", shape=[50])
+        ArrayIntervall("0:4, 5:50", shape=(50,))
         >>> ai[10:13] = np.array([ False,  True,  False])
         >>> ai
-        ArrayIntervall("0:4, 5:10, 11:12, 13:50", shape=[50])
+        ArrayIntervall("0:4, 5:10, 11:12, 13:50", shape=(50,))
 
         """
-        start, stop = self._parse_item(item)
+
+        start, stop = cy_parse_item(item, self.shape)
 
         if np.isscalar(value) and value == 1:
             self.intervals = self.intervals + ((start, stop),)
@@ -339,17 +364,20 @@ class ArrayIntervall:
         """
 
         >>> ai = ArrayIntervall(50)
+        >>> ai[19:26]
+        array([False, False, False, False, False, False, False])
         >>> ai[10:20] = 1
         >>> ai[25:30] = 1
         >>> ai
-        ArrayIntervall("10:20, 25:30", shape=[50])
+        ArrayIntervall("10:20, 25:30", shape=(50,))
         >>> ai[19:26]
         array([ True, False, False, False, False, False,  True])
 
         """
         start, stop = self._parse_item(item)
 
-        intervals = self._intersection((start, stop), self.normalized_intervals)
+        # intervals = self._intersection((start, stop), self.normalized_intervals)
+        intervals = cy_intersection((start, stop), self.normalized_intervals)
 
         arr = np.zeros(stop - start, dtype=np.bool)
 
