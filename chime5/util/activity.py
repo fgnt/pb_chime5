@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 from nt.utils.mapping import Dispatcher
 
@@ -10,7 +11,6 @@ from nt.database.chime5.mapping import (
 )
 from chime5.decode.alignment import get_phone_alignment
 from nt.database.chime5 import activity_frequency_to_time, adjust_start_end
-
 from chime5.util.intervall_array import ArrayIntervall
 
 
@@ -71,6 +71,98 @@ def get_function_example_to_non_sil_alignment(
     return example_to_non_sil_alignment
 
 
+def get_aachen_function_example_to_non_sil_alignment(
+        silence_times_path=(
+            '/net/vol/boeddeker/chime5/aachen/array_silence_times_parsed/dev_array_avg_thres-0.01.json',
+            '/net/vol/boeddeker/chime5/aachen/array_silence_times_parsed/train_array_avg_thres-0.01.json',
+        ),
+        add_statistics=False,
+        adjust_start_end=True
+):
+    # alignment = get_phone_alignment(
+    #     ali_path,
+    #     channel_preference=channel_preference
+    # )
+    # non_sil_alignment_dict = Dispatcher({k: v != 'sil' for k, v in alignment.items()})
+    # Because of perspective_mic_array is is usefull to use a cache
+    # last = None
+    import collections
+    import jsonpickle
+    from pathlib import Path
+
+    statistics = collections.defaultdict(set)
+    if not isinstance(silence_times_path, (tuple, list)):
+        silence_times_path = [silence_times_path]
+
+    array_non_sil_alignment_dict = collections.defaultdict(dict)
+    for p in silence_times_path:
+        p = Path(p)
+        with p.open('br') as fid:
+            data = pickle.load(fid)
+        for d in data:
+            array_non_sil_alignment_dict[d['array']][d['in_ear_example_id']] = d
+
+    array_non_sil_alignment_dict = Dispatcher(array_non_sil_alignment_dict)
+
+    import typing
+
+    from nt.database.chime5 import _adjust_start_end
+
+    def example_to_non_sil_alignment(
+            ex,
+            perspective_mic_array,
+    ):
+        # nonlocal last
+        nonlocal statistics
+        # if last is not None:
+        #     example_id, value = last
+        #     if example_id == ex['example_id']:
+        #         return value
+
+        non_sil_alignment_dict = array_non_sil_alignment_dict[perspective_mic_array]
+
+        # ignore perspective_mic_array
+        if ex['example_id'] in non_sil_alignment_dict:
+            d = non_sil_alignment_dict[ex['example_id']]
+
+            start = d['start']
+            end = d['end']
+            warping_map: typing.List[slice] = d['warping_map']
+
+            if adjust_start_end:
+                ref_start, = list(set(ex['start']['observation'][perspective_mic_array]))  # assert len 1
+                ref_end, = list(set(ex['end']['observation'][perspective_mic_array]))  # assert len 1
+
+                start, end = _adjust_start_end(
+                    worn_start=ref_start,
+                    worn_end=ref_end,
+                    array_start=start,
+                    array_end=end,
+                )
+
+            ret = np.ones(end - start)
+            for w in warping_map:
+                assert w.step is None, w
+                ret[w.start - start:w.stop - start] = 0
+
+        else:
+            print(
+                f"Warning: Could not find {ex['example_id']} for {perspective_mic_array} in aachen non_sil_alignment."
+            )
+            ret = 1
+            if add_statistics:
+                session_id = ex['session_id']
+                target_speaker = ex['target_speaker']
+                statistics[f'{target_speaker}_{session_id}'].add(ex['example_id'])
+
+        # last = ex['example_id'], ret
+        return ret
+
+    example_to_non_sil_alignment.statistics = statistics
+
+    return example_to_non_sil_alignment
+
+
 from chime5.io.file_cache import file_cache
 
 from nt.io.data_dir import database_jsons
@@ -100,10 +192,12 @@ def get_all_activity_for_worn_alignments(
     if session_id is None:
         it = Chime5(database_path).get_iterator_by_names(['train', 'dev'])
     else:
+        if isinstance(session_id, str):
+            session_id = [session_id]
         it = Chime5(database_path).get_iterator_by_names(
-            session_dataset_mapping[session_id]
+            list({session_dataset_mapping[sid] for sid in session_id})
         )
-        it = it.filter(lambda ex: ex['session_id'] == session_id, lazy=False)
+        it = it.filter(lambda ex: ex['session_id'] in session_id, lazy=False)
 
     it = it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False)
 
