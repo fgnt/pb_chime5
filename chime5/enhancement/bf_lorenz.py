@@ -67,6 +67,13 @@ class _Beamformer:
         return w_mvdr_souden
 
     @cached_property
+    def _w_mvdr_souden_ban(self):
+        w_mvdr_souden_ban = beamformer.blind_analytic_normalization(self._w_mvdr_souden, self._Cov_N)
+        if self.debug:
+            print('w_mvdr_souden_ban', repr(w_mvdr_souden_ban))
+        return w_mvdr_souden_ban
+
+    @cached_property
     def _w_gev(self):
         w_gev = beamformer.get_gev_vector(self._Cov_X, self._Cov_N, force_cython=True)
         if self.debug:
@@ -85,6 +92,10 @@ class _Beamformer:
         return beamformer.apply_beamforming_vector(self._w_mvdr_souden, self.Y).T
 
     @cached_property
+    def X_hat_mvdr_souden_ban(self):
+        return beamformer.apply_beamforming_vector(self._w_mvdr_souden_ban, self.Y).T
+
+    @cached_property
     def X_hat_gev(self):
         return beamformer.apply_beamforming_vector(self._w_gev, self.Y).T
 
@@ -97,14 +108,19 @@ def beamform_mvdr_souden_from_masks(
         Y,
         X_mask,
         N_mask,
+        ban=False,
         debug=False,
 ):
-    return _Beamformer(
+    bf = _Beamformer(
         Y=Y,
         X_mask=X_mask,
         N_mask=N_mask,
         debug=debug,
-    ).X_hat_mvdr_souden
+    )
+    if ban:
+        return bf.X_hat_mvdr_souden_ban
+    else:
+        return bf.X_hat_mvdr_souden
 
 
 def beamform_gev_from_masks(
