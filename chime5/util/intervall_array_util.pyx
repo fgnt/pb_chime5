@@ -110,6 +110,7 @@ def cy_str_to_intervalls(string):
         try:
             start_str, end_str = intervall_string.split(':')
         except Exception as e:
+            print('intervall_string in cy_str_to_intervalls', repr(intervall_string))
             raise Exception(intervall_string) from e
         start = int(start_str)
         end = int(end_str)

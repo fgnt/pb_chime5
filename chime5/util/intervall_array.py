@@ -15,6 +15,8 @@ def ArrayIntervall_from_str(string, shape):
     ArrayIntervall("1:4", shape=(50,))
     >>> ArrayIntervall_from_str('1:4,', shape=50)
     ArrayIntervall("1:4", shape=(50,))
+    >>> ArrayIntervall_from_str('0:142464640,', shape=242464640)
+    ArrayIntervall("0:142464640", shape=(50,))
 
     """
     ai = ArrayIntervall(shape)
