@@ -68,7 +68,6 @@ def map_unordered(func, iterator, progress_bar=False):
 
     """
     from tqdm import tqdm
-    import itertools
     from enum import IntEnum, auto
 
     if SIZE == 1:
