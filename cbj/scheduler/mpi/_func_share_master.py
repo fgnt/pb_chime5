@@ -42,7 +42,7 @@ def share_master(
         if disable_pbar:
             yield from iterator
         else:
-            yield from tqdm(iterator)
+            yield from tqdm(iterator, mininterval=2)
         return
 
     assert size > 1, size
@@ -66,7 +66,9 @@ def share_master(
         else:
             pbar_prefix = f'{pbar_prefix}, '
 
-        with tqdm(total=length, disable=disable_pbar) as pbar:
+        with tqdm(
+                total=length, disable=disable_pbar, mininterval=2, smoothing=None
+        ) as pbar:
             pbar.set_description(f'{pbar_prefix}busy: {workers}')
             while workers > 0:
                 source = comm.recv(
