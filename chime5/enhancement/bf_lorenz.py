@@ -40,7 +40,7 @@ class _Beamformer:
 
         assert self.Y.ndim == 3, self.Y.shape
         F, D, T = self.Y.shape
-        assert D < 20, (D, self.Y.shape)
+        assert D < 30, (D, self.Y.shape)
         assert self.X_mask.shape == (F, T), (self.X_mask.shape, F, T)
         assert self.N_mask.shape == (F, T), (self.N_mask.shape, F, T)
 
