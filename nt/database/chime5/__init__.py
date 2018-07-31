@@ -736,10 +736,8 @@ def _adjust_start_end(
 
 def adjust_start_end(ex):
 
-    target_speaker = ex['target_speaker']
-
-    worn_start = ex[K.START]['worn_microphone'][target_speaker]
-    worn_end = ex[K.END]['worn_microphone'][target_speaker]
+    worn_start = ex[K.START]['original']
+    worn_end = ex[K.END]['original']
 
     for array_id in ex['audio_path']['observation'].keys():
         array_start = ex[K.START]['observation'][array_id]
@@ -758,7 +756,7 @@ def adjust_start_end(ex):
         ex[K.END]['observation'][array_id] = [array_end] * 4
         ex[K.NUM_SAMPLES]['observation'][array_id] = [array_end - array_start] * 4
 
-    for mic_id in ex['audio_path']['worn_microphone'].keys():
+    for mic_id in ex['audio_path'].get('worn_microphone', {}).keys():
         array_start, array_end = _adjust_start_end(
             worn_start,
             worn_end,
