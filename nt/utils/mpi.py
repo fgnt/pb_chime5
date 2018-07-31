@@ -37,8 +37,9 @@ class RankInt(int):
     def __bool__(self):
         raise NotImplementedError(
             'Bool is disabled for rank. '
-            'It is likly that you want to use IS_MASTER.'
+            'It is likely that you want to use IS_MASTER.'
         )
+
 
 COMM = MPI.COMM_WORLD
 RANK = RankInt(COMM.rank)
