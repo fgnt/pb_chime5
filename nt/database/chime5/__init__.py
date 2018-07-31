@@ -150,11 +150,12 @@ class Chime5(HybridASRJSONDatabaseTemplate):
             drop_unknown_target_speaker=False,
             adjust_times=False,
             context_samples=0,
+            equal_start_context=False,
     ):
         if isinstance(session, str):
             session = (session, )
 
-        it = self.get_iterator_by_names(['train', 'dev']).filter(
+        it = self.get_iterator_by_names(['train', 'dev', 'eval']).filter(
             lambda ex: ex['session_id'] in session, lazy=False
         )
         if drop_unknown_target_speaker:
@@ -163,7 +164,10 @@ class Chime5(HybridASRJSONDatabaseTemplate):
         if context_samples is not 0:
             # adjust_times should be before AddContext, because AddContext
             # adds the new key start_context that
-            it = it.map(AddContext(context_samples))
+            it = it.map(AddContext(
+                context_samples,
+                equal_start_context=equal_start_context,
+            ))
 
         if adjust_times:
             assert drop_unknown_target_speaker, (
@@ -837,10 +841,11 @@ def nest_broadcast(
     return inner(shallow_tree, input_tree)
 
 
-def AddContext(samples):
+def AddContext(samples, equal_start_context=False):
     """
     >>> from IPython.lib.pretty import pprint
-    >>> db = Chime5()
+    >>> from nt.io.data_dir import database_jsons
+    >>> db = Chime5(database_jsons / 'chime5.json')
     >>> it = db.get_iterator_for_session('S02')
     >>> pprint(it[0])  # doctest: +ELLIPSIS
     {...
@@ -870,6 +875,29 @@ def AddContext(samples):
       ...
       'worn_microphone': {'P05': 649500,
       ...
+    >>> pprint(it.map(AddContext(10**10))[0])  # doctest: +ELLIPSIS
+    {...
+     'num_samples': {'observation': {'U01': [10000701587,
+     ...
+     'start': {'observation': {'U01': [0, 0, 0, 0],
+       'U02': [0, 0, 0, 0],
+       'U03': [0, 0, 0, 0],
+       'U04': [0, 0, 0, 0],
+       'U05': [0, 0, 0, 0],
+       'U06': [0, 0, 0, 0]},
+      'worn_microphone': {'P05': 0, 'P06': 0, 'P07': 0, 'P08': 0}},
+     ...
+    >>> pprint(it.map(AddContext(10**10, equal_start_context=True))[0])  # doctest: +ELLIPSIS
+    {...
+     'end': {'observation': {'U01': [10000701587,...
+     'num_samples': {'observation': {'U01': [10000701113,...
+     'start': {'observation': {'U01': [474, 474, 474, 474],
+       'U02': [285, 285, 285, 285],
+       'U03': [152, 152, 152, 152],
+       'U04': [109, 109, 109, 109],
+       'U05': [23, 23, 23, 23],
+       'U06': [3, 3, 3, 3]},
+      'worn_microphone': {'P05': 7, 'P06': 4, 'P07': 0, 'P08': 9}},...
     >>> pprint(it.map(AddContext([100, 50]))[0])  # doctest: +ELLIPSIS
     {...
      'end': {'observation': {'U01': [701637, 701637, 701637, 701637],
@@ -966,6 +994,16 @@ def AddContext(samples):
                 lambda time: max(time - start_context, 0),
                 ex[K.START],
             )
+            if equal_start_context:
+                start_flat = nest.flatten(ex[K.START])
+                start_orig_flat = nest.flatten(ex['start_orig'])
+                smallest_start_context = np.min(np.array(start_orig_flat) - np.array(start_flat))
+
+                ex[K.START] = nest.map_structure(
+                    lambda time: max(time - smallest_start_context, 0),
+                    ex['start_orig'],
+                )
+
             ex[K.END] = nest.map_structure(
                 lambda time: time + end_context,
                 ex[K.END],
