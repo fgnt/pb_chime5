@@ -1,7 +1,6 @@
 from collections import defaultdict
 
 from nt.utils.mapping import Dispatcher
-from nt.database.chime5 import Chime5
 
 dev_sess_ref_array_mapping = Dispatcher({
     'S02': ['U02', 'U03', 'U05'],
@@ -59,6 +58,7 @@ dev_sess_ref_array_mapping = Dispatcher({
 # })
 
 session_speakers_mapping = Dispatcher({
+    'S01': ['P01', 'P02', 'P03', 'P04'],
     'S02': ['P05', 'P06', 'P07', 'P08'],
     'S03': ['P09', 'P10', 'P11', 'P12'],
     'S04': ['P09', 'P10', 'P11', 'P12'],
@@ -74,6 +74,7 @@ session_speakers_mapping = Dispatcher({
     'S18': ['P41', 'P42', 'P43', 'P44'],
     'S19': ['P49', 'P50', 'P51', 'P52'],
     'S20': ['P49', 'P50', 'P51', 'P52'],
+    'S21': ['P45', 'P46', 'P47', 'P48'],
     'S22': ['P41', 'P42', 'P43', 'P44'],
     'S23': ['P53', 'P54', 'P55', 'P56'],
     'S24': ['P53', 'P54', 'P55', 'P56'],
@@ -81,6 +82,7 @@ session_speakers_mapping = Dispatcher({
 
 
 session_array_mapping = Dispatcher({
+    'S01': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
     'S02': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
     'S03': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
     'S04': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
@@ -96,13 +98,16 @@ session_array_mapping = Dispatcher({
     'S18': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
     'S19': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
     'S20': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
+    'S21': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
     'S22': ['U01', 'U02',        'U04', 'U05', 'U06'],
     'S23': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
     'S24': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
 
 })
 
-session_dataset_mapping = Dispatcher({'S02': 'dev',
+session_dataset_mapping = Dispatcher({
+    'S01': 'eval',
+    'S02': 'dev',
     'S03': 'train',
     'S04': 'train',
     'S05': 'train',
@@ -117,12 +122,19 @@ session_dataset_mapping = Dispatcher({'S02': 'dev',
     'S18': 'train',
     'S19': 'train',
     'S20': 'train',
+    'S21': 'eval',
     'S22': 'train',
     'S23': 'train',
     'S24': 'train'
 })
 
 session_array_to_num_samples_mapping = Dispatcher({
+    'S01_U01': 152699840,
+    'S01_U02': 152699840,
+    'S01_U03': 152699840,
+    'S01_U04': 152699840,
+    'S01_U05': 152699840,
+    'S01_U06': 152699840,
     'S02_P': 142464640,
     'S02_P05': 142464640,
     'S02_P06': 142464640,
@@ -286,6 +298,12 @@ session_array_to_num_samples_mapping = Dispatcher({
     'S20_U04': 132542400,
     'S20_U05': 132542400,
     'S20_U06': 132542400,
+    'S21_U01': 147199840,
+    'S21_U02': 147199840,
+    'S21_U03': 147199840,
+    'S21_U04': 147199840,
+    'S21_U05': 147199840,
+    'S21_U06': 147199840,
     'S22_P': 149503360,
     'S22_P41': 149503360,
     'S22_P42': 149503360,
@@ -321,6 +339,41 @@ session_array_to_num_samples_mapping = Dispatcher({
 })
 
 
+def undamaged_example(
+        session_id,
+        array_id,
+        start,
+        end,
+):
+    """
+    S03	P09, P10, P11, P12	2:11:22	4,090	P11 dropped from min ~15 to ~30
+    S04	P09, P10, P11, P12	2:29:36	5,563
+    S05	P13, p14, p15, P16	2:31:44	4,939	U03 missing (crashed)
+    S06	P13, p14, p15, P16	2:30:06	5,097
+    S07	p17, P18, p19, P20	2:26:53	3,656
+    S17	p17, P18, p19, P20	2:32:16	5,892
+    S08	P21, P22, P23, P24	2:31:35	6,175
+    S16	P21, P22, P23, P24	2:32:19	5,004
+    S12	P33, P34, P35, p36	2:29:24	3,300	Last 15 minutes of U05 missing (Kinect was accidentally turned off)
+    S13	P33, P34, P35, p36	2:30:11	4,193
+    S19	p49, P50, P51, p52	2:32:38	4,292	P52 mic unreliable
+    S20	p49, P50, P51, p52	2:18:04	5,365
+    S18	p41, P42, p43, p44	2:42:23	4,907
+    S22	p41, P42, p43, p44	2:35:44	4,758	U03 missing
+    S23	p53, P54, P55, p56	2:58:43	7,054	Neighbour interrupts
+    S24	p53, P54, P55, p56	2:37:09	5,695	P54 mic unreliable, P53 disconnects for bathroom
+    """
+    # session_id = ex['session_id']
+
+    if session_id in ['S05', 'S22'] and array_id in ['U03']:
+        return False
+
+    # if session_id in ['S03'] and array_id in ['P11'] and time 15-30:
+    #     return False
+
+    return True
+
+
 def _get_session_speaker_mapping():
     """
     Helper for testcase and documentation.
@@ -328,7 +381,8 @@ def _get_session_speaker_mapping():
     >>> from IPython.lib.pretty import pprint
     >>> session_speaker_mapping_calc = _get_session_speaker_mapping()
     >>> pprint(session_speaker_mapping_calc)
-    {'S02': ['P05', 'P06', 'P07', 'P08'],
+    {'S01': ['P01', 'P02', 'P03', 'P04'],
+     'S02': ['P05', 'P06', 'P07', 'P08'],
      'S03': ['P09', 'P10', 'P11', 'P12'],
      'S04': ['P09', 'P10', 'P11', 'P12'],
      'S05': ['P13', 'P14', 'P15', 'P16'],
@@ -343,20 +397,19 @@ def _get_session_speaker_mapping():
      'S18': ['P41', 'P42', 'P43', 'P44'],
      'S19': ['P49', 'P50', 'P51', 'P52'],
      'S20': ['P49', 'P50', 'P51', 'P52'],
+     'S21': ['P45', 'P46', 'P47', 'P48'],
      'S22': ['P41', 'P42', 'P43', 'P44'],
      'S23': ['P53', 'P54', 'P55', 'P56'],
      'S24': ['P53', 'P54', 'P55', 'P56']}
-    >>> assert session_speaker_mapping_calc == session_speaker_mapping
+    >>> assert session_speaker_mapping_calc == session_speakers_mapping
 
     """
-    db = Chime5()
-    it_dev = db.get_iterator_by_names('dev')
-    it_train = db.get_iterator_by_names('train')
+    from nt.io.data_dir import database_jsons
+    from nt.database.chime5 import Chime5  # cyclic import
+    db = Chime5(database_jsons / 'chime5_orig.json')
+    it = db.get_iterator_by_names(db.database_dict['datasets'].keys())
     summary = defaultdict(set)
-    # ex = it_dev[0]
-    for ex in it_dev:
-        summary[ex['session_id']] |= set(ex['speaker_id'])
-    for ex in it_train:
+    for ex in it:
         summary[ex['session_id']] |= set(ex['speaker_id'])
     return dict(sorted(map((lambda item: (item[0], list(sorted(item[1])))), summary.items())))
 
@@ -368,7 +421,8 @@ def _get_session_dataset_mapping():
     >>> from IPython.lib.pretty import pprint
     >>> session_dataset_mapping_calc = _get_session_dataset_mapping()
     >>> pprint(session_dataset_mapping_calc)
-    {'S02': 'dev',
+    {'S01': 'eval',
+     'S02': 'dev',
      'S03': 'train',
      'S04': 'train',
      'S05': 'train',
@@ -383,15 +437,18 @@ def _get_session_dataset_mapping():
      'S18': 'train',
      'S19': 'train',
      'S20': 'train',
+     'S21': 'eval',
      'S22': 'train',
      'S23': 'train',
      'S24': 'train'}
     >>> assert session_dataset_mapping_calc == session_dataset_mapping
 
     """
-    db = Chime5()
+    from nt.database.chime5 import Chime5  # cyclic import
+    from nt.io.data_dir import database_jsons
+    db = Chime5(database_jsons / 'chime5_orig.json')
     summary = {}
-    for dataset in ['dev', 'train']:
+    for dataset in ['dev', 'train', 'eval']:
         it = db.get_iterator_by_names(dataset)
         for ex in it:
             assert dataset == summary.get(ex['session_id'], dataset), (
@@ -410,7 +467,13 @@ def _get_session_array_to_num_samples_mapping():
     >>> from IPython.lib.pretty import pprint
     >>> session_num_samples_mapping_calc = _get_session_array_to_num_samples_mapping()
     >>> pprint(session_num_samples_mapping_calc)
-    {'S02_P': 142464640,
+    {'S01_U01': 152699840,
+     'S01_U02': 152699840,
+     'S01_U03': 152699840,
+     'S01_U04': 152699840,
+     'S01_U05': 152699840,
+     'S01_U06': 152699840,
+     'S02_P': 142464640,
      'S02_P05': 142464640,
      'S02_P06': 142464640,
      'S02_P07': 142464640,
@@ -573,6 +636,12 @@ def _get_session_array_to_num_samples_mapping():
      'S20_U04': 132542400,
      'S20_U05': 132542400,
      'S20_U06': 132542400,
+     'S21_U01': 147199840,
+     'S21_U02': 147199840,
+     'S21_U03': 147199840,
+     'S21_U04': 147199840,
+     'S21_U05': 147199840,
+     'S21_U06': 147199840,
      'S22_P': 149503360,
      'S22_P41': 149503360,
      'S22_P42': 149503360,
@@ -609,6 +678,8 @@ def _get_session_array_to_num_samples_mapping():
 
     """
     from nt.io.audioread import audio_length
+    from nt.database.chime5 import Chime5  # cyclic import
+    from nt.io.data_dir import database_jsons
 
     from functools import lru_cache
 
@@ -616,9 +687,9 @@ def _get_session_array_to_num_samples_mapping():
     def get_audio_length(file):
         return audio_length(file)
 
-    db = Chime5()
+    db = Chime5(database_jsons / 'chime5_orig.json')
     summary = {}
-    for dataset in ['dev', 'train']:
+    for dataset in ['dev', 'train', 'eval']:
         it = db.get_iterator_by_names(dataset)
         for ex in it:
             for array_id, files in ex['audio_path']['observation'].items():
@@ -635,22 +706,23 @@ def _get_session_array_to_num_samples_mapping():
 
                 summary[f'{session_id}_{array_id}'] = length
 
-            for array_id, file in ex['audio_path']['worn_microphone'].items():
-                if len(file) == 1:
-                    # remove this, when jenkins has build the new json
-                    file, = file
+            if 'worn_microphone' in ex['audio_path']:
+                for array_id, file in ex['audio_path']['worn_microphone'].items():
+                    if len(file) == 1:
+                        # remove this, when jenkins has build the new json
+                        file, = file
 
-                length = get_audio_length(file)
+                    length = get_audio_length(file)
 
-                session_id = ex['session_id']
+                    session_id = ex['session_id']
 
-                key = f'{session_id}_P'
+                    key = f'{session_id}_P'
 
-                length_ = summary.get(key, length)
-                assert length_ == length, (length_, length_, key)
+                    length_ = summary.get(key, length)
+                    assert length_ == length, (length_, length_, key)
 
-                summary[key] = length
-                key = f'{session_id}_{array_id}'
-                summary[key] = length
+                    summary[key] = length
+                    key = f'{session_id}_{array_id}'
+                    summary[key] = length
 
     return dict(sorted(summary.items()))
