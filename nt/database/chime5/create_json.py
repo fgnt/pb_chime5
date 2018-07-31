@@ -258,10 +258,13 @@ def get_example(transcription, transcription_realigned, audio_path):
         dataset,
     )
     num_samples = get_num_samples(start_time_dict, end_time_dict)
-    empty_keys =  [key for mic_samples in num_samples.values()
-                   for key, value in mic_samples.items()
-                   if (isinstance(value, int) and value==0) or
-                   (isinstance(value, list) and value[0] == 0)]
+    empty_keys = [
+        key for key1, mic_samples in num_samples.items()
+        if key1 != 'original'
+        for key, value in mic_samples.items()
+        if (isinstance(value, int) and value == 0) or
+           (isinstance(value, list) and value[0] == 0)
+    ]
     for key in empty_keys:
         del num_samples[keys.OBSERVATION][key]
         del start_time_dict[keys.OBSERVATION][key]
@@ -393,7 +396,11 @@ def get_time_from_dict(time, speaker_ids, arrays, dataset):
             }
         }
 
-    time_dict = {**observation, **worn_microphone}
+    time_dict = {
+        **observation,
+        **worn_microphone,
+        'original': time['original']
+    }
 
     return time_dict
 
