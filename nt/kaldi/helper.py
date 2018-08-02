@@ -43,6 +43,19 @@ def excute_kaldi_commands(
         cmds, name='kaldi_cmd', env=None, log_dir=None, inputs=None,
         ignore_return_code=False
     ):
+    """
+
+    Args:
+        cmds:
+        name:
+        env: Can be generated with `get_kaldi_env()`. Replaces the `path.sh`.
+        log_dir:
+        inputs:
+        ignore_return_code:
+
+    Returns:
+
+    """
     plist = list()
     std_out_list = list()
     std_err_list = list()
@@ -69,7 +82,8 @@ def excute_kaldi_commands(
                                  cwd=WSJ_EG)
         plist.append(p)
     new_plist = plist.copy()
-    while(len(new_plist)):
+
+    while len(new_plist):
         plist = new_plist.copy()
         new_plist = list()
         for idx, p in enumerate(plist):
