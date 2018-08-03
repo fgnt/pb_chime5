@@ -1,8 +1,12 @@
 from pathlib import Path
-import subprocess
 import numpy as np
 from tempfile import NamedTemporaryFile
 from nt.kaldi.helper import get_kaldi_env, excute_kaldi_commands
+from nt.io.data_dir import kaldi_root
+from nt.kaldi import helper as kaldi_helper
+import logging
+
+LOG = logging.getLogger('Kaldi')
 
 
 def _import_alignment(ark, model_file, extract_cmd, extract_cmd_finish,
@@ -142,6 +146,7 @@ def import_occs(occs_file):
     occs = [occ.split('.')[0] for occ in occs]
     return np.array(occs, dtype=np.int32)
 
+
 def write_occs(occs, occs_file):
     """ Writes data to an oocs file
 
@@ -150,3 +155,44 @@ def write_occs(occs, occs_file):
         fid.write('[')
         fid.write(' '.join(map(str, occs)))
         fid.write(']')
+
+
+def compile_train_graphs(
+        tree_file: Path,
+        model_file: Path,
+        lexicon_fst_file: Path,
+        integer_transcription_file: Path,
+        output_graphs_file: Path
+):
+    """
+
+    Args:
+        tree_file: E.g. `s5/exp/tri4b/tree`
+        model_file: E.g. `s5/exp/tri4b/final.mdl`
+        lexicon_fst_file: E.g. `lang_path / 'L.fst'`
+        integer_transcription_file: E.g. `train.tra`
+        output_graphs_file: E.g. `graphs.fsts`
+
+    Returns:
+
+    """
+    # sym2int_pl_file = (
+    #     kaldi_root / "egs" / "wsj" / "s5" / "utils" / "sym2int.pl"
+    # )
+    # compile-train-graphs $dir/tree $dir/1.mdl data/L.fst ark:data/train.tra \
+    #    ark:$dir/graphs.fsts
+    command = (
+        f"compile-train-graphs "
+        f"{tree_file.resolve().absolute()} "
+        f"{model_file.resolve().absolute()} "
+        f"{lexicon_fst_file.resolve().absolute()} "
+        f"ark:{integer_transcription_file.resolve().absolute()} "
+        f"ark:{output_graphs_file.resolve().absolute()}"
+    )
+
+    # Why does this execute in `.../egs/wsj/s5`?
+    env = kaldi_helper.get_kaldi_env()
+    _, std_err_list, _ = kaldi_helper.excute_kaldi_commands(command, env=env)
+
+    for line in std_err_list[0].split('\n'):
+        LOG.info(line)
