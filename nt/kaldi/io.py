@@ -53,9 +53,11 @@ def write_keyed_text_file(text_file: Path, data_dict, from_list=True):
     Returns:
 
     """
+    # ToDo: CB: Why "from_list" and not automatic conversion?
+
     text_file = Path(text_file)
     with text_file.open('w') as f:
-        for k, v in data_dict.items():
+        for k, v in sorted(data_dict.items()):
             if from_list:
                 assert isinstance(v, list)
                 text = ' '.join(v)
