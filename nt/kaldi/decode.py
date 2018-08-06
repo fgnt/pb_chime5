@@ -103,6 +103,11 @@ def compute_scores(decode_dir, hclg_dir, ref_text, min_lmwt=8, max_lmwt=18,
                    force_scoring=False, build_tra=True, strict=True,
                    ignore_return_codes=True):
     LOG = logging.getLogger('computer_scores')
+
+    decode_dir = str(decode_dir)
+    hclg_dir = str(hclg_dir)
+    ref_text = str(ref_text)
+
     decode_dir = os.path.abspath(decode_dir)
     mkdir_p(os.path.join(decode_dir, 'scoring'))
     ref_file = f'{decode_dir}/scoring/test_filt.txt'
