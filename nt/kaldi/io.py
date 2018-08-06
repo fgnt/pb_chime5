@@ -45,6 +45,7 @@ def read_keyed_text_file(text_file: Path, to_list=True):
 def write_keyed_text_file(text_file: Path, data_dict, from_list=True):
     """
     Often used to write e.g. Kaldi `text`, `wav.scp` or `spk2utt`.
+    Sorting is enforced here to avoid subsequent calls to fix_data_dir.sh
 
     Args:
         text_file: Path with file in format: <utterance_id> <else>
