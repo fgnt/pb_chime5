@@ -155,7 +155,7 @@ class Chime5(HybridASRJSONDatabaseTemplate):
         if isinstance(session, str):
             session = (session, )
 
-        it = self.get_iterator_by_names(['train', 'dev', 'eval']).filter(
+        it = self.get_iterator_by_names(['eval', 'dev', 'train']).filter(
             lambda ex: ex['session_id'] in session, lazy=False
         )
         if drop_unknown_target_speaker:
