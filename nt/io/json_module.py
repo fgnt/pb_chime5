@@ -91,3 +91,15 @@ def load_json(path, **kwargs):
 
     with path.open() as fid:
         return json.load(fid, **kwargs)
+
+
+def loads_json(fid, **kwargs):
+    """ Loads a JSON file and returns it as a dict.
+
+    :param path: String or another object that is accepted by json.loads
+    :param kwargs: See ``json.dump()``.
+    :return: Content of the JSON file.
+    """
+    assert isinstance(fid, str), fid
+
+    return json.loads(fid, **kwargs)
