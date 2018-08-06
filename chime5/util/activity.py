@@ -168,7 +168,7 @@ from chime5.io.file_cache import file_cache
 from nt.io.data_dir import database_jsons
 
 
-@file_cache('get_all_activity_for_worn_alignments')
+@file_cache('get_all_activity_for_worn_alignments_with_eval')
 def get_all_activity_for_worn_alignments(
         perspective,
         *,
@@ -190,7 +190,7 @@ def get_all_activity_for_worn_alignments(
     from nt.database.chime5 import Chime5
     from nt.database.chime5.mapping import session_dataset_mapping
     if session_id is None:
-        it = Chime5(database_path).get_iterator_by_names(['train', 'dev'])
+        it = Chime5(database_path).get_iterator_by_names(['train', 'dev', 'eval'])
     else:
         if isinstance(session_id, str):
             session_id = [session_id]
@@ -311,6 +311,18 @@ def get_activity(
                 all_acitivity[session_id][p]['Noise'] = noise
         elif garbage_class is None:
             pass
+        elif isinstance(garbage_class, int) and garbage_class > 0:
+            for noise_idx in range(garbage_class):
+                for p in perspective_tmp:
+                    num_samples = session_array_to_num_samples_mapping[
+                        f'{session_id}_{p}']
+                    if use_ArrayIntervall:
+                        noise = zeros(shape=[num_samples])
+                        noise[:] = 1
+                    else:
+                        noise = np.ones(shape=[num_samples], dtype=dtype)
+
+                    all_acitivity[session_id][p][f'Noise{noise_idx}'] = noise
         else:
             raise ValueError(garbage_class)
 
