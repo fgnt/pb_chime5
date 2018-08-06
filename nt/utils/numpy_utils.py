@@ -36,6 +36,7 @@ def segment_axis_v2(x, length: int, shift: int, axis: int=-1,
     :param pad_value: The value to pad
     :return:
 
+    >>> # import cupy as np
     >>> segment_axis_v2(np.arange(10), 4, 2)  # simple example
     array([[0, 1, 2, 3],
            [2, 3, 4, 5],
@@ -132,6 +133,12 @@ def segment_axis_v2(x, length: int, shift: int, axis: int=-1,
     >>> x_ @ filter_[::-1]  # Equal to convolution
     array([ 1,  4, 10, 16, 22, 28, 34, 40, 46, 42, 27])
     """
+    
+    if x.__class__.__module__ == 'cupy.core.core':
+        import cupy
+        xp = cupy
+    else:
+        xp = np
 
     axis = axis % x.ndim
 
@@ -155,17 +162,17 @@ def segment_axis_v2(x, length: int, shift: int, axis: int=-1,
         if x.shape[axis] < length:
             npad = np.zeros([x.ndim, 2], dtype=np.int)
             npad[axis, 1] = length - x.shape[axis]
-            x = np.pad(x, pad_width=npad, mode=pad_mode, **pad_kwargs)
+            x = xp.pad(x, pad_width=npad, mode=pad_mode, **pad_kwargs)
         elif shift != 1 and (x.shape[axis] + shift - length) % shift != 0:
             npad = np.zeros([x.ndim, 2], dtype=np.int)
             npad[axis, 1] = shift - ((x.shape[axis] + shift - length) % shift)
-            x = np.pad(x, pad_width=npad, mode=pad_mode, **pad_kwargs)
+            x = xp.pad(x, pad_width=npad, mode=pad_mode, **pad_kwargs)
 
     elif end == 'conv_pad':
         assert shift == 1, shift
         npad = np.zeros([x.ndim, 2], dtype=np.int)
         npad[axis, :] = length - shift
-        x = np.pad(x, pad_width=npad, mode=pad_mode, **pad_kwargs)
+        x = xp.pad(x, pad_width=npad, mode=pad_mode, **pad_kwargs)
     elif end is None:
         assert (x.shape[axis] + shift - length) % shift == 0, \
             '{} = x.shape[axis]({}) + shift({}) - length({})) % shift({})' \
@@ -191,7 +198,11 @@ def segment_axis_v2(x, length: int, shift: int, axis: int=-1,
     # return np.lib.stride_tricks.as_strided(
     #     x, shape=shape, strides=strides)
     try:
-        x = np.lib.stride_tricks.as_strided(x, strides=strides, shape=shape)
+        if xp == np:
+            x = np.lib.stride_tricks.as_strided(x, strides=strides, shape=shape)
+        else:
+            x = x.view()
+            x._set_shape_and_strides(strides=strides, shape=shape)
         # return np.ndarray.__new__(np.ndarray, strides=strides,
         #                           shape=shape, buffer=x, dtype=x.dtype)
     except Exception:
@@ -204,7 +215,7 @@ def segment_axis_v2(x, length: int, shift: int, axis: int=-1,
         print('length:', length, '<- Has to be positive.')
         raise
     if do_flip:
-        return np.flip(x, axis=axis)
+        return xp.flip(x, axis=axis)
     else:
         return x
 
