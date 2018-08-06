@@ -154,6 +154,8 @@ class BaseIterator:
         applying expensive map functions.
         :param filter_fn: function to filter examples, takes example as input
             and returns True if example should be kept, else False.
+        :param lazy: If True, iterator does not support `len(it)` anymore but
+            computation is performed once the iterator visits the item.
         :return: FilterIterator iterating over filtered examples.
         """
         if lazy:
@@ -238,7 +240,7 @@ class BaseIterator:
         else:
             raise ValueError(reshuffle, self)
 
-    def groupby(self, function):
+    def groupby(self, group_fn):
         """
         >>> from IPython.lib.pretty import pprint
         >>> examples = {'a': {'z': 1}, 'b': {'z': 2}, 'c': {'z': 1}, 'd': {'z': 1}, 'e': {'z': 3}}
@@ -256,7 +258,7 @@ class BaseIterator:
           ExamplesIterator(len=5)
         SliceIterator([4])
         """
-        iterable = enumerate(list(self.map(function)))
+        iterable = enumerate(list(self.map(group_fn)))
         groups = collections.defaultdict(list)
         for k, g in itertools.groupby(iterable, lambda ele: ele[1]):
             indices = [ele[0] for ele in g]
@@ -365,6 +367,25 @@ class BaseIterator:
         """
         i = rng_state.choice(len(self), size=size, replace=replace)
         return self[i]
+
+    def apply(self, apply_fn: callable):
+        """Allows to apply functions to the complete iterator, not to the
+        examples itself.
+
+        Args:
+            apply_fn: For now, it is a single function, e.g.
+                `lambda it: it.shard(num_shards, shard_index)` but can
+                potentially be a list in future implementations.
+
+        Returns:
+
+        """
+        if apply_fn is None:
+            return self
+        elif isinstance(apply_fn, list):
+            raise NotImplementedError
+        else:
+            return apply_fn(self)
 
 
 class ExamplesIterator(BaseIterator):
@@ -554,6 +575,8 @@ class SliceIterator(BaseIterator):
                 # Assume sequence of str
                 keys = {k: i for i, k in enumerate(input_iterator.keys())}
                 self.slice = operator.itemgetter(*slice)(keys)
+                if len(slice) == 1:
+                    self.slice = (self.slice,)
             else:
                 raise
 
