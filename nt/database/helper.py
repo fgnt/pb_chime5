@@ -54,6 +54,8 @@ def check_audio_files_exist(
         speedup=None,
 ):
     """
+    No structure for the database_dict is assumed. It will just search for all
+    string values ending with a certain file type (e.g. wav).
 
     >>> check_audio_files_exist({2: [1, '/net/db/timit/pcm/train/dr1/fcjf0/sa1.wav', 'abc.wav']})
     Traceback (most recent call last):
