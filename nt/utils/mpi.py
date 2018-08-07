@@ -7,7 +7,21 @@ Communication of generic Python objects:
 Communication of buffer-like objects:
     You have to use method names starting with an upper-case ...
 
+If you want to implement Round-Robin execution, you can try this::
+    for example in iterator[RANK::SIZE]:
+        pass
 """
+
+__all__ = [
+    'RANK',
+    'SIZE',
+    'MASTER',
+    'IS_MASTER',
+    'barrier',
+    'bcast',
+    'gather',
+    'map_unordered',
+]
 
 _mpi_available = True
 
@@ -54,6 +68,10 @@ def barrier():
 
 def bcast(obj, root: int=MASTER):
     return COMM.bcast(obj, root)
+
+
+def gather(obj, root: int=MASTER):
+    return COMM.gather(obj, root=root)
 
 
 def map_unordered(func, iterator, progress_bar=False):
