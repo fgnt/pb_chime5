@@ -5,6 +5,7 @@ from nt.kaldi.helper import get_kaldi_env, excute_kaldi_commands
 from nt.io.data_dir import kaldi_root
 from nt.kaldi import helper as kaldi_helper
 import logging
+import sys
 
 LOG = logging.getLogger('Kaldi')
 
@@ -165,6 +166,7 @@ def compile_train_graphs(
         output_graphs_file: Path
 ):
     """
+    Initial step to prepare for forced alignment.
 
     Args:
         tree_file: E.g. `s5/exp/tri4b/tree`
@@ -176,11 +178,6 @@ def compile_train_graphs(
     Returns:
 
     """
-    # sym2int_pl_file = (
-    #     kaldi_root / "egs" / "wsj" / "s5" / "utils" / "sym2int.pl"
-    # )
-    # compile-train-graphs $dir/tree $dir/1.mdl data/L.fst ark:data/train.tra \
-    #    ark:$dir/graphs.fsts
     command = (
         f"compile-train-graphs "
         f"{tree_file.resolve().absolute()} "
@@ -192,7 +189,62 @@ def compile_train_graphs(
 
     # Why does this execute in `.../egs/wsj/s5`?
     env = kaldi_helper.get_kaldi_env()
-    _, std_err_list, _ = kaldi_helper.excute_kaldi_commands(command, env=env)
+    _, std_err_list, _ = kaldi_helper.excute_kaldi_commands(
+        command,
+        name=sys._getframe().f_code.co_name,
+        env=env
+    )
+
+    for line in std_err_list[0].split('\n'):
+        LOG.info(line)
+
+
+def forced_alignment(
+        log_posteriors_ark_file: Path,
+        graphs_file: Path,
+        model_file: Path,
+        alignment_dir: Path,
+        beam: int=200,
+        retry_beam: int=400,
+        part=1
+):
+    """
+
+    Args:
+        log_posteriors_ark_file: E.g. `log_posteriors.ark`
+        graphs_file: E.g. `graphs.fsts`
+        model_file: E.g. `s5/exp/tri4b/final.mdl`
+        alignment_dir:
+        beam: Kaldi recipes (e.g. WSJ) typically use 10.
+        retry_beam: Kaldi recipes (e.g. WSJ) typically use 40.
+        part: Could be used for parallel processing.
+
+    Returns:
+
+    """
+    if not part == 1:
+        raise NotImplementedError(
+            "I believe that the `log_posteriors_ark_file` and the "
+            "`graphs_file` already needs to be chunked to support parallelism."
+        )
+
+    command = (
+        'align-compiled-mapped '
+        f'--beam={beam} '
+        f'--retry-beam={retry_beam} '
+        f'{model_file} '
+        f'ark:{graphs_file} '
+        f'ark:{log_posteriors_ark_file} '
+        f'ark,t:|gzip -c > {alignment_dir}/ali.{part}.gz'
+    )
+
+    # Why does this execute in `.../egs/wsj/s5`?
+    env = kaldi_helper.get_kaldi_env()
+    _, std_err_list, _ = kaldi_helper.excute_kaldi_commands(
+        command,
+        name=sys._getframe().f_code.co_name,
+        env=env
+    )
 
     for line in std_err_list[0].split('\n'):
         LOG.info(line)
