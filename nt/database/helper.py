@@ -94,12 +94,15 @@ def check_audio_files_exist(
     )
 
     if speedup and 'thread' == speedup:
-        from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor() as pool:
-            list(pool.map(
+        import os
+        from multiprocessing.pool import ThreadPool
+
+        with ThreadPool(os.cpu_count()) as pool:
+            for _ in pool.imap_unordered(
                 body,
                 to_check.items()
-            ))
+            ):
+                pass
 
     elif speedup is None:
         for file, key_path in to_check.items():
