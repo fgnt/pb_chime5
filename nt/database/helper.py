@@ -12,7 +12,9 @@ from nt.io.json_module import dump_json
 
 
 # http://codereview.stackexchange.com/questions/21033/flatten-dictionary-in-python-functional-style
-def flatten_with_key_paths(d, sep=None, flat_list=True, reverse_key_value=False):
+def flatten_with_key_paths(
+        d, sep=None, flat_list=True, reverse_key_value=False, condition_fn=None
+):
     """
     Example:
     >>> d = {'a': 1, 'c': {'a': 2, 'b': {'x': 5, 'y' : 10}}, 'd': [1, 2, 3]}
@@ -40,10 +42,11 @@ def flatten_with_key_paths(d, sep=None, flat_list=True, reverse_key_value=False)
                 fetch(prefix + (str(k),), v)
         else:
             key = prefix if sep is None else sep.join(prefix)
-            if reverse_key_value:
-                res[v0] = key
-            else:
-                res[key] = v0
+            if condition_fn is None or condition_fn(key, v0):
+                if reverse_key_value:
+                    res[v0] = key
+                else:
+                    res[key] = v0
 
     fetch((), d)
     return res
@@ -82,13 +85,13 @@ def check_audio_files_exist(
         file, key_path = file_key_path
         assert path_exists(file), (file, key_path)
 
+    def condition_fn(key_path, file):
+        return isinstance(file, (str, Path)) and str(file).endswith('.wav')
+
     # In case of CHiME5 flatten_with_key_paths is the bottleneck of this function
-    to_check = {
-        file: key_path
-        for file, key_path in flatten_with_key_paths(database_dict, reverse_key_value=True).items()
-        if isinstance(file, (str, Path))
-        if str(file).endswith('.wav')
-    }
+    to_check = flatten_with_key_paths(
+        database_dict, reverse_key_value=True, condition_fn=condition_fn
+    )
 
     if speedup and 'thread' == speedup:
         from concurrent.futures import ThreadPoolExecutor
