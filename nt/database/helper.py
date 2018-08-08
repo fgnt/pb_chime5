@@ -97,7 +97,15 @@ def check_audio_files_exist(
         import os
         from multiprocessing.pool import ThreadPool
 
-        with ThreadPool(os.cpu_count()) as pool:
+        # Use this number because ThreadPoolExecutor is often
+        # used to overlap I/O instead of CPU work.
+        # See: concurrent.futures.ThreadPoolExecutor
+        # max_workers = (os.cpu_count() or 1) * 5
+
+        # Not sufficiently benchmarked both, this is more conservative.
+        max_workers = (os.cpu_count() or 1)
+
+        with ThreadPool(max_workers) as pool:
             for _ in pool.imap_unordered(
                 body,
                 to_check.items()
