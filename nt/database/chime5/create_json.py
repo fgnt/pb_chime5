@@ -382,7 +382,8 @@ def get_duration(start_time, end_time):
 def get_time_from_dict(time, speaker_ids, arrays, dataset):
     observation = {
         keys.OBSERVATION: {
-            array: [time[array]] * NUM_MICS
+            array: time[array]
+            # array: [time[array]] * NUM_MICS
             for array in arrays
         }
     }
