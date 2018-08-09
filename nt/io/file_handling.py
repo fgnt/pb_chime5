@@ -61,7 +61,7 @@ def symlink(source, link_name):
     except FileExistsError:
         link_name = Path(link_name)
 
-        # link_name.exists() is False when the link does not exsist
+        # link_name.exists() is False when the link does not exist
         if link_name.is_symlink():
             link = os.readlink(link_name)
             if link == str(source):
@@ -77,6 +77,6 @@ def symlink(source, link_name):
         else:
             assert not link_name.parent.exists(), 'Should not happen.'
             raise FileNotFoundError(
-                f'The parent directory of the dst {link_name} does not exsist'
+                f'The parent directory of the dst {link_name} does not exist'
                 f'{link_name}'
             )
