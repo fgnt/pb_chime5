@@ -48,12 +48,12 @@ def symlink(source, link_name):
     Create a link to source at link_name.
     Similar to "ln -s <source> <link_name>"
 
-    Special props:
+    Special properties:
      - Try os.symlink
      - except link_name already point to source: pass
-     - except link_name exsists and point somewhere else: ImproveExceptionMsg
-     - except link_name exsists and is not a symlink: reraise
-     - except link_name.parent does not exsists: ImproveExceptionMsg
+     - except link_name exists and point somewhere else: ImproveExceptionMsg
+     - except link_name exists and is not a symlink: reraise
+     - except link_name.parent does not exists: ImproveExceptionMsg
 
     """
     try:
