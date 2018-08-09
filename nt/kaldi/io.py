@@ -42,27 +42,31 @@ def read_keyed_text_file(text_file: Path, to_list=True):
             }
 
 
-def write_keyed_text_file(text_file: Path, data_dict, from_list=True):
+def write_keyed_text_file(text_file: Path, data_dict):
     """
     Often used to write e.g. Kaldi `text`, `wav.scp` or `spk2utt`.
     Sorting is enforced here to avoid subsequent calls to fix_data_dir.sh
 
+    For some file names, it tries to perform some kind of sanity check to match
+    the Kaldi file standards.
+
     Args:
         text_file: Path with file in format: <utterance_id> <else>
-        from_list: Asserts each value is a list. Merges values with space.
 
     Returns:
 
     """
-    # ToDo: CB: Why "from_list" and not automatic conversion?
-    # TODO: We could add sanity checks, if the file name implies the format.
-
     text_file = Path(text_file)
     with text_file.open('w') as f:
-        for k, v in sorted(data_dict.items()):
-            if from_list:
-                assert isinstance(v, list)
-                text = ' '.join(v)
+        for k, text in sorted(data_dict.items()):
+            if isinstance(text, list):
+                text = ' '.join(text)
+            if text_file.name == 'utt2dur':
+                text = float(text)
+                assert 0. < text < 1000., f'Strange duration: {k}: {text} s'
+                f.write(f'{k} {text:.2f}\n')
+            elif text_file.name == 'spk2gender':
+                text = dict(male='m', female='f', m='m', f='f',)[text]
+                f.write(f'{k} {text}\n')
             else:
-                text = v
-            f.write(f'{k} {text}\n')
+                f.write(f'{k} {text}\n')
