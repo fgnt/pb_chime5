@@ -1,4 +1,5 @@
 from pathlib import Path
+from nt.utils.mapping import Dispatcher
 
 
 def word2id(words_txt):
@@ -57,16 +58,25 @@ def write_keyed_text_file(text_file: Path, data_dict):
 
     """
     text_file = Path(text_file)
-    with text_file.open('w') as f:
-        for k, text in sorted(data_dict.items()):
-            if isinstance(text, list):
-                text = ' '.join(text)
-            if text_file.name == 'utt2dur':
-                text = float(text)
-                assert 0. < text < 1000., f'Strange duration: {k}: {text} s'
-                f.write(f'{k} {text:.2f}\n')
-            elif text_file.name == 'spk2gender':
-                text = dict(male='m', female='f', m='m', f='f',)[text]
-                f.write(f'{k} {text}\n')
+    data = []
+    for k, text in sorted(data_dict.items()):
+        if isinstance(text, list):
+            text = ' '.join(text)
+        if text_file.name == 'utt2dur':
+            try:
+                text_number = float(text)
+            except Exception:
+                raise ValueError(
+                    f'The text "{text}" for {k} that should be written to '
+                    f'{text_file} does not represent a number.'
+                )
             else:
-                f.write(f'{k} {text}\n')
+                assert 0. < text_number < 1000., f'Strange duration: {k}: {text_number} s'
+        elif text_file.name == 'spk2gender':
+            text = Dispatcher(male='m', female='f', m='m', f='f',)[text]
+        else:
+            pass
+
+        data.append(f'{k} {text}')
+
+    text_file.write_text('\n'.join(data))
