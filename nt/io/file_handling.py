@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 import os
-import pathlib
+from pathlib import Path
 
 
 def mkdir_p(path):
@@ -9,7 +9,7 @@ def mkdir_p(path):
     :param path: path to create
     :return: None
     """
-    if isinstance(path, pathlib.Path):
+    if isinstance(path, Path):
         path = str(path)
 
     try:
@@ -41,3 +41,42 @@ def change_directory(new_path):
         yield
     finally:
         os.chdir(saved_path)
+
+
+def symlink(source, link_name):
+    """
+    Create a link to source at link_name.
+    Similar to "ln -s <source> <link_name>"
+
+    Special props:
+     - Try os.symlink
+     - except link_name already point to source: pass
+     - except link_name exsists and point somewhere else: ImproveExceptionMsg
+     - except link_name exsists and is not a symlink: reraise
+     - except link_name.parent does not exsists: ImproveExceptionMsg
+
+    """
+    try:
+        os.symlink(source, link_name)
+    except FileExistsError:
+        link_name = Path(link_name)
+
+        # link_name.exists() is False when the link does not exsist
+        if link_name.is_symlink():
+            link = os.readlink(link_name)
+            if link == str(source):
+                pass
+            else:
+                raise FileExistsError(
+                    'File exist.\n'
+                    f'Try:       {source} -> {link_name}\n'
+                    f'Currently: {link} -> {link_name}'
+                )
+        elif link_name.exists():
+            raise
+        else:
+            assert not link_name.parent.exists(), 'Should not happen.'
+            raise FileNotFoundError(
+                f'The parent directory of the dst {link_name} does not exsist'
+                f'{link_name}'
+            )
