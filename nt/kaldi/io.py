@@ -55,6 +55,7 @@ def write_keyed_text_file(text_file: Path, data_dict, from_list=True):
 
     """
     # ToDo: CB: Why "from_list" and not automatic conversion?
+    # TODO: We could add sanity checks, if the file name implies the format.
 
     text_file = Path(text_file)
     with text_file.open('w') as f:
