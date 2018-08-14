@@ -159,8 +159,13 @@ class BaseIterator:
         :return: FilterIterator iterating over filtered examples.
         """
         if lazy:
+            # Input iterator can have `len`, but this is not needed.
+            # Output still does not have `len`.
             return FilterIterator(filter_fn, self)
         else:
+            # Input iterator needs to have `len`.
+            # Output still has `len`, following line should not raise errors.
+            _ = len(self)
             return self[[i for i, e in enumerate(self) if filter_fn(e)]]
 
     def concatenate(self, *others):
