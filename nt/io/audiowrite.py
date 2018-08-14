@@ -24,6 +24,14 @@ def dump_audio(
     If normalize is False and the dytpe is float, the values of obj should be in
     the range [-1, 1).
 
+    Params:
+        obj: Shape (channels, samples) or (samples,)
+        path:
+        sample_rate:
+        dtype:
+        start:
+        normalize:
+
     >>> from nt.utils.process_caller import run_process
     >>> from nt.io import load_audio
     >>> a = np.array([1, 2, -4, 4], dtype=np.int16)
