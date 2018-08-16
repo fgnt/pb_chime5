@@ -150,8 +150,15 @@ class BaseIterator:
 
     def filter(self, filter_fn, lazy=True):
         """
-        Filtering examples. If possible this method should be called before
-        applying expensive map functions.
+        The filter_fn consumes an example. If the filter_fn returns True, we
+        keep the example. If it is False, we drop the example.
+
+        Filtering examples. If using lazy=False this method should be called
+        before applying expensive map functions.
+
+        Syntax is inspired by:
+        https://docs.python.org/3/library/functions.html#filter
+
         :param filter_fn: function to filter examples, takes example as input
             and returns True if example should be kept, else False.
         :param lazy: If True, iterator does not support `len(it)` anymore but
@@ -159,13 +166,19 @@ class BaseIterator:
         :return: FilterIterator iterating over filtered examples.
         """
         if lazy:
-            # Input iterator can have `len`, but this is not needed.
-            # Output still does not have `len`.
+            # Input iterator can be indexable, but this is not needed.
+            # Output still does not have `len` and is not indexable.
             return FilterIterator(filter_fn, self)
         else:
-            # Input iterator needs to have `len`.
+            # Input iterator needs to be indexable.
             # Output still has `len`, following line should not raise errors.
-            _ = len(self)
+            try:
+                _ = self.keys()
+            except Exception:
+                raise RuntimeError(
+                    'You can only use lazy=False if the incoming iterator is '
+                    'indexable.'
+                )
             return self[[i for i, e in enumerate(self) if filter_fn(e)]]
 
     def concatenate(self, *others):
