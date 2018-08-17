@@ -1,3 +1,10 @@
+"""
+ToDo:
+ - remove redundant information for array start, end and num samples
+ - add worn eval when they get released
+ -
+"""
+
 import logging
 import os
 from datetime import datetime
@@ -27,12 +34,12 @@ class CHiME5_Keys:
     """
     >>> print(dir(keys))
     """
-    WORN = 'worn_microphone'
+    WORN = 'worn'
     TARGET_SPEAKER = 'target_speaker'
     NOTES = 'notes'
     SESSION_ID = 'session_id'
     LOCATION = 'location'
-    REF_ARRAY = 'reference_array'
+    REFERENCE_ARRAY = 'reference_array'
 
 
 for k in dir(keys):
@@ -71,16 +78,21 @@ set_length = dict(
 def create_database(database_path, transcription_realigned_path):
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
     datasets = dict()
+    alias = dict()
 
     transcription_realigned_pathes = Dispatcher({
         p.name: p
         for p in Path(transcription_realigned_path).glob('**/*.json')
     })
+    from .create_kaldi_text import get_kaldi_transcriptions
+    kaldi_transcriptions = get_kaldi_transcriptions()
 
     for dataset in set_length.keys():
-        out_dict = get_dataset(database_path, dataset, transcription_realigned_pathes)
-        datasets[dataset] = out_dict
-    return {keys.DATASETS: datasets}
+        out_dict = get_dataset(database_path, dataset, transcription_realigned_pathes, kaldi_transcriptions)
+        for session_id, v in out_dict.items():
+            datasets[session_id] = v
+        alias[dataset] = list(out_dict.keys())
+    return {keys.DATASETS: datasets, 'alias': alias}
 
 
 def transform_transciption_list(transciption_list):
@@ -163,7 +175,7 @@ def load_transciption_json(path):
     return transform_transciption_list(load_json(path))
 
 
-def get_dataset(database_path, dataset, transcription_realigned_path):
+def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_transcriptions):
     database_path = database_path / 'CHiME5'
     dataset_transciption_path = database_path / 'transcriptions' / dataset
     dataset_transciption_realigned_path = transcription_realigned_path #  / dataset
@@ -171,6 +183,7 @@ def get_dataset(database_path, dataset, transcription_realigned_path):
     json_dict = dict()
     for session_path in dataset_transciption_path.glob('*.json'):
         session_id = session_path.name.split('.')[0]
+        json_dict[session_id] = {}
         trans = load_transciption_json(session_path)
         trans_realigned = load_transciption_json(dataset_transciption_realigned_path[session_path.name])
 
@@ -186,14 +199,14 @@ def get_dataset(database_path, dataset, transcription_realigned_path):
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(os.cpu_count()) as ex:
             for example_id, example in ex.map(
-                    partial(get_example, audio_path=dataset_audio_path),
+                    partial(get_example, audio_path=dataset_audio_path, kaldi_transcriptions=kaldi_transcriptions),
                     trans, trans_realigned
             ):
-                json_dict[example_id] = example
+                json_dict[session_id][example_id] = example
     return json_dict
 
 
-def get_example(transcription, transcription_realigned, audio_path):
+def get_example(transcription, transcription_realigned, audio_path, kaldi_transcriptions):
     from nt.database.chime5.mapping import session_speakers_mapping
 
     session_id = transcription['session_id']
@@ -283,25 +296,33 @@ def get_example(transcription, transcription_realigned, audio_path):
     if session_id in NOTES_DICT:
         notes.append(NOTES_DICT[session_id])
 
-    if EVAL_TRANSCRIPTIONS_MISSING and session_id == 'eval':
-        assert transcription['words'] == "", transcription['words']
-    else:
-        words_dict = {keys.TRANSCRIPTION: transcription['words']}
-
-    return example_id, {
+    d = {
         CH_K.SESSION_ID: session_id,
-        CH_K.TARGET_SPEAKER: target_speaker_id,
-        keys.SPEAKER_ID: speaker_ids,
-        keys.GENDER: gender,
+        # CH_K.TARGET_SPEAKER: target_speaker_id,
         keys.NUM_SAMPLES: num_samples,
         keys.AUDIO_PATH: audio_path_dict,
         CH_K.NOTES: notes,
         keys.START: start_time_dict,
         keys.END: end_time_dict,
-        CH_K.REF_ARRAY: ref_array,
-        CH_K.LOCATION: location,
-        **words_dict,
+        # CH_K.REFERENCE_ARRAY: ref_array,
+        keys.TRANSCRIPTION: transcription['words'],
     }
+    if target_speaker_id == 'unknown':
+        pass
+    else:
+        d[keys.SPEAKER_ID] = target_speaker_id
+        d[keys.GENDER] = gender[target_speaker_id]
+
+    if example_id in kaldi_transcriptions:
+        d[keys.KALDI_TRANSCRIPTION] = kaldi_transcriptions[example_id]
+
+    if location == 'unknown':
+        d[CH_K.LOCATION] = location
+
+    if ref_array == 'unknown':
+        d[CH_K.REFERENCE_ARRAY] = location
+
+    return example_id, d
 
 
 def time_to_string_format(time):
