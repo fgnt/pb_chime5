@@ -123,6 +123,71 @@ def beamform_mvdr_souden_from_masks(
         return bf.X_hat_mvdr_souden
 
 
+def beamform_lcmv_souden_from_masks(
+        Y,
+        X_mask,
+        I_mask,
+        N_mask,
+        ban=False,
+        debug=False,
+):
+    if np.ndim(Y) == 4:
+        Y = morph('1DTF->FDT', Y)
+    else:
+        Y = morph('DTF->FDT', Y)
+
+    if np.ndim(X_mask) == 4:
+        X_mask = morph('1DTF->FT', X_mask, reduce=np.median)
+        I_mask = morph('1DTF->FT', I_mask, reduce=np.median)
+        N_mask = morph('1DTF->FT', N_mask, reduce=np.median)
+    elif np.ndim(X_mask) == 3:
+        X_mask = morph('DTF->FT', X_mask, reduce=np.median)
+        I_mask = morph('DTF->FT', I_mask, reduce=np.median)
+        N_mask = morph('DTF->FT', N_mask, reduce=np.median)
+    elif np.ndim(X_mask) == 2:
+        X_mask = morph('TF->FT', X_mask, reduce=np.median)
+        I_mask = morph('TF->FT', I_mask, reduce=np.median)
+        N_mask = morph('TF->FT', N_mask, reduce=np.median)
+    else:
+        raise NotImplementedError(X_mask.shape)
+
+    Cov_X = beamformer.get_power_spectral_density_matrix(Y, X_mask)
+    Cov_I = beamformer.get_power_spectral_density_matrix(Y, I_mask)
+    Cov_N = beamformer.get_power_spectral_density_matrix(Y, N_mask)
+
+    w_lcmv_souden = beamformer.get_lcmv_vector_souden(
+        Cov_X, Cov_I, Cov_N
+    )
+    if ban:
+        w_lcmv_souden_ban = beamformer.blind_analytic_normalization(
+            w_lcmv_souden,
+            Cov_I + Cov_N
+        )
+        w = w_lcmv_souden_ban
+    else:
+        w = w_lcmv_souden
+
+    return beamformer.apply_beamforming_vector(w, Y).T
+
+# def beamform_lcmv_souden_from_masks(
+#         Y,
+#         X_mask,
+#         N_mask,
+#         ban=False,
+#         debug=False,
+# ):
+#     # bf = _Beamformer(
+#     #     Y=Y,
+    #     X_mask=X_mask,
+    #     N_mask=N_mask,
+    #     debug=debug,
+    # )
+    # if ban:
+    #     return bf.X_hat_lcmv_souden_ban
+    # else:
+    #     return bf.X_hat_lcmv_souden
+
+
 def beamform_gev_from_masks(
         Y,
         X_mask,
