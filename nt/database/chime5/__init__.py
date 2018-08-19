@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import functools
 
 import numpy as np
 from nt.database import HybridASRJSONDatabaseTemplate
@@ -14,6 +15,7 @@ from nt.options import Options
 from nt.utils.numpy_utils import segment_axis_v2
 from nt.utils.numpy_utils import pad_axis
 import nt.io
+import numbers
 
 kaldi_root = Path('/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/')
 
@@ -155,11 +157,26 @@ class Chime5(HybridASRJSONDatabaseTemplate):
         if isinstance(session, str):
             session = (session, )
 
-        it = self.get_iterator_by_names(['eval', 'dev', 'train']).filter(
-            lambda ex: ex['session_id'] in session, lazy=False
-        )
+        it = self.get_iterator_by_names(session)
+
         if drop_unknown_target_speaker:
-            it = it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False)
+            it = it.filter(lambda ex: ex['transcription'] != '[redacted]', lazy=False)
+
+        if context_samples is not 0 or adjust_times:
+            it = it.map(backup_orig_start_end)
+
+        if adjust_times:
+            if adjust_times is True:
+                assert drop_unknown_target_speaker, (
+                    'adjust_times is undefined for '
+                    'ex["target_speaker"] == "unknown". '
+                    'Set adjust_times to True.'
+                )
+                it = it.map(adjust_start_end)
+            elif adjust_times == 'js':
+                it = it.map(get_adjust_time_js())
+            else:
+                raise ValueError(adjust_times)
 
         if context_samples is not 0:
             # adjust_times should be before AddContext, because AddContext
@@ -168,14 +185,6 @@ class Chime5(HybridASRJSONDatabaseTemplate):
                 context_samples,
                 equal_start_context=equal_start_context,
             ))
-
-        if adjust_times:
-            assert drop_unknown_target_speaker, (
-                'adjust_times is undefined for '
-                'ex["target_speaker"] == "unknown". '
-                'Set adjust_times to True.'
-            )
-            it = it.map(adjust_start_end)
 
         if audio_read is False:
             pass
@@ -319,15 +328,22 @@ def recursive_transform(func, dict_list_val, start, end, list2array=False):
                 )
                 for l, s, e in zip(dict_list_val, start, end)
             ]
-            if list2array:
-                return np.array(l)
-            return l
         else:
-            assert False, \
-                'CB: This branch has no valid code. Fix the code. ' \
-                'I do not know when this branch is reached.'
-            return recursive_transform(func, dict_list_val[0], start, end,
-                                        list2array)
+            # Broadcast start and end for the array channels
+            assert isinstance(start, numbers.Integral) and isinstance(end, numbers.Integral), (start, end, type(start), type(end))
+            l = [
+                recursive_transform(
+                    func,
+                    l,
+                    start=start,
+                    end=end,
+                    list2array=list2array,
+                )
+                for l in dict_list_val
+            ]
+        if list2array:
+            return np.array(l)
+        return l
     elif isinstance(dict_list_val, (list, tuple)):
         assert False, \
             'CB: This branch is unreachable. ' \
@@ -743,8 +759,6 @@ def adjust_start_end(ex):
         array_start = ex[K.START]['observation'][array_id]
         array_end = ex[K.END]['observation'][array_id]
 
-        array_start, = list(set(array_start))  # assert len 1
-        array_end, = list(set(array_end))  # assert len 1
 
         array_start, array_end = _adjust_start_end(
             worn_start,
@@ -752,9 +766,9 @@ def adjust_start_end(ex):
             array_start,
             array_end,
         )
-        ex[K.START]['observation'][array_id] = [array_start] * 4
-        ex[K.END]['observation'][array_id] = [array_end] * 4
-        ex[K.NUM_SAMPLES]['observation'][array_id] = [array_end - array_start] * 4
+        ex[K.START]['observation'][array_id] = array_start
+        ex[K.END]['observation'][array_id] = array_end
+        ex[K.NUM_SAMPLES]['observation'][array_id] = array_end - array_start
 
     for mic_id in ex['audio_path'].get('worn_microphone', {}).keys():
         array_start, array_end = _adjust_start_end(
@@ -767,6 +781,47 @@ def adjust_start_end(ex):
         ex[K.END]['worn_microphone'][mic_id] = array_end
         ex[K.NUM_SAMPLES]['worn_microphone'][mic_id] = array_end - array_start
     return ex
+
+
+def get_adjust_time_js():
+
+    @functools.lru_cache(1)
+    def get_json(session_id):
+        json = load_json(f'~/net/vol/jensheit/chime5_playground/data/chime5_js_jsons/{session_id}_js.json')
+        json = {
+            e['example_id']: e
+            for e in json
+        }
+        return json
+
+    def adjust_time_js(ex):
+        session_id = ex['session_id']
+        example_id = ex['example_id']
+        times_js = get_json(session_id)[example_id]
+
+        for array_id in times_js['start_time'].keys():
+            # delta_start = times_js['start_time_js'][array_id] - times_js['start_time'][array_id]
+            # delta_end = times_js['end_time_js'][array_id] - times_js['end_time'][array_id]
+
+            if array_id[0] == 'P':
+                array_type = 'worn_microphone'
+            elif array_id[0] == 'U':
+                array_type = 'observation'
+            elif array_id == 'original':
+                array_type = None
+            else:
+                raise ValueError(array_id, example_id)
+
+            if array_type is not None:
+                assert ex['start'][array_type][array_id] == times_js['start_time'][array_id], (ex['start'][array_type][array_id], times_js['start_time'][array_id], array_type, example_id)
+                assert ex['end'][array_type][array_id] == times_js['end_time'][array_id], (ex['end'][array_type][array_id], times_js['end_time'][array_id], array_type, example_id)
+
+                ex['start'][array_type][array_id] = times_js['start_time_js'][array_id]
+                ex['end'][array_type][array_id] = times_js['end_time_js'][array_id]
+                ex['num_samples'][array_type][array_id] = ex['end'][array_type][array_id] - ex['start'][array_type][array_id]
+        return ex
+
+    return adjust_time_js
 
 
 def nest_broadcast(
@@ -837,6 +892,13 @@ def nest_broadcast(
         else:
             return input_tree
     return inner(shallow_tree, input_tree)
+
+
+def backup_orig_start_end(ex):
+    ex['start_orig'] = ex[K.START]
+    ex['end_orig'] = ex[K.END]
+    ex['num_samples_orig'] = ex[K.NUM_SAMPLES]
+    return ex
 
 
 def AddContext(samples, equal_start_context=False):
@@ -984,9 +1046,9 @@ def AddContext(samples, equal_start_context=False):
     if isinstance(start_context, int):
         # Faster implementation than the else Branch
         def add_context(ex):
-            ex['start_orig'] = ex[K.START]
-            ex['end_orig'] = ex[K.END]
-            ex['num_samples_orig'] = ex[K.NUM_SAMPLES]
+            assert 'start_orig' in ex, ex
+            assert 'end_orig' in ex, ex
+            assert 'num_samples_orig' in ex, ex
 
             ex[K.START] = nest.map_structure(
                 lambda time: max(time - start_context, 0),
@@ -1020,9 +1082,9 @@ def AddContext(samples, equal_start_context=False):
             return ex
     else:
         def add_context(ex):
-            ex['start_orig'] = ex[K.START]
-            ex['end_orig'] = ex[K.END]
-            ex['num_samples_orig'] = ex[K.NUM_SAMPLES]
+            assert 'start_orig' in ex, ex
+            assert 'end_orig' in ex, ex
+            assert 'num_samples_orig' in ex, ex
 
             bc_start_context = nest_broadcast(ex[K.START], start_context)
             bc_end_context = nest_broadcast(ex[K.END], end_context)
