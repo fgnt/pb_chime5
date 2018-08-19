@@ -316,11 +316,11 @@ def get_example(transcription, transcription_realigned, audio_path, kaldi_transc
     if example_id in kaldi_transcriptions:
         d[keys.KALDI_TRANSCRIPTION] = kaldi_transcriptions[example_id]
 
-    if location == 'unknown':
+    if location != 'unknown':
         d[CH_K.LOCATION] = location
 
-    if ref_array == 'unknown':
-        d[CH_K.REFERENCE_ARRAY] = location
+    if ref_array != 'unknown':
+        d[CH_K.REFERENCE_ARRAY] = ref_array
 
     return example_id, d
 
