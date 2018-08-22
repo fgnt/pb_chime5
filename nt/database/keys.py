@@ -9,6 +9,7 @@ DATASETS = "datasets"
 DATASET_NAME = "dataset"
 EXAMPLES = "examples"
 META = "meta"
+ALIAS = "alias"
 
 # Information per example
 AUDIO_PATH = "audio_path"
@@ -40,8 +41,8 @@ NUM_ALIGNMENT_FRAMES = 'num_alignment_frames'
 
 # Signals
 OBSERVATION = 'observation'
-OBSERVATION_LAPEL = 'observation_lapel'
-OBSERVATION_HEADSET = 'observation_headset'
+LAPEL = 'lapel'
+HEADSET = 'headset'
 
 SPEECH_SOURCE = 'speech_source'
 SPEECH_IMAGE = 'speech_image'
