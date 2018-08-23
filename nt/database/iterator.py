@@ -242,19 +242,21 @@ class BaseIterator:
         """
         return ZipIterator(self, *others)
 
-    def shuffle(self, reshuffle=False):
+    def shuffle(self, reshuffle=False, rng=None):
         """
         Shuffle this iterator.
         :param reshuffle:
             If True, shuffle on each iteration, but disable indexing.
             If False, single shuffle, but support indexing.
+        param rng:
         :return:
         """
         # Should reshuffle default be True or False
         if reshuffle is True:
+            assert rng is None, 'ReShuffleIterator does not support seeds.'
             return ReShuffleIterator(self)
         elif reshuffle is False:
-            return ShuffleIterator(self)
+            return ShuffleIterator(self, rng=rng)
         else:
             raise ValueError(reshuffle, self)
 
@@ -515,9 +517,10 @@ class ShuffleIterator(BaseIterator):
     ('a', 'c', 'b')
     """
 
-    def __init__(self, input_iterator):
+    def __init__(self, input_iterator, rng=None):
         self.permutation = np.arange(len(input_iterator))
-        np.random.shuffle(self.permutation)
+        rng = np.random if rng is None else rng
+        rng.shuffle(self.permutation)
         self.input_iterator = input_iterator
 
     def __len__(self):
