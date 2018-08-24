@@ -86,7 +86,9 @@ def check_audio_files_exist(
         assert path_exists(file), (file, key_path)
 
     def condition_fn(key_path, file):
-        return isinstance(file, (str, Path)) and str(file).endswith('.wav')
+        extensions = ('.wav','.wv2', '.wv1', '.flac')
+        return isinstance(file, (str, Path)) and\
+               (str(file).endswith(extensions))
 
     # In case of CHiME5 flatten_with_key_paths is the bottleneck of this function
     to_check = flatten_with_key_paths(
