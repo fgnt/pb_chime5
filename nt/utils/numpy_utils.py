@@ -1,3 +1,4 @@
+import re
 import warnings
 import numpy as np
 import collections
@@ -596,6 +597,8 @@ def _shrinking_reshape(array, source, target):
 
 
 def _expanding_reshape(array, source, target, **shape_hints):
+
+    assert len(re.sub(r'.\*', '', source.replace(' ', ''))) == array.ndim, (array.shape, source, target)
 
     def _get_source_grouping(source):
         """
