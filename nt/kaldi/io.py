@@ -38,8 +38,8 @@ def read_keyed_text_file(text_file: Path, to_list=True):
             }
         else:
             return {
-                line.strip().split()[0]:
-                    line.strip().split(maxsplit=1)[1] for line in f
+                line.strip().split()[0]: line.split(' ', maxsplit=1)[1].strip()
+                for line in f.readlines()
             }
 
 
