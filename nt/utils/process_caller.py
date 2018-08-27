@@ -126,7 +126,7 @@ def run_processes(cmds, sleep_time=None, ignore_return_code=False,
                       'removed in the future'.format(sleep_time))
 
     # Ensure its a list if a single command is passed
-    cmds = cmds if isinstance(cmds, list) else [cmds]
+    cmds = cmds if isinstance(cmds, (tuple, list)) else [cmds]
     if inputs is None:
         inputs = len(cmds) * [None]
     else:
@@ -161,12 +161,23 @@ def run_processes(cmds, sleep_time=None, ignore_return_code=False,
         txt = 'Command {} returned with return code {}.\n' \
                 'Stdout: {}\n' \
                 'Stderr: {}'.format(cmds[idx], code, stdout[idx], stderr[idx])
-        if code != 0 and not ignore_return_code:
-            raise_error_txt += txt + '\n'
-        if code != 0 and ignore_return_code and warn_on_ignore:
-            warn('Returncode for command {} was {} but is ignored.\n'
-                 'Stderr: {}'.format(
-                cmds[idx], code, stderr[idx]))
+        if code != 0:
+            if not ignore_return_code:
+                raise_error_txt += txt + '\n'
+            elif warn_on_ignore is not False:
+                warn_msg = (
+                    f'Returncode for command {cmds[idx]} was {code} but is ignored.'
+                    f'\n'
+                    f'Stdout: {stdout[idx]}'
+                    f'Stderr: {stderr[idx]}'
+                )
+                if warn_on_ignore is True:
+                    warn(warn_msg)
+                elif warn_on_ignore == 'print':
+                    print(warn_msg)
+                else:
+                    raise ValueError(warn_on_ignore)
+
         if DEBUG_MODE:
             print(txt)
     if raise_error_txt != '':
