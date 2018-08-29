@@ -40,13 +40,17 @@ class ReaderKaldiWERDetailsPerUtt:
     def __init__(
             self,
             db=None,
+            num_samples=False
     ):
         if db is None:
             self.db = chime5.Chime5(database_jsons / 'chime5_orig.json')
         else:
             self.db = db
+        self.num_samples = num_samples
         self.kaldi_to_nt_id_mapper = Chime5KaldiToNtIdMapping()
-        self.num_sample_getter = GetNumSamples(self.db, self.kaldi_to_nt_id_mapper)
+
+        if num_samples:
+            self.num_sample_getter = GetNumSamples(self.db, self.kaldi_to_nt_id_mapper)
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.db})'
@@ -159,8 +163,9 @@ class ReaderKaldiWERDetailsPerUtt:
                 example_id, d[example_id]['len'], d[example_id]['len2'], c)
                 del d[example_id]['len2']
 
-        for example_id in d.keys():
-            d[example_id]['num_samples'] = self.num_sample_getter[example_id]
+        if self.num_samples:
+            for example_id in d.keys():
+                d[example_id]['num_samples'] = self.num_sample_getter[example_id]
 
         if use_nt_id:
             d_tmp = d
