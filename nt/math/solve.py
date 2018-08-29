@@ -24,9 +24,9 @@ def stable_solve(A, B):
 
     Note: limited currently by A.shape == B.shape
 
-    This function try's np.linalg.solve with independent dimensions,
+    This function tries np.linalg.solve with independent dimensions,
     when this is not working the function fall back to np.linalg.solve
-    for each matrix. If one matrix does not work it fall back to
+    for each matrix. If one matrix does not work it falls back to
     np.linalg.lstsq.
 
     The reason for not using np.linalg.lstsq directly is the execution time.
