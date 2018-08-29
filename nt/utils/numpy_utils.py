@@ -4,6 +4,7 @@ import numpy as np
 import collections
 import numbers
 from numpy.core.einsumfunc import _parse_einsum_input
+from dataclasses import dataclass
 
 
 def segment_axis_v2(x, length: int, shift: int, axis: int=-1,
@@ -861,3 +862,47 @@ def labels_to_one_hot(
     zeros = np.moveaxis(zeros, 0, axis)
 
     return zeros
+
+
+@dataclass
+class Cutter:
+    """
+    Implements cut and expand for low_cut and high_cut. Often interesting when
+    you want to avoid processing of some frequencies when beamforming.
+
+    Why do we enforce negative upper end: Positive values can be confusing. You
+    may want to cut `n` values or want to keep up to `n`.
+
+    >>> c = Cutter(1, -2)
+    >>> array = np.array([[1, 2, 3, 4]])
+    >>> c.cut(array, axis=1)
+    array([[2]])
+
+    >>> c.expand(c.cut(array, axis=1), axis=1)
+    array([[0, 2, 0, 0]])
+
+    >>> c.overwrite(array, axis=1)
+    array([[0, 2, 0, 0]])
+    """
+    low_cut: int
+    high_cut: int
+
+    def __post_init__(self):
+        assert self.low_cut >= 0, 'Positive or zero starting index'
+        assert self.high_cut <= 0, 'Negative or zero ending index'
+
+    def cut(self, array, *, axis):
+        """Cuts start and end."""
+        assert isinstance(axis, int), axis
+        trimmer = [slice(None)] * array.ndim
+        trimmer[axis] = slice(self.low_cut, self.high_cut)
+        return array[trimmer]
+
+    def expand(self, array, *, axis):
+        """Pads to reverse the cut."""
+        assert isinstance(axis, int), axis
+        return pad_axis(array, (self.low_cut, -self.high_cut), axis=axis)
+
+    def overwrite(self, array, *, axis):
+        """Returns a copy with start end end filled with zeros."""
+        return self.expand(self.cut(array, axis=axis), axis=axis)
