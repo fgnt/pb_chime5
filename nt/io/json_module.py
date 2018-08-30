@@ -2,7 +2,6 @@
 import io
 import numpy as np
 import json
-import bson
 import datetime
 from pathlib import Path
 
@@ -18,7 +17,7 @@ class Encoder(json.JSONEncoder):
             return obj.num.tolist()
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
-        elif isinstance(obj, bson.objectid.ObjectId):
+        elif str(type(obj)) == "<class 'bson.objectid.ObjectId'>":
             return str(obj)
         elif isinstance(obj, datetime.datetime):
             return obj.strftime('%Y-%m-%d_%H-%M-%S')
