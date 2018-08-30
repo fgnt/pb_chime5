@@ -1,3 +1,6 @@
+import ast
+import re
+
 from pathlib import Path
 from nt.utils.mapping import Dispatcher
 
@@ -80,3 +83,109 @@ def write_keyed_text_file(text_file: Path, data_dict):
         data.append(f'{k} {text}')
 
     text_file.write_text('\n'.join(data))
+
+
+def parse_kaldi_wer_file(path, ignore_missing=False):
+    """
+    # example
+    ```
+    compute-wer --text --mode=present ark:exp/tri2a_mc/decode_bg_5k_REVERB_dt_SimData_dt_for_1ch_far_room2_A/scoring/test_filt.txt ark,p:-
+    %WER 45.11 [ 1830 / 4057, 36 ins, 638 del, 1156 sub ]
+    %SER 97.57 [ 241 / 247 ]
+    Scored 247 sentences, 0 not present in hyp.
+
+    compute-wer --text --mode=present ark:...
+    %WER 16.80 [ 653 / 3886, 82 ins, 98 del, 473 sub ] [PARTIAL]
+    %SER 78.57 [ 187 / 238 ]
+    Scored 238 sentences, 10 not present in hyp.
+    ```
+
+    >>> from IPython.lib.pretty import pprint
+    >>> f = '/net/vol/boeddeker/sacred/90/kaldi/exp/tri2a_mc/decode_bg_5k_REVERB_dt_new_SimData_dt_for_1ch_near_room1_A/wer_15'
+    >>> pprint(parse_kaldi_wer_file(f))
+    {'wer': 15.83,
+     'word_errors': 644,
+     'words': 4068,
+     'ins': 80,
+     'del': 106,
+     'sub': 458,
+     'flags': '',
+     'ser': 76.61,
+     'sentence_errors': 190,
+     'sentences': 248,
+     'missing': 0}
+    >>> f = '/net/vol/boeddeker/sacred/93/kaldi/exp/tri2a_mc/decode_bg_5k_REVERB_dt_new_SimData_dt_for_1ch_near_room1_A/wer_15'
+    >>> pprint(parse_kaldi_wer_file(f, ignore_missing=True))
+    {'wer': 16.8,
+     'word_errors': 653,
+     'words': 3886,
+     'ins': 82,
+     'del': 98,
+     'sub': 473,
+     'flags': '[PARTIAL]',
+     'ser': 78.57,
+     'sentence_errors': 187,
+     'sentences': 238,
+     'missing': 10}
+    >>> f = '/net/vol/boeddeker/sacred/plain_wpe/34/kaldi/exp/tri2a_mc/decode_bg_5k_REVERB_dt_new_SimData_dt_for_1ch_near_room1_A/wer_15'
+    >>> pprint(parse_kaldi_wer_file(f, ignore_missing=True))
+    {'wer': 19.81,
+     'word_errors': 797,
+     'words': 4024,
+     'ins': 108,
+     'del': 130,
+     'sub': 559,
+     'flags': '[PARTIAL]',
+     'ser': 82.86,
+     'sentence_errors': 203,
+     'sentences': 245,
+     'missing': 3}
+    >>> pprint(parse_kaldi_wer_file(f))
+    Traceback (most recent call last):
+    ...
+    RuntimeError: {'wer': 19.81, 'word_errors': 797, 'words': 4024, 'ins': 108, 'del': 130, 'sub': 559, 'flags': '[PARTIAL]', 'ser': 82.86, 'sentence_errors': 203, 'sentences': 245, 'missing': 3}
+    >>> f = '/net/vol/boeddeker/chime5/pc2/arrayBSS/ali_sweep/39/kaldi/baseline/exp/chain_train_worn_u100k/tdnn1a_sp/decode_bss_beam/scoring_kaldi/best_wer'
+    >>> pprint(parse_kaldi_wer_file(f))
+    {'wer': 72.78,
+     'word_errors': 42853,
+     'words': 58881,
+     'ins': 2518,
+     'del': 22449,
+     'sub': 17886,
+     'flags': '',
+     'ser': 84.73,
+     'sentence_errors': 6301,
+     'sentences': 7437,
+     'missing': 0}
+
+    """
+
+    with Path(path).open() as f:
+        content = f.read()
+
+    if len(content.strip().split('\n')) == 1:
+        # assume best wer file
+        content = Path(content.split(']', maxsplit=1)[-1].strip()).read_text()
+
+    r = re.compile(r'%WER (?P<wer>\d*\.\d*) \[ ('
+                   r'?P<word_errors>\d*) '
+                   r'/ (?P<words>\d*), (?P<ins>\d*) ins, '
+                   r'(?P<del>\d*) del, (?P<sub>\d*) sub ]'
+                   r' ?(?P<flags>[^\n]*)\n%SER '
+                   r'(?P<ser>\d*\.\d*) \[ (?P<sentence_errors>\d*) '
+                   r'/ (?P<sentences>\d*) ]\n'
+                   r'Scored \d+ sentences, (?P<missing>\d*) not '
+                   r'present in hyp.')
+
+    match = r.search(content).groupdict()
+    for k in match.keys():
+        try:
+            # https://stackoverflow.com/a/9510585
+            match[k] = ast.literal_eval(match[k])
+        except (SyntaxError, ValueError):
+            pass
+
+    if not ignore_missing and match['missing']:
+        raise RuntimeError(match)
+
+    return match
