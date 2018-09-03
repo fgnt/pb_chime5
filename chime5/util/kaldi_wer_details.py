@@ -12,7 +12,7 @@ import pandas as pd
 from nt.io.data_dir import database_jsons
 from nt.database import chime5
 from chime5.io.file_cache import file_cache
-from chime5.scripts.create_mapping_json import Chime5KaldiIdMapping, Chime5KaldiToNtIdMapping
+from chime5.scripts.create_mapping_json import Chime5KaldiToNtIdMapping
 
 
 class GetNumSamples(dict):
@@ -40,14 +40,18 @@ class ReaderKaldiWERDetailsPerUtt:
     def __init__(
             self,
             db=None,
-            num_samples=False
+            num_samples=False,
+            kaldi_to_nt_id_mapping_json=None
     ):
         if db is None:
             self.db = chime5.Chime5(database_jsons / 'chime5_orig.json')
         else:
             self.db = db
         self.num_samples = num_samples
-        self.kaldi_to_nt_id_mapper = Chime5KaldiToNtIdMapping()
+        if kaldi_to_nt_id_mapping_json is None:
+            self.kaldi_to_nt_id_mapper = Chime5KaldiToNtIdMapping()
+        else:
+            self.kaldi_to_nt_id_mapper = Chime5KaldiToNtIdMapping(kaldi_to_nt_id_mapping_json)
 
         if num_samples:
             self.num_sample_getter = GetNumSamples(self.db, self.kaldi_to_nt_id_mapper)
