@@ -122,8 +122,7 @@ def _parse_kaldi_best_wer_text(text):
     return match
 
 
-
-def parse_kaldi_wer_file(path, allow_best_wer=False, ignore_missing=False):
+def parse_kaldi_wer_file(path, *, allow_best_wer=False, ignore_missing=False):
     """
     # example
     ```
