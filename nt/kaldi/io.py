@@ -85,7 +85,45 @@ def write_keyed_text_file(text_file: Path, data_dict):
     text_file.write_text('\n'.join(data))
 
 
-def parse_kaldi_wer_file(path, ignore_missing=False):
+def _parse_kaldi_best_wer_text(text):
+    """
+    >>> from IPython.lib.pretty import pprint
+    >>> text = '%WER 72.78 [ 42853 / 58881, 2518 ins, 22449 del, 17886 sub ] /net/vol/boeddeker/chime5/pc2/arrayBSS/ali_sweep/39/kaldi/baseline/exp/chain_train_worn_u100k/tdnn1a_sp/decode_bss_beam/wer_8_0.5'
+    >>> pprint(_parse_kaldi_best_wer_text(text))
+    {'wer': 72.78,
+     'word_errors': 42853,
+     'words': 58881,
+     'ins': 2518,
+     'del': 22449,
+     'sub': 17886,
+     'flags': '',
+     'file': '/net/vol/boeddeker/chime5/pc2/arrayBSS/ali_sweep/39/kaldi/baseline/exp/chain_train_worn_u100k/tdnn1a_sp/decode_bss_beam/wer_8_0.5'}
+
+    """
+    content = text.strip()
+
+    r = re.compile(r'%WER (?P<wer>\d*\.\d*) \[ ('
+                   r'?P<word_errors>\d*) '
+                   r'/ (?P<words>\d*), (?P<ins>\d*) ins, '
+                   r'(?P<del>\d*) del, (?P<sub>\d*) sub ]'
+                   r' ?(?P<flags>[^\n]*) (?P<file>[^\n]+)')
+
+    match = r.search(content).groupdict()
+    for k in match.keys():
+        try:
+            # https://stackoverflow.com/a/9510585
+            match[k] = ast.literal_eval(match[k])
+        except (SyntaxError, ValueError):
+            pass
+
+    # if not ignore_missing and match['missing']:
+    #     raise RuntimeError(match)
+
+    return match
+
+
+
+def parse_kaldi_wer_file(path, allow_best_wer=False, ignore_missing=False):
     """
     # example
     ```
@@ -157,6 +195,7 @@ def parse_kaldi_wer_file(path, ignore_missing=False):
      'sentence_errors': 6301,
      'sentences': 7437,
      'missing': 0}
+    >>> pprint(parse_kaldi_wer_file(f, allow_best_wer=True))
 
     """
 
@@ -165,6 +204,8 @@ def parse_kaldi_wer_file(path, ignore_missing=False):
 
     if len(content.strip().split('\n')) == 1:
         # assume best wer file
+        if allow_best_wer:
+            return _parse_kaldi_best_wer_text(content)
         content = Path(content.split(']', maxsplit=1)[-1].strip()).read_text()
 
     r = re.compile(r'%WER (?P<wer>\d*\.\d*) \[ ('
