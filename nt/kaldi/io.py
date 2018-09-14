@@ -32,7 +32,7 @@ def read_keyed_text_file(text_file: Path, to_list=True):
     Returns:
 
     """
-    text_file = Path(text_file)
+    text_file = Path(text_file).expanduser().resolve()
     with text_file.open() as f:
         if to_list:
             return {
