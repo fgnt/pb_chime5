@@ -12,6 +12,8 @@ If you want to implement Round-Robin execution, you can try this::
         pass
 """
 
+import os
+
 __all__ = [
     'RANK',
     'SIZE',
@@ -30,8 +32,17 @@ try:
     _mpi_available = False
 except ImportError:
     import os
+
     if 'CCS' in os.environ:
         # CCS indicate PC2
+        raise
+
+    if int(os.environ.get('OMPI_COMM_WORLD_SIZE', '1')) != 1:
+        print(
+            f'WARNING: Something is wrong with your mpi4py installation.\n'
+            f'Environment size: {os.environ["OMPI_COMM_WORLD_SIZE"]}\n'
+            f'mpi4py size: {os.environ["OMPI_COMM_WORLD_SIZE"]}\n'
+        )
         raise
 
     class DUMMY_COMM_WORLD:
@@ -45,6 +56,7 @@ except ImportError:
         COMM_WORLD = DUMMY_COMM_WORLD()
 
     MPI = _dummy_MPI()
+
 
 
 class RankInt(int):
