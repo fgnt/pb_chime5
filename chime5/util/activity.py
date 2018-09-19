@@ -218,14 +218,15 @@ def get_all_activity_for_worn_alignments(
     if session_id is None:
         it = Chime5(database_path).get_iterator_by_names(['train', 'dev', 'eval'])
     else:
-        if isinstance(session_id, str):
-            session_id = [session_id]
-        it = Chime5(database_path).get_iterator_by_names(
-            list({session_dataset_mapping[sid] for sid in session_id})
-        )
-        it = it.filter(lambda ex: ex['session_id'] in session_id, lazy=False)
+        it = Chime5(database_path).get_iterator_by_names(session_id)
+        # if isinstance(session_id, str):
+        #     session_id = [session_id]
+        # it = Chime5(database_path).get_iterator_by_names(
+        #     list({session_dataset_mapping[sid] for sid in session_id})
+        # )
+        # it = it.filter(lambda ex: ex['session_id'] in session_id, lazy=False)
 
-    it = it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False)
+    it = it.filter(lambda ex: ex['transcription'] != '[redacted]', lazy=False)
 
     if ali_path:
         non_sil_alignment_fn = get_function_example_to_non_sil_alignment(
@@ -300,12 +301,13 @@ def get_all_activity_for_array_alignments(
     if session_id is None:
         it = Chime5(database_path).get_iterator_by_names(['train', 'dev', 'eval'])
     else:
-        if isinstance(session_id, str):
-            session_id = [session_id]
-        it = Chime5(database_path).get_iterator_by_names(
-            list({session_dataset_mapping[sid] for sid in session_id})
-        )
-        it = it.filter(lambda ex: ex['session_id'] in session_id, lazy=False)
+        it = Chime5(database_path).get_iterator_by_names(session_id)
+        # if isinstance(session_id, str):
+        #     session_id = [session_id]
+        # it = Chime5(database_path).get_iterator_by_names(
+        #     list({session_dataset_mapping[sid] for sid in session_id})
+        # )
+        # it = it.filter(lambda ex: ex['session_id'] in session_id, lazy=False)
 
     it = it.filter(lambda ex: ex['target_speaker'] != 'unknown', lazy=False)
 
@@ -428,16 +430,16 @@ def get_activity(
 
         for ex in it_S:
             for pers in perspective_tmp:
-                target_speaker = ex['target_speaker']
+                if ex['transcription'] == '[redacted]':
+                    continue
+
+                target_speaker = ex['speaker_id']
                 # example_id = ex['example_id']
 
                 if pers == 'global_worn':
                     perspective_mic_array = target_speaker
                 else:
                     perspective_mic_array = pers
-
-                if target_speaker == 'unknown' and ex['transcription'] == '[redacted]':
-                    continue
 
                 if perspective_mic_array.startswith('P'):
                     start = ex['start']['worn_microphone'][perspective_mic_array]
