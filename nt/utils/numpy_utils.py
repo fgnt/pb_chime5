@@ -599,7 +599,13 @@ def _shrinking_reshape(array, source, target):
 
 def _expanding_reshape(array, source, target, **shape_hints):
 
-    assert len(re.sub(r'.\*', '', source.replace(' ', ''))) == array.ndim, (array.shape, source, target)
+    try:  # Check number of inputs for unflatten operations
+        assert len(re.sub(r'.\*', '', source.replace(' ', ''))) == array.ndim, \
+            (array.shape, source, target)
+    except AssertionError:  # Check number of inputs for ellipses operations
+        assert len(re.sub(r'(\.\.\.)|(.\*)', '', source.replace(' ', ''))) <= \
+               array.ndim,(array.shape, source, target)
+        
 
     def _get_source_grouping(source):
         """
