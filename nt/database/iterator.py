@@ -101,6 +101,13 @@ class BaseIterator:
             return SliceIterator(item, self)
         elif isinstance(item, np.ndarray) and item.ndim == 1:
             return SliceIterator(item, self)
+        elif isinstance(item, bytes):
+            raise NotImplementedError(
+                f'This is not implemented for an bytes objext. Use bytes.decode() to convert it to an str.\n'
+                f'__getitem__ is not implemented for {self.__class__}[{item}],\n'
+                f'where type({item}) == {type(item)} '
+                f'self: \n{repr(self)}'
+            )
         raise NotImplementedError(
             f'__getitem__ is not implemented for {self.__class__}[{item}],\n'
             f'where type({item}) == {type(item)} '
