@@ -202,6 +202,10 @@ def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_tran
                     partial(get_example, audio_path=dataset_audio_path, kaldi_transcriptions=kaldi_transcriptions),
                     trans, trans_realigned
             ):
+                if example_id in ['P45_S21_0356170-0356149']:
+                    # The number of samples is negative
+                    continue
+
                 json_dict[session_id][example_id] = example
     return json_dict
 
