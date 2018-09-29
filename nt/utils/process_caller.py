@@ -51,9 +51,10 @@ def run_process(
     universal_newlines:
         stdout will be a string and not a byte array
     shell:
-        If None, shell is True is cmd is a str else False
+        If None, shell is set to True if cmd is a str else shell is set to False
+        (i.e. when it is a list)
         True: pass command through the shell with "shell" parsing.
-            i.e. wildcards, enviroments variables, etc.
+            i.e. wildcards, environment variables, etc.
         False: Directly called, recommended, when cmd is a list, because when
             for example strings contains whitespaces they are not interpreted.
 
