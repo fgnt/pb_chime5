@@ -1048,6 +1048,8 @@ class ExamplesWithoutAlignmentRemover:
                 num_samples = num_samples[keys.OBSERVATION]
         else:
             return True  # Only happens for Kaldi databases
+
+        # TODO: This assumes fixed size and shift. Does not work for 8 kHz.
         num_frames = (num_samples - 400 + 160) // 160
         num_frames_lfr = (num_frames + np.mod(-num_frames, 3)) // 3
         len_ali = len(example[self._key])
