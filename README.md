@@ -1,4 +1,7 @@
-# pb_chime5
+# pb_chime5: Front-End Processing for the CHiME-5 Dinner Party Scenario
+Challenge website: http://spandh.dcs.shef.ac.uk/chime_challenge/
+
+Workshop website: http://spandh.dcs.shef.ac.uk/chime_workshop/
 
 This repository includes all components of the CHiME-5 front-end presented by Paderborn University on the CHiME-5 workshop. In combination with an acoustic model presented by the RWTH Aachen this multi-channel front-end achieved the third best results during the challenge with 54.56 %. 
 
