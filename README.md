@@ -6,9 +6,11 @@ This is a work in progress.
 
 If you are using this code please cite the following paper:
 
+```
 @Article{PB2018CHiME5,
   author    = {Boeddeker, Christoph and Heitkaemper, Jens and Schmalenstroeer, Joerg and Drude, Lukas and Heymann, Jahn and Haeb-Umbach, Reinhold},
   title     = {{Front-End Processing for the CHiME-5 Dinner Party Scenario}},
   year      = {2018},
   booktitle = {CHiME5 Workshop},
 }
+```
