@@ -8,16 +8,20 @@ That results i.e. in the following possible shapes:
     mask: Shape (F, K, T).
     PSD: Shape (F, D, D).
 
+# TODO: These shape hints do not fit together. If mask has K, PSD needs it, too.
+
 The functions themselves are written more generic, though.
 """
 
 import warnings
-
+from scipy.linalg import sqrtm
 import numpy as np
 from numpy.linalg import solve
 from scipy.linalg import eig
 from scipy.linalg import eigh
 from nt.math.correlation import covariance  # as shortcut!
+from nt.math.solve import stable_solve
+
 
 try:
     from .cythonized.get_gev_vector import _c_get_gev_vector
@@ -343,8 +347,13 @@ def get_lcmv_vector(atf_vectors, response_vector, noise_psd_matrix):
 
 def blind_analytic_normalization(vector, noise_psd_matrix,
                                  target_psd_matrix=None):
+    """Reduces distortions in beamformed ouptput.
+    Args:
+        vector: Beamforming vector with shape (..., sensors)
+        noise_psd_matrix: With shape (..., sensors, sensors)
+    """
     nominator = np.einsum(
-        'fa,fab,fbc,fc->f',
+        '...a,...ab,...bc,...c->...',
         vector.conj(), noise_psd_matrix, noise_psd_matrix, vector
     )
     if target_psd_matrix is not None:
@@ -353,13 +362,15 @@ def blind_analytic_normalization(vector, noise_psd_matrix,
     nominator = np.sqrt(nominator)
 
     denominator = np.einsum(
-        'fa,fab,fb->f', vector.conj(), noise_psd_matrix, vector
+        '...a,...ab,...b->...', vector.conj(), noise_psd_matrix, vector
     )
     denominator = np.sqrt(denominator * denominator.conj())
-
-    normalization = np.abs(nominator / denominator)
-
-    return vector * normalization[:, np.newaxis]
+    normalization = np.divide(  # https://stackoverflow.com/a/37977222/5766934
+        nominator, denominator,
+        out=np.zeros_like(nominator),
+        where=denominator != 0
+    )
+    return vector * np.abs(normalization[..., np.newaxis])
 
 
 def distortionless_normalization(vector, atf_vector, noise_psd_matrix):
@@ -384,7 +395,53 @@ def mvdr_snr_postfilter(vector, target_psd_matrix, noise_psd_matrix):
 
 
 def zero_degree_normalization(vector, reference_channel):
-    return vector * np.exp(-1j * np.angle(vector[:, reference_channel]))
+    return vector * np.exp(-1j * np.tile(np.angle(vector[:, reference_channel]), (vector.shape[-1],1))).transpose()
+
+
+def phase_correction(vector):
+    """Phase correction to reduce distortions due to phase inconsistencies.
+
+    We need a copy first, because not all elements are touched during the
+    multiplication. Otherwise, the vector would be modified in place.
+
+    TODO: Write test cases.
+    TODO: Only use non-loopy version when test case is written.
+
+    Args:
+        vector: Beamforming vector with shape (..., bins, sensors).
+    Returns: Phase corrected beamforming vectors. Lengths remain.
+
+    >>> w = np.array([[1, 1], [-1, -1]], dtype=np.complex128)
+    >>> np.around(phase_correction(w), decimals=14)
+    array([[ 1.+0.j,  1.+0.j],
+           [ 1.-0.j,  1.-0.j]])
+    >>> np.around(phase_correction([w]), decimals=14)[0]
+    array([[ 1.+0.j,  1.+0.j],
+           [ 1.-0.j,  1.-0.j]])
+    >>> w  # ensure that w is not modified
+    array([[ 1.+0.j,  1.+0.j],
+           [-1.+0.j, -1.+0.j]])
+    """
+
+    # w = W.copy()
+    # F, D = w.shape
+    # for f in range(1, F):
+    #     w[f, :] *= np.exp(-1j*np.angle(
+    #         np.sum(w[f, :] * w[f-1, :].conj(), axis=-1, keepdims=True)))
+    # return w
+
+    vector = np.array(vector, copy=True)
+    vector[..., 1:, :] *= np.cumprod(
+        np.exp(
+            1j * np.angle(
+                np.sum(
+                    vector[..., 1:, :].conj() * vector[..., :-1, :],
+                    axis=-1, keepdims=True
+                )
+            )
+        ), axis=0
+    )
+    return vector
 
 
 def apply_beamforming_vector(vector, mix):
@@ -490,3 +547,210 @@ def pca_mvdr_wrapper_on_masks(mix, noise_mask=None, target_mask=None,
     output = apply_beamforming_vector(W_mvdr, mix)
 
     return output.T
+
+
+def get_mvdr_vector_souden_old(
+        target_psd_matrix,
+        noise_psd_matrix,
+        ref_channel=0,
+        eps=1e-5,
+):
+    """
+    Returns the MVDR beamforming vector described in [Souden10].
+
+    :param target_psd_matrix: Target PSD matrix
+        with shape (..., bins, sensors, sensors)
+    :param noise_psd_matrix: Noise PSD matrix
+        with shape (..., bins, sensors, sensors)
+    :param ref_channel:
+    :param eps:
+    :return: Set of beamforming vectors with shape (..., bins, sensors)
+    """
+
+    # Make sure matrix is hermitian
+    shape = target_psd_matrix.shape
+    noise_psd_matrix = 0.5 * (
+        noise_psd_matrix + np.conj(noise_psd_matrix.swapaxes(-1, -2))
+    )
+    assert target_psd_matrix.shape == noise_psd_matrix.shape
+    assert target_psd_matrix.shape[-2] == target_psd_matrix.shape[-1]
+    sensors = target_psd_matrix.shape[-1]
+
+    target_psd_matrix = target_psd_matrix.reshape((-1, sensors, sensors))
+    noise_psd_matrix = noise_psd_matrix.reshape((-1, sensors, sensors))
+
+    bins = target_psd_matrix.shape[0]
+    numerator = np.empty((bins, sensors, sensors), dtype=np.complex128)
+    for f in range(bins):
+        try:
+            numerator[f, :, :] = np.linalg.solve(
+                noise_psd_matrix[f, :, :], target_psd_matrix[f, :, :])
+
+        except ValueError:
+            raise ValueError('Error for frequency {}\n'
+                             'phi_xx: {}\n'
+                             'phi_nn: {}'.format(
+                f, target_psd_matrix[f, :, :],
+                noise_psd_matrix[f, :, :]))
+        except np.linalg.LinAlgError:
+            raise np.linalg.LinAlgError('Error for frequency {}\n'
+                                        'phi_xx: {}\n'
+                                        'phi_nn: {}'.format(
+                f, target_psd_matrix[f, :, :],
+                noise_psd_matrix[f, :, :]))
+    denominator = np.trace(numerator, axis1=-1, axis2=-2)
+    beamforming_vector = numerator[:, ref_channel] / np.expand_dims(denominator + eps, axis=-1)
+    beamforming_vector = beamforming_vector.reshape(shape[:-1])
+    return beamforming_vector
+
+
+def get_mvdr_vector_souden(
+        target_psd_matrix,
+        noise_psd_matrix,
+        ref_channel=None,
+        eps=None,
+        return_ref_channel=False
+):
+    """
+    Returns the MVDR beamforming vector described in [Souden2010MVDR].
+    The implementation is based on the description of [Erdogan2016MVDR].
+
+    The ref_channel is selected based of an SNR estimate.
+
+    The eps ensures that the SNR estimation for the ref_channel works
+    as long target_psd_matrix and noise_psd_matrix do not contain inf or nan.
+    Also zero matrices work. The default eps is the smallest non zero value.
+
+    Note: the frequency dimension is necessary for the ref_channel estimation.
+    Note: Currently this function does not support independent dimensions with
+          an estimated ref_channel. There is an open point to discuss:
+          Should the independent dimension be considered in the SNR estimate
+          or not?
+
+    :param target_psd_matrix: Target PSD matrix
+        with shape (..., bins, sensors, sensors)
+    :param noise_psd_matrix: Noise PSD matrix
+        with shape (..., bins, sensors, sensors)
+    :param ref_channel:
+    :param return_ref_channel:
+    :param eps: If None use the smallest number bigger than zero.
+    :return: Set of beamforming vectors with shape (bins, sensors)
+
+    Returns:
+
+    @article{Souden2010MVDR,
+      title={On optimal frequency-domain multichannel linear filtering for noise reduction},
+      author={Souden, Mehrez and Benesty, Jacob and Affes, Sofi{\`e}ne},
+      journal={IEEE Transactions on audio, speech, and language processing},
+      volume={18},
+      number={2},
+      pages={260--276},
+      year={2010},
+      publisher={IEEE}
+    }
+    @inproceedings{Erdogan2016MVDR,
+      title={Improved MVDR Beamforming Using Single-Channel Mask Prediction Networks.},
+      author={Erdogan, Hakan and Hershey, John R and Watanabe, Shinji and Mandel, Michael I and Le Roux, Jonathan},
+      booktitle={Interspeech},
+      pages={1981--1985},
+      year={2016}
+    }
+
+    """
+    phi = stable_solve(noise_psd_matrix, target_psd_matrix)
+    lambda_ = np.trace(phi, axis1=-1, axis2=-2)[..., None, None]
+    if eps is None:
+        eps = np.finfo(lambda_.dtype).tiny
+    mat = phi / np.maximum(lambda_.real, eps)
+    
+    if ref_channel is None:
+        if phi.ndim != 3:
+            raise ValueError(
+                'Estimating the ref_channel expects currently that the input '
+                'has 3 ndims (frequency x sensors x sensors). '
+                'Considering an independent dim in the SNR estimate is not '
+                'unique.'
+            )
+        SNR = np.einsum(
+            '...FdR,...FdD,...FDR->...R', mat.conj(), target_psd_matrix, mat
+        ) / np.maximum(np.einsum(
+            '...FdR,...FdD,...FDR->...R', mat.conj(), noise_psd_matrix, mat
+        ), eps)
+        # Raises an exception when np.inf and/or np.NaN was in target_psd_matrix
+        # or noise_psd_matrix
+        assert np.all(np.isfinite(SNR)), SNR
+        ref_channel = np.argmax(SNR.real)
+
+    assert np.isscalar(ref_channel), ref_channel
+    beamformer = mat[..., ref_channel]
+
+    if return_ref_channel:
+        return beamformer, ref_channel
+    else:
+        return beamformer
+
+
+def get_lcmv_vector_souden(
+        target_psd_matrix,
+        interference_psd_matrix,
+        noise_psd_matrix,
+        ref_channel=None,
+        eps=None,
+        return_ref_channel=False
+):
+    """
+    In "A Study of the LCMV and MVDR Noise Reduction Filters" Mehrez Souden
+    elaborates an alternative formulation for the LCMV beamformer in the
+    appendix for a rank one interference matrix.
+
+    Therefore, this algorithm is only valid, when the interference PSD matrix
+    is approximately rank one, or (in other words) only 2 speakers are present
+    in total.
+
+    Args:
+        target_psd_matrix:
+        interference_psd_matrix:
+        noise_psd_matrix:
+        ref_channel:
+        eps:
+        return_ref_channel:
+
+    Returns:
+
+    """
+    phi_in = stable_solve(noise_psd_matrix, interference_psd_matrix)
+    phi_xn = stable_solve(noise_psd_matrix, target_psd_matrix)
+
+    D = phi_in.shape[-1]
+
+    # Equation 5, 6
+    gamma_in = np.trace(phi_in, axis1=-1, axis2=-2)[..., None, None]
+    gamma_xn = np.trace(phi_xn, axis1=-1, axis2=-2)[..., None, None]
+
+    # Can be written in a single einsum call, here separate for clarity
+    # Equation 11
+    gamma = gamma_in * gamma_xn - np.trace(
+        np.einsum('...ab,...bc->...ac', phi_in, phi_xn)
+    )[..., None, None]
+    # Possibly:
+    # gamma = gamma_in * gamma_xn - np.einsum('...ab,...ba->...', phi_in, phi_xn)
+
+    eye = np.eye(D)[(phi_in.ndim - 2) * [None] + [...]]
+
+    # TODO: Should be determined automatically (per speaker)?
+    ref_channel = 0
+
+    # Equation 51, first fraction
+    if eps is None:
+        eps = np.finfo(gamma.dtype).tiny
+    mat = gamma_in * eye - phi_in / np.maximum(gamma.real, eps)
+
+    # Equation 51
+    # Faster, when we select the ref_channel before matrix multiplication.
+    beamformer = np.einsum('...ab,...bc->...ac', mat, phi_xn)[..., ref_channel]
+    # beamformer = np.einsum('...ab,...b->...a', mat, phi_xn[..., ref_channel])
+
+    if return_ref_channel:
+        return beamformer, ref_channel
+    else:
+        return beamformer
