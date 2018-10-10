@@ -23,10 +23,10 @@ from dc_integration.distribution.utils import (
     stack_parameters,
 )
 
-from nt.utils.numpy_utils import morph
-from nt.io.data_dir import database_jsons
+from pb_chime5.nt.utils.numpy_utils import morph
+from pb_chime5.nt.io.data_dir import database_jsons
+from pb_chime5.nt.database.chime5 import activity_time_to_frequency
 
-from chime5.scripts.bss_inear_finetune import activity_time_to_frequency
 from pb_chime5.io import load_audio
 
 
@@ -76,7 +76,7 @@ class WPE:
         return Obs
 
 
-@dataclass(hash=True)
+@dataclass  # (hash=True)
 class Activity:
     type: str = 'annotation'   # ['annotation', 'non_sil_alignment']
     garbage_class: bool = False
@@ -86,7 +86,7 @@ class Activity:
 
     @cached_property
     def db(self):
-        from nt.database.chime5 import Chime5
+        from pb_chime5.nt.database.chime5 import Chime5
         return Chime5(self.database_path)
 
     @staticmethod
@@ -127,8 +127,8 @@ class GSS:
 
     verbose: bool = True
 
-    use_pinv: bool = False
-    stable: bool = True
+    # use_pinv: bool = False
+    # stable: bool = True
 
     def __call__(self, Obs, acitivity_freq):
 
@@ -142,8 +142,8 @@ class GSS:
         source_active_mask = np.repeat(source_active_mask[None, ...], 513, axis=0)
 
         cacGMM = ComplexAngularCentralGaussianMixtureModel(
-            use_pinv=self.use_pinv,
-            stable=self.stable,
+            # use_pinv=self.use_pinv,
+            # stable=self.stable,
         )
 
         learned = []
@@ -188,7 +188,7 @@ class Beamformer:
         bf = self.type
 
         if bf == 'mvdrSouden_ban':
-            from chime5.enhancement.bf_lorenz import (
+            from pb_chime5.enhancement.bf_lorenz import (
                 beamform_mvdr_souden_from_masks,
                 beamform_lcmv_souden_from_masks,
                 beamform_gev_from_masks,
@@ -242,7 +242,7 @@ class Enhancer:
         return self.activity.db
 
     def stft(self, x):
-        from nt.transform import stft
+        from pb_chime5.nt.transform import stft
         return stft(
             x,
             size=self.stft_size,
@@ -251,7 +251,7 @@ class Enhancer:
         )
 
     def istft(self, X):
-        from nt.transform import istft
+        from pb_chime5.nt.transform import istft
         return istft(
             X,
             size=self.stft_size,
@@ -280,7 +280,6 @@ class Enhancer:
 
         for ex in it[:2]:
             yield self.enhance_example(ex)
-
 
     def enhance_example(
             self,
@@ -402,8 +401,6 @@ def get_enhancer(
             iterations=bss_iterations,
             iterations_post=bss_iterations_post,
             verbose=False,
-            use_pinv=False,
-            stable=True,
         ),
         bf_block=Beamformer(
             type=bf,

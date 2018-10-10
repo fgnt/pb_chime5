@@ -136,7 +136,9 @@ setup(
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'peppercorn'
+        'peppercorn',
+        'wavefile',
+        'cached_property',
     ],  # Optional
 
     # List additional groups of dependencies here (e.g. development
@@ -198,6 +200,8 @@ setup(
     },
 
     ext_modules=cythonize([
-        "chime5/util/intervall_array_util.pyx"
+        'pb_chime5/util/intervall_array_util.pyx',
+        'pb_chime5/nt/speech_enhancement/cythonized/get_gev_vector.pyx',
+        'pb_chime5/nt/speech_enhancement/cythonized/c_eig.pyx',
     ])
 )

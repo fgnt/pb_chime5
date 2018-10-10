@@ -1,5 +1,5 @@
 import numpy as np
-from chime5.util.intervall_array_util import (
+from pb_chime5.util.intervall_array_util import (
     cy_non_intersection,
     cy_intersection,
     cy_parse_item,
