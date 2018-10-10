@@ -73,7 +73,7 @@ from nt import kaldi
 from nt.io import load_json
 from nt.io.audioread import audioread
 
-from nt.database import keys
+from nt.database.keys import *
 from nt.database.iterator import BaseIterator
 from nt.database.iterator import ExamplesIterator
 
@@ -123,9 +123,64 @@ class DictDatabase:
 
     @property
     def dataset_names(self):
-        return list(self.database_dict[keys.DATASETS].keys())
+        return tuple(
+            self.database_dict[DATASETS].keys()
+        ) + tuple(
+            self.database_dict.get(ALIAS, {}).keys()
+        )
 
-    def get_iterator_by_names(self, dataset_names):
+    @property
+    def datasets_train(self):
+        """A list of filelist names for training."""
+        raise NotImplementedError
+
+    @property
+    def datasets_eval(self):
+        """A list of filelist names for evaluation."""
+        raise NotImplementedError
+
+    @property
+    def datasets_test(self):
+        """A list of filelist names for testing."""
+        raise NotImplementedError
+
+    @cached_property
+    def datasets(self):
+        dataset_names = self.dataset_names
+        return type(
+            'DatasetsCollection',
+            (object,),
+            {
+                # 'abc': property(lambda self: 'cdf'),
+                '__getitem__': (lambda _, dataset_name: self.get_iterator_by_names(dataset_name)),
+                **{
+                    k: property(lambda self: self[k])
+                    for k in dataset_names
+                }
+            }
+        )()
+
+    def _get_dataset_from_database_dict(self, dataset_name):
+        if dataset_name in self.database_dict.get('alias', []):
+            dataset_names = self.database_dict['alias'][dataset_name]
+            examples = {}
+            for name in dataset_names:
+                examples_new = self.database_dict[DATASETS][name]
+                intersection = set.intersection(
+                    set(examples.keys()),
+                    set(examples_new.keys()),
+                )
+                assert len(intersection) == 0, intersection
+                examples = {**examples, **examples_new}
+            return examples
+        else:
+            return self.database_dict[DATASETS][dataset_name]
+
+    @cached_property
+    def _iterator_weak_ref_dict(self):
+        return weakref.WeakValueDictionary()
+
+    def get_iterator_by_names(self, dataset_names, use_weakref=True):
         """
         Returns a single Iterator over specified datasets.
 
@@ -135,16 +190,24 @@ class DictDatabase:
             If None an iterator over the complete databases will be returned.
         :return:
         """
-        dataset_names = to_list(dataset_names)
+        dataset_names = to_list(dataset_names, item_type=str)
         iterators = list()
         for dataset_name in dataset_names:
+            if use_weakref:
+                try:
+                    it = self._iterator_weak_ref_dict[dataset_name]
+                except KeyError:
+                    pass
+                else:
+                    iterators.append(it)
+                    continue
             try:
-                examples = self.database_dict[keys.DATASETS][dataset_name]
+                examples = self._get_dataset_from_database_dict(dataset_name)
             except KeyError:
                 import difflib
                 similar = difflib.get_close_matches(
                     dataset_name,
-                    self.database_dict[keys.DATASETS].keys(),
+                    self.dataset_names,
                     n=5,
                     cutoff=0,
                 )
@@ -157,8 +220,8 @@ class DictDatabase:
                 )
 
             for example_id in examples.keys():
-                examples[example_id][keys.EXAMPLE_ID] = example_id
-                examples[example_id][keys.DATASET_NAME] = dataset_name
+                examples[example_id][EXAMPLE_ID] = example_id
+                examples[example_id][DATASET_NAME] = dataset_name
 
             # Convert values to binary, because deepcopy on binary is faster
             # This is important for CHiME5
@@ -166,6 +229,10 @@ class DictDatabase:
             it = ExamplesIterator(examples, name=dataset_name)
             # Apply map function to restore binary data
             it = it.map(pickle.loads)
+
+            if use_weakref:
+                self._iterator_weak_ref_dict[dataset_name] = it
+
             iterators.append(it)
 
         return BaseIterator.concatenate(*iterators)
@@ -188,7 +255,7 @@ class DictDatabase:
             return []
 
     @property
-    def audio_read_fn(self):
+    def read_fn(self):
         return lambda x: audioread(x)[0]
 
 
@@ -212,10 +279,10 @@ class JsonDatabase(DictDatabase):
         it = self.get_iterator_by_names(datasets)
         lengths = dict()
         for example in it:
-            num_samples = example[keys.NUM_SAMPLES]
+            num_samples = example[NUM_SAMPLES]
             if isinstance(num_samples, dict):
-                num_samples = num_samples[keys.OBSERVATION]
-            example_id = example[keys.EXAMPLE_ID]
+                num_samples = num_samples[OBSERVATION]
+            example_id = example[EXAMPLE_ID]
             lengths[example_id] = (length_transform_fn(num_samples))
         return lengths
 
@@ -224,11 +291,28 @@ class JsonDatabase(DictDatabase):
 
 
 class KaldiDatabase(DictDatabase):
+    """
+    Which files are expected from directory to be a Kaldi database?
+    - data
+        - filst1
+            - wav.scp with format: <utterance_id> <audio_path>
+            - utt2spk with format: <utterance_id> <speaker_id>
+            - text with format: <utterance_id> <kaldi_word_transcription>
+            - spk2gender (optional)
+            - utt2dur (optional, useful for correct bucketing)
+        - flist2
+            - wav.scp
+            - utt2spk
+            - text
+            - spk2gender (optional)
+            - utt2dur (optional, useful for correct bucketing)
 
+    The `wav.scp` should ideally be in this format:
+        utt_id1 audio_path1
+        utt_id2 audio_path2
+    """
     def __init__(self, egs_path: Path):
-        if isinstance(egs_path, str):
-            egs_path = Path(egs_path)
-        self._egs_path = egs_path
+        self._egs_path = Path(egs_path)
         super().__init__(self.get_dataset_dict_from_kaldi(egs_path))
 
     def __repr__(self):
@@ -236,17 +320,20 @@ class KaldiDatabase(DictDatabase):
 
     @staticmethod
     def get_examples_from_dataset(dataset_path):
+        dataset_path = Path(dataset_path)
         scp = kaldi.io.read_keyed_text_file(dataset_path / 'wav.scp')
         utt2spk = kaldi.io.read_keyed_text_file(dataset_path / 'utt2spk')
         text = kaldi.io.read_keyed_text_file(dataset_path / 'text')
         try:
-            spk2gender = kaldi.io.read_keyed_text_file(dataset_path / 'spk2gender')
+            spk2gender = kaldi.io.read_keyed_text_file(
+                dataset_path / 'spk2gender'
+            )
         except FileNotFoundError:
             spk2gender = None
         examples = dict()
 
         # Normally the scp points to a single audio file (i.e. len(s) = 1)
-        # For databases with a different audio formart (e.g. WSJ) however,
+        # For databases with a different audio format (e.g. WSJ) however,
         # it is a command to convert the corresponding audio file. The
         # file is usually at the end of this command. If this does not work,
         # additional heuristics need to be introduced here.
@@ -258,28 +345,29 @@ class KaldiDatabase(DictDatabase):
 
         for example_id in scp:
             example = defaultdict(dict)
-            example[keys.AUDIO_PATH][keys.OBSERVATION] = _audio_path(scp[example_id])
-            example[keys.SPEAKER_ID] = utt2spk[example_id][0]
+            example[AUDIO_PATH][OBSERVATION] = _audio_path(scp[example_id])
+            example[SPEAKER_ID] = utt2spk[example_id][0]
             if spk2gender is not None:
-                example[keys.GENDER] = spk2gender[example[keys.SPEAKER_ID]][0]
-            example[keys.KALDI_TRANSCRIPTION] = ' '.join(text[example_id])
+                example[GENDER] = spk2gender[example[SPEAKER_ID]][0]
+            example[KALDI_TRANSCRIPTION] = ' '.join(text[example_id])
             examples[example_id] = dict(**example)
         return examples
 
     def add_num_samples(self, example):
         assert (
-            keys.AUDIO_DATA in example
-            and keys.OBSERVATION in example[keys.AUDIO_DATA]
+            AUDIO_DATA in example
+            and OBSERVATION in example[AUDIO_DATA]
         ), (
             'No audio data found in example. Make sure to map with '
             '`AudioReader` before adding `num_samples`.'
         )
-        example[keys.NUM_SAMPLES] \
-            = example[keys.AUDIO_DATA][keys.OBSERVATION].shape[-1]
+        example[NUM_SAMPLES] \
+            = example[AUDIO_DATA][OBSERVATION].shape[-1]
         return example
 
     @classmethod
     def get_dataset_dict_from_kaldi(cls, egs_path):
+        egs_path = Path(egs_path)
         scp_paths = glob.glob(str(egs_path / 'data' / '*' / 'wav.scp'))
         dataset_dict = {'datasets': {}}
         for wav_scp_file in scp_paths:
@@ -289,26 +377,37 @@ class KaldiDatabase(DictDatabase):
             dataset_dict['datasets'][dataset_name] = examples
         return dataset_dict
 
+    def get_lengths(self, datasets, length_transform_fn=None):
+        if not callable(length_transform_fn):
+            raise NotImplementedError(
+                'Implement a `length_transform_fn` which translates from '
+                'seconds (due to Kaldi) to your desired lengths. You can do so '
+                'by implementing `get_lengths() in your subclass and take care '
+                'of the correct sample rate. It can not be implemented here, '
+                'since the sample rate is not known.'
+            )
+
+        if not isinstance(datasets, (tuple, list)):
+            datasets = [datasets]
+        lengths = dict()
+        for dataset in datasets:
+            utt2dur_path = self._egs_path / 'data' / dataset / 'utt2dur'
+            if not utt2dur_path.is_file():
+                raise NotImplementedError(
+                    'Lengths only available for bucketing if utt2dur file '
+                    f'exists: {utt2dur_path}'
+                )
+            lengths.update(
+                kaldi.io.read_keyed_text_file(utt2dur_path, to_list=False)
+            )
+
+        return {k: length_transform_fn(float(v)) for k, v in lengths.items()}
+
 
 class HybridASRDatabaseTemplate:
 
     def __init__(self, lfr=False):
         self.lfr = lfr
-
-    @property
-    def datasets_train(self):
-        """A list of filelist names for training."""
-        raise NotImplementedError
-
-    @property
-    def datasets_eval(self):
-        """A list of filelist names for development."""
-        raise NotImplementedError
-
-    @property
-    def datasets_test(self):
-        """A list of filelist names for evaluation."""
-        raise NotImplementedError
 
     @property
     def ali_path_train(self):
@@ -370,11 +469,7 @@ class HybridASRDatabaseTemplate:
 
     @property
     def example_id_map_fn(self):
-        return lambda x: x[keys.EXAMPLE_ID]
-
-    @property
-    def audio_read_fn(self):
-        return lambda x: audioread(x)[0]
+        return lambda x: x[EXAMPLE_ID]
 
     @property
     def decode_fst(self):
