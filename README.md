@@ -7,6 +7,7 @@ Open points:
 - [ ] remove dependencies from our infrastructure
 - [ ] launch script
 - [ ] manual script
+- [ ] code cleanup, remove all unnessesary code and rearrange the code file
 
 Challenge website: http://spandh.dcs.shef.ac.uk/chime_challenge/
 
