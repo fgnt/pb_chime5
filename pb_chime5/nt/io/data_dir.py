@@ -11,6 +11,7 @@
 
 import os
 from pathlib import Path
+from pb_chime5 import git_root as _git_root
 
 
 def _get_path(environment_name, default):
@@ -19,7 +20,7 @@ def _get_path(environment_name, default):
 
 database_jsons = _get_path(
     'NT_DATABASE_JSONS_DIR',
-    '/net/vol/jenkins/jsons'
+    _git_root / 'cache'
 )
 db_dir = _get_path(
     'NT_DB_DIR',
@@ -83,7 +84,7 @@ chime_4 = _get_path(
 )
 chime_5 = _get_path(
     'NT_CHIME_5_DIR',
-    fast_db_dir / 'chime5'
+    _git_root / 'CHiME5'
 )
 merl_mixtures = _get_path(
     'NT_MERL_MIXTURES_DIR',

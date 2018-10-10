@@ -176,7 +176,7 @@ def load_transciption_json(path):
 
 
 def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_transcriptions):
-    database_path = database_path / 'CHiME5'
+    # database_path = database_path / 'CHiME5'
     dataset_transciption_path = database_path / 'transcriptions' / dataset
     dataset_transciption_realigned_path = transcription_realigned_path #  / dataset
     dataset_audio_path = database_path / 'audio' / dataset
@@ -446,8 +446,9 @@ def main(database_path, json_path, transcription_path):
 
     print('Check that all wav files in the json exsist.')
     check_audio_files_exist(json, speedup='thread')
-    print('Finished check.')
+    print('Finished check. Write json to disk:')
     dump_database_as_json(json_path, json)
+    print('Finished write')
 
 
 if __name__ == '__main__':

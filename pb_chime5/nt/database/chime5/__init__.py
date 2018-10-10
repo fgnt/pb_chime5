@@ -27,7 +27,7 @@ class Chime5(HybridASRJSONDatabaseTemplate):
 
     def __init__(
             self,
-            path  # =database_jsons / 'chime5.json',
+            path=database_jsons / 'chime5_orig.json',
     ):
         super().__init__(path)
 

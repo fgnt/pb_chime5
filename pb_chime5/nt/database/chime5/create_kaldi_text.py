@@ -8,7 +8,7 @@ from pb_chime5.nt.utils.process_caller import run_process
 
 
 def get_kaldi_transcriptions(
-        json2text=dir_chime_5 / 'kaldi_tools' / 'json2text.py'
+        json2text=None
 ):
     if json2text is None:
         with tempfile.TemporaryDirectory() as tmp_dir:

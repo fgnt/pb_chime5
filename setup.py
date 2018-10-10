@@ -34,7 +34,7 @@ setup(
     # There are some restrictions on what makes a valid project name
     # specification here:
     # https://packaging.python.org/specifications/core-metadata/#name
-    name='chime5',  # Required
+    name='pb_chime5',  # Required
 
     # Versions should comply with PEP 440:
     # https://www.python.org/dev/peps/pep-0440/
@@ -196,7 +196,7 @@ setup(
         # 'Bug Reports': 'https://github.com/pypa/sampleproject/issues',
         # 'Funding': 'https://donate.pypi.org',
         # 'Say Thanks!': 'http://saythanks.io/to/example',
-        'Source': 'ntgit:projects/2018/chime5',
+        'Source': 'https://github.com/fgnt/pb_chime5.git',
     },
 
     ext_modules=cythonize([
