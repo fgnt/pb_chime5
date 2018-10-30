@@ -139,6 +139,7 @@ setup(
         'peppercorn',
         'wavefile',
         'cached_property',
+        'sacred',
     ],  # Optional
 
     # List additional groups of dependencies here (e.g. development
