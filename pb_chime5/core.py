@@ -10,12 +10,14 @@ a, A ... array
 
 import functools
 from dataclasses import dataclass
+from pathlib import Path
 
 from cached_property import cached_property
 
 import numpy as np
 
 import nara_wpe
+import nara_wpe.wpe
 from dc_integration.distribution import (
     ComplexAngularCentralGaussianMixtureModel,
 )
@@ -27,15 +29,16 @@ from pb_chime5.nt.utils.numpy_utils import morph
 from pb_chime5.nt.io.data_dir import database_jsons
 from pb_chime5.nt.database.chime5 import activity_time_to_frequency
 
-from pb_chime5.io import load_audio
+from pb_chime5.io import load_audio, dump_audio
+from pb_chime5 import mapping
 
 
 @dataclass
 class WPE:
-    K: int
+    taps: int
     delay: int
     iterations: int
-    neighborhood: int
+    psd_context: int
 
     def __call__(self, Obs, stack=None):
         
@@ -43,10 +46,10 @@ class WPE:
             assert stack is None, stack
             Obs = nara_wpe.wpe.wpe_v8(
                 Obs.transpose(2, 0, 1),
-                K=self.K,
+                taps=self.taps,
                 delay=self.delay,
                 iterations=self.iterations,
-                neighborhood=self.neighborhood,
+                psd_context=self.psd_context,
             ).transpose(1, 2, 0)
         elif Obs.ndim == 4:
             if stack is True:
@@ -54,19 +57,19 @@ class WPE:
                 Obs = morph('ACTF->A*CTF', Obs)
                 Obs = nara_wpe.wpe.wpe_v8(
                     Obs.transpose(2, 0, 1),
-                    K=self.K,
+                    taps=self.taps,
                     delay=self.delay,
                     iterations=self.iterations,
-                    neighborhood=self.neighborhood,
+                    psd_context=self.psd_context,
                 ).transpose(1, 2, 0)
                 Obs = morph('A*CTF->ACTF', Obs, A=_A)
             elif stack is False:
                 Obs = nara_wpe.wpe.wpe_v8(
                     Obs.transpose(0, 3, 1, 2),
-                    K=self.K,
+                    taps=self.taps,
                     delay=self.delay,
                     iterations=self.iterations,
-                    neighborhood=self.neighborhood,
+                    psd_context=self.psd_context,
                 ).transpose(0, 2, 3, 1)
                 
             else:
@@ -232,10 +235,8 @@ class Enhancer:
     # context_samples: int
     # equal_start_context: bool
 
-    context_samples = 0  # e.g. 240000
-    multiarray = False
-
-    dry_run = False
+    context_samples: int  # e.g. 240000
+    multiarray: bool
 
     @property
     def db(self):
@@ -259,17 +260,8 @@ class Enhancer:
             fading=self.stft_fading,
         )
 
-    def enhance_session(
-            self,
-            session_id,
-    ):
-        """
-        >>> enhancer = get_enhancer(wpe=False, bss_iterations=2)
-        >>> for x_hat in enhancer.enhance_session('S02'):
-        ...     print(x_hat)
-        """
-
-        it = self.db.get_iterator_for_session(
+    def get_iterator(self, session_id):
+        return self.db.get_iterator_for_session(
             session_id,
             audio_read=False,
             adjust_times=True,
@@ -278,8 +270,47 @@ class Enhancer:
             equal_start_context=True,
         )
 
-        for ex in it[:2]:
-            yield self.enhance_example(ex)
+    def enhance_session(
+            self,
+            session_ids,
+            audio_dir,
+            test_run=False,
+    ):
+        """
+        >>> enhancer = get_enhancer(wpe=False, bss_iterations=2)
+        >>> for x_hat in enhancer.enhance_session('S02'):
+        ...     print(x_hat)
+        """
+        audio_dir = Path(audio_dir)
+
+        it = self.get_iterator(session_ids)
+
+        audio_dir.mkdir()
+        for dataset in set(mapping.session_to_dataset.values()):
+            (audio_dir / dataset).mkdir()
+
+        if test_run is not False:
+            if test_run is True:
+                it = it[:2]
+            elif isinstance(test_run, int):
+                it = it[:test_run]
+            else:
+                raise ValueError(test_run)
+
+        for ex in it:
+            x_hat = self.enhance_example(ex)
+            example_id = ex["example_id"]
+            session_id = ex["session_id"]
+            dataset = mapping.session_to_dataset[session_id]
+
+            if x_hat.ndim == 1:
+                save_path = audio_dir / f'{dataset}' / f'{example_id}.wav'
+                dump_audio(
+                    x_hat,
+                    save_path,
+                )
+            else:
+                raise NotImplementedError(x_hat.shape)
 
     def enhance_example(
             self,
@@ -298,8 +329,25 @@ class Enhancer:
         }
 
         if self.multiarray is True:
-            obs = ...
-            raise NotImplementedError(self.multiarray)
+            # ToDo: multiarray in ['except_wpe', 'only_wpe', ...]
+
+            def concaternate_arrays(arrays):
+                # The context does not consider the end of an utterance.
+                # It can happen that some utterances are longer than others.
+                # values = list(arrays.values())
+                assert {v.ndim for v in arrays} == {2}, [v.shape for v in arrays]
+                time_length = min([v.shape[-1] for v in arrays])
+                values = [v[..., :time_length] for v in arrays]
+                return np.array(values)
+
+            obs = morph('ACN->A*CN', concaternate_arrays([
+                load_audio(
+                    ex['audio_path']['observation'][array],
+                    start=ex['start']['observation'][array],
+                    stop=ex['end']['observation'][array],
+                )
+                for array in sorted(ex['audio_path']['observation'].keys())
+            ]))
         elif self.multiarray is False:
             obs = load_audio(
                 ex['audio_path']['observation'][reference_array],
@@ -366,11 +414,14 @@ class Enhancer:
 
 
 def get_enhancer(
+    multiarray=False,
+    context_samples=0,
+
     wpe=True,
     wpe_tabs=10,
     wpe_delay=3,
     wpe_iterations=3,
-    wpe_neighborhood=1,
+    wpe_psd_context=1,
 
     activity_type='annotation',  # ['annotation', 'non_sil_alignment']
     activity_garbage_class=False,
@@ -385,12 +436,17 @@ def get_enhancer(
     bf='mvdrSouden_ban',
     postfilter=None,
 ):
+
+    assert wpe is True or wpe is False, wpe
+
     return Enhancer(
+        multiarray=multiarray,
+        context_samples=context_samples,
         wpe_block=WPE(
-            K=wpe_tabs,
+            taps=wpe_tabs,
             delay=wpe_delay,
             iterations=wpe_iterations,
-            neighborhood=wpe_neighborhood,
+            psd_context=wpe_psd_context,
         ) if wpe else None,
         activity=Activity(
             type=activity_type,
@@ -406,7 +462,6 @@ def get_enhancer(
             type=bf,
             postfilter=postfilter,
         ),
-
         stft_size=stft_size,
         stft_shift=stft_shift,
         stft_fading=stft_fading,
