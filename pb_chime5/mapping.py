@@ -24,6 +24,29 @@ session_to_speakers = Dispatcher({
     'S24': ['P53', 'P54', 'P55', 'P56'],
 })
 
+session_to_dataset = Dispatcher({
+    'S01': 'eval',
+    'S02': 'dev',
+    'S03': 'train',
+    'S04': 'train',
+    'S05': 'train',
+    'S06': 'train',
+    'S07': 'train',
+    'S08': 'train',
+    'S09': 'dev',
+    'S12': 'train',
+    'S13': 'train',
+    'S16': 'train',
+    'S17': 'train',
+    'S18': 'train',
+    'S19': 'train',
+    'S20': 'train',
+    'S21': 'eval',
+    'S22': 'train',
+    'S23': 'train',
+    'S24': 'train'
+})
+
 session_to_arrays: dict = Dispatcher({
     'S01': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
     'S02': ['U01', 'U02', 'U03', 'U04', 'U05', 'U06'],
