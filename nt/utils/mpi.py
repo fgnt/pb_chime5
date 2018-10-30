@@ -33,8 +33,9 @@ try:
 except ImportError:
     import os
 
-    if 'CCS' in os.environ:
+    if 'PC2SYSNAME' in os.environ:
         # CCS indicate PC2
+        # PC2SYSNAME is 'OCULUS' or 'Noctua'
         raise
 
     if int(os.environ.get('OMPI_COMM_WORLD_SIZE', '1')) != 1:
@@ -56,7 +57,6 @@ except ImportError:
         COMM_WORLD = DUMMY_COMM_WORLD()
 
     MPI = _dummy_MPI()
-
 
 
 class RankInt(int):
