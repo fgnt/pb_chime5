@@ -420,16 +420,16 @@ class Enhancer:
 
 def get_enhancer(
     multiarray=False,
-    context_samples=0,
+    context_samples=240000,
 
     wpe=True,
     wpe_tabs=10,
-    wpe_delay=3,
+    wpe_delay=2,
     wpe_iterations=3,
-    wpe_psd_context=1,
+    wpe_psd_context=0,
 
     activity_type='annotation',  # ['annotation', 'non_sil_alignment']
-    activity_garbage_class=False,
+    activity_garbage_class=True,
 
     stft_size=1024,
     stft_shift=256,
