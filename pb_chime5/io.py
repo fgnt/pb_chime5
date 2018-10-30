@@ -1,4 +1,5 @@
 from pb_chime5.nt.io import load_audio as _load_audio
+from pb_chime5.nt.io import dump_audio
 # from pb_chime5.nt.io.recusive import recursive_load_decorator as _recursive_load_decorator
 
 import numpy as np
