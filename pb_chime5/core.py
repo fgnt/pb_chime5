@@ -31,6 +31,7 @@ from pb_chime5.nt.database.chime5 import activity_time_to_frequency
 
 from pb_chime5.io import load_audio, dump_audio
 from pb_chime5 import mapping
+from pb_chime5.util import mpi
 
 
 @dataclass
@@ -285,9 +286,13 @@ class Enhancer:
 
         it = self.get_iterator(session_ids)
 
-        audio_dir.mkdir()
-        for dataset in set(mapping.session_to_dataset.values()):
-            (audio_dir / dataset).mkdir()
+        if mpi.IS_MASTER:
+            audio_dir.mkdir()
+
+            for dataset in set(mapping.session_to_dataset.values()):
+                (audio_dir / dataset).mkdir()
+
+        mpi.barrier()
 
         if test_run is not False:
             if test_run is True:
@@ -297,7 +302,7 @@ class Enhancer:
             else:
                 raise ValueError(test_run)
 
-        for ex in it:
+        for ex in mpi.share_master(it, allow_single_worker=True):
             x_hat = self.enhance_example(ex)
             example_id = ex["example_id"]
             session_id = ex["session_id"]
