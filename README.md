@@ -29,3 +29,30 @@ If you are using this code please cite the following paper:
   booktitle = {CHiME5 Workshop},
 }
 ```
+
+## Install
+
+Clone the repo with submodules
+```bash
+$ git clone https://github.com/fgnt/pb_chime5.git
+$ cd pb_chime5
+$ Download submodule dependencies  # https://stackoverflow.com/a/3796947/5766934
+$ git submodule init  
+$ git submodule update
+```
+Create a symlink to the chime5 database e.g. `ln -s /net/fastdb/chime5/CHiME5 CHiME5`
+
+Create the database description file
+```bash
+make cache/chime5_orig.json
+```
+
+It is assumed that the folder `sacred` in this git is the simulation folder.
+If you want to change the simulation dir, add a symlink to the folder where you want to store the simulation results: `ln -s /path/to/sim/dir sacred`
+
+Start a simulation with
+```bash
+mpiexec -np 9 python -m pb_chime5.scripts.run with session_id=dev
+```
+
+
