@@ -136,10 +136,9 @@ setup(
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'peppercorn',
-        'wavefile',
         'cached_property',
         'sacred',
+        'nara_wpe',
     ],  # Optional
 
     # List additional groups of dependencies here (e.g. development
