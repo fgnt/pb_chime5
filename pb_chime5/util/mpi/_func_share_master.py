@@ -3,7 +3,7 @@ if not __package__:
 
     set_package()
 
-from .helper import *
+from . import core as mpi
 
 
 def share_master(
@@ -38,21 +38,21 @@ def share_master(
     """
     from tqdm import tqdm
 
-    if allow_single_worker and size == 1:
+    if allow_single_worker and mpi.SIZE == 1:
         if disable_pbar:
             yield from iterator
         else:
             yield from tqdm(iterator, mininterval=2)
         return
 
-    assert size > 1, size
+    assert mpi.SIZE > 1, mpi.SIZE
 
-    status = MPI.Status()
-    workers = size - 1
+    status = mpi.MPI.Status()
+    workers = mpi.SIZE - 1
     # registered_workers = set()
 
     # print(f'{rank} reached Barrier in share_master')
-    comm.Barrier()
+    mpi.COMM.Barrier()
     # print(f'{rank} left Barrier in share_master')
 
 
@@ -66,7 +66,7 @@ def share_master(
 
     failed_indices = []
 
-    if rank == 0:
+    if mpi.RANK == 0:
         i = 0
         try:
             length = len(iterator)
@@ -83,14 +83,14 @@ def share_master(
         ) as pbar:
             pbar.set_description(f'{pbar_prefix}busy: {workers}')
             while workers > 0:
-                last_index = comm.recv(
-                    source=MPI.ANY_SOURCE,
-                    tag=MPI.ANY_TAG,
+                last_index = mpi.COMM.recv(
+                    source=mpi.MPI.ANY_SOURCE,
+                    tag=mpi.MPI.ANY_TAG,
                     status=status,
                 )
 
                 if status.tag in [tags.default, tags.start]:
-                    comm.send(i, dest=status.source)
+                    mpi.COMM.send(i, dest=status.source)
                     i += 1
 
                 if status.tag in [tags.default, tags.failed]:
@@ -122,24 +122,24 @@ def share_master(
         successfull = False
         try:
             # comm.send(rank, dest=0)
-            comm.send(None, dest=0, tag=tags.start)
-            next_index = comm.recv(source=0)
+            mpi.COMM.send(None, dest=0, tag=tags.start)
+            next_index = mpi.COMM.recv(source=0)
             for i, val in enumerate(iterator):
                 if i == next_index:
                     yield val
-                    comm.send(next_index, dest=0, tag=tags.default)
-                    next_index = comm.recv(source=0)
+                    mpi.COMM.send(next_index, dest=0, tag=tags.default)
+                    next_index = mpi.COMM.recv(source=0)
             successfull = True
         finally:
             if successfull:
-                comm.send(next_index, dest=0, tag=tags.stop)
+                mpi.COMM.send(next_index, dest=0, tag=tags.stop)
             else:
-                comm.send(next_index, dest=0, tag=tags.failed)
+                mpi.COMM.send(next_index, dest=0, tag=tags.failed)
 
 
 if __name__ == '__main__':
-    from .helper import test_relaunch_with_mpi
-    test_relaunch_with_mpi()
+    # from .helper import test_relaunch_with_mpi
+    # test_relaunch_with_mpi()
 
     import tqdm
     import time
@@ -147,11 +147,11 @@ if __name__ == '__main__':
 
     iter = range(5)
 
-    comm.Barrier()
+    mpi.COMM.Barrier()
 
     for i in share_master(iter, disable_pbar=False):
-        print('loop body:', i, rank)
-        if rank == 2:
+        print('loop body:', i, mpi.RANK)
+        if mpi.RANK == 2:
             time.sleep(0.2)
             # break
     #
@@ -169,4 +169,4 @@ if __name__ == '__main__':
         pass
         time.sleep(3)
     time.sleep(2)
-    print('Exit', rank)
+    print('Exit', mpi.RANK)
