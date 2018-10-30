@@ -42,6 +42,13 @@ $ git submodule update
 ```
 Create a symlink to the chime5 database e.g. `ln -s /net/fastdb/chime5/CHiME5 CHiME5`
 
+Install this package and pb_bss 
+```bash
+pip install --user -e pb_bss/
+pip install --user -e .
+```
+
+
 Create the database description file
 ```bash
 make cache/chime5_orig.json
