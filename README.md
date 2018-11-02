@@ -1,4 +1,4 @@
-# pb_chime5: Front-End Processing for the CHiME-5 Dinner Party Scenario
+# pb_chime5: Front-End Processing for the CHiME-5 Dinner Party Scenario [\[pdf\]](http://spandh.dcs.shef.ac.uk/chime_workshop/papers/CHiME_2018_paper_boeddecker.pdf)
 
 ![(System Overview)](doc/images/system.svg)
 
