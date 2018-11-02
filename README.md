@@ -1,12 +1,14 @@
 # pb_chime5: Front-End Processing for the CHiME-5 Dinner Party Scenario
 
+<img src="doc/images/system.svg" width="100%" height="144">
+
 This repository is not finished (i.e. work in progress).
 Open points:
 
 - [x] core enhancement code
-- [ ] remove dependencies from our infrastructure
-- [ ] launch script
-- [ ] manual script
+- [x] remove dependencies from our infrastructure
+- [x] launch script
+- [x] manual script
 - [ ] code cleanup, remove all unnessesary code and rearrange the code files
 
 Challenge website: http://spandh.dcs.shef.ac.uk/chime_challenge/
