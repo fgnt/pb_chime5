@@ -32,6 +32,8 @@ If you are using this code please cite the following paper:
 
 ## Install
 
+Does not work with Windows.
+
 Clone the repo with submodules
 ```bash
 $ git clone https://github.com/fgnt/pb_chime5.git
@@ -45,6 +47,7 @@ Create a symlink to the chime5 database e.g. `ln -s /net/fastdb/chime5/CHiME5 CH
 Install this package and pb_bss 
 ```bash
 pip install --user -e pb_bss/
+pip install --user -e toolbox/  # Copy of some internal developed code.
 pip install --user -e .
 ```
 
