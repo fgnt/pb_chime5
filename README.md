@@ -1,6 +1,6 @@
 # pb_chime5: Front-End Processing for the CHiME-5 Dinner Party Scenario
 
-<img src="doc/images/system.svg" width="100%" height="144">
+![(System Overview)](doc/images/system.svg)
 
 This repository is not finished (i.e. work in progress).
 Open points:
