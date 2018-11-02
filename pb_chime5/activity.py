@@ -42,7 +42,7 @@ def get_activity(
         mic_perspective e.g.: 'P', 'P05', 'U01', ...
         speaker_id e.g.: 'P05', ...
 
-    >>> from pb_chime5.nt.database.chime5 import Chime5
+    >>> from nt.database.chime5 import Chime5
     >>> import textwrap
     >>> db = Chime5()
     >>> def display_activity(activity):
