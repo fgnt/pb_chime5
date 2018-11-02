@@ -95,6 +95,8 @@ def run(_run, test_run=False):
         _dir / 'audio',
         test_run=test_run,
     )
+    if mpi.IS_MASTER:
+        print('Finished experiment dir:', _dir)
 
 
 if __name__ == '__main__':
