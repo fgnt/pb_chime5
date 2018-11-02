@@ -10,17 +10,17 @@ from collections import Counter
 from pathlib import Path
 import re
 
-from pb_chime5.nt.visualization import matplotlib_fix
+from nt.visualization import matplotlib_fix
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from pb_chime5.nt.io.json_module import load_json
-from pb_chime5.nt.io.data_dir import database_jsons
-from pb_chime5.nt.database.chime5 import Chime5, CrossTalkFilter, SessionFilter
-from pb_chime5.nt.database.chime5.get_speaker_activity import get_active_speaker
+from nt.io.json_module import load_json
+from nt.io.data_dir import database_jsons
+from nt.database.chime5 import Chime5, CrossTalkFilter, SessionFilter
+from nt.database.chime5.get_speaker_activity import get_active_speaker
 
 
 def speaker_activity_per_sess(sessions: list, sample_step=160):

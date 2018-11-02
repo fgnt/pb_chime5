@@ -70,12 +70,12 @@ from cached_property import cached_property
 import numpy as np
 
 # from pb_chime5.nt import kaldi
-from pb_chime5.nt.io import load_json
-from pb_chime5.nt.io.audioread import audioread
+from nt.io import load_json
+from nt.io.audioread import audioread
 
-from pb_chime5.nt.database.keys import *
-from pb_chime5.nt.database.iterator import BaseIterator
-from pb_chime5.nt.database.iterator import ExamplesIterator
+from nt.database.keys import *
+from nt.database.iterator import BaseIterator
+from nt.database.iterator import ExamplesIterator
 
 LOG = logging.getLogger('Database')
 

@@ -2,7 +2,7 @@ import numpy as np
 
 from pb_chime5 import mapping
 from pb_chime5.util import ArrayIntervall
-from pb_chime5.nt.utils.mapping import Dispatcher
+from nt.utils.mapping import Dispatcher
 
 
 def get_activity(

@@ -5,8 +5,8 @@ import collections
 
 import click
 
-from pb_chime5.nt.database.keys import *
-from pb_chime5.nt.io.json_module import dump_json
+from nt.database.keys import *
+from nt.io.json_module import dump_json
 
 # from tensorflow.python.util import nest
 

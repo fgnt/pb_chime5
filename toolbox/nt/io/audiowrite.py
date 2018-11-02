@@ -6,7 +6,7 @@ from pathlib import Path
 import soundfile
 from scipy.io.wavfile import write as wav_write
 
-from pb_chime5.nt.utils.mapping import Dispatcher
+from nt.utils.mapping import Dispatcher
 
 int16_max = np.iinfo(np.int16).max
 int16_min = np.iinfo(np.int16).min

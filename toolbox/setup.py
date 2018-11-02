@@ -16,8 +16,9 @@ from Cython.Build import cythonize
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+# with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+#     long_description = f.read()
+long_description = ''
 
 # Arguments marked as "Required" below must be included for upload to PyPI.
 # Fields marked as "Optional" may be commented out.
@@ -34,7 +35,7 @@ setup(
     # There are some restrictions on what makes a valid project name
     # specification here:
     # https://packaging.python.org/specifications/core-metadata/#name
-    name='pb_chime5',  # Required
+    name='nt',  # Required
 
     # Versions should comply with PEP 440:
     # https://www.python.org/dev/peps/pep-0440/
@@ -200,8 +201,7 @@ setup(
     },
 
     ext_modules=cythonize([
-        'pb_chime5/util/intervall_array_util.pyx',
-        # 'pb_chime5/nt/speech_enhancement/cythonized/get_gev_vector.pyx',
-        # 'pb_chime5/nt/speech_enhancement/cythonized/c_eig.pyx',
+        'nt/speech_enhancement/cythonized/get_gev_vector.pyx',
+        'nt/speech_enhancement/cythonized/c_eig.pyx',
     ])
 )

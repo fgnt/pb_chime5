@@ -10,8 +10,8 @@ import numpy as np
 from numpy.fft import rfft, irfft
 from scipy import signal
 
-from pb_chime5.nt.utils.numpy_utils import segment_axis_v2
-from pb_chime5.nt.utils.numpy_utils import roll_zeropad
+from nt.utils.numpy_utils import segment_axis_v2
+from nt.utils.numpy_utils import roll_zeropad
 
 
 def stft(

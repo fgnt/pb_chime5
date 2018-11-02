@@ -3,8 +3,8 @@ from pathlib import Path
 
 from IPython.lib.pretty import pprint
 
-from pb_chime5.nt.io.data_dir import chime_5 as dir_chime_5
-from pb_chime5.nt.utils.process_caller import run_process
+from nt.io.data_dir import chime_5 as dir_chime_5
+from nt.utils.process_caller import run_process
 
 
 def get_kaldi_transcriptions(

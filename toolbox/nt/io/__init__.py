@@ -10,18 +10,18 @@ The path should either be a ``pathlib.Path`` object or a string.
 import pickle
 from pathlib import Path
 
-from pb_chime5.nt.io import audioread
+from nt.io import audioread
 # from pb_chime5.nt.io import hdf5
 # from pb_chime5.nt.io import play
-from pb_chime5.nt.io.json_module import (
+from nt.io.json_module import (
     load_json,
     loads_json,
     dump_json,
     dumps_json,
 )
-from pb_chime5.nt.io.json_module import SummaryEncoder
-from pb_chime5.nt.io.audioread import load_audio
-from pb_chime5.nt.io.audiowrite import dump_audio
+from nt.io.json_module import SummaryEncoder
+from nt.io.audioread import load_audio
+from nt.io.audiowrite import dump_audio
 # from pb_chime5.nt.io.file_handling import (
 #     mkdir_p,
 #     symlink,

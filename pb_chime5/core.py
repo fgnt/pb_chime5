@@ -25,9 +25,9 @@ from dc_integration.distribution.utils import (
     stack_parameters,
 )
 
-from pb_chime5.nt.utils.numpy_utils import morph
-from pb_chime5.nt.io.data_dir import database_jsons
-from pb_chime5.nt.database.chime5 import activity_time_to_frequency
+from nt.utils.numpy_utils import morph
+from nt.io.data_dir import database_jsons
+from nt.database.chime5 import activity_time_to_frequency
 
 from pb_chime5.io import load_audio, dump_audio
 from pb_chime5 import mapping
@@ -90,7 +90,7 @@ class Activity:
 
     @cached_property
     def db(self):
-        from pb_chime5.nt.database.chime5 import Chime5
+        from nt.database.chime5 import Chime5
         return Chime5(self.database_path)
 
     @staticmethod
@@ -245,7 +245,7 @@ class Enhancer:
         return self.activity.db
 
     def stft(self, x):
-        from pb_chime5.nt.transform import stft
+        from nt.transform import stft
         return stft(
             x,
             size=self.stft_size,
@@ -254,7 +254,7 @@ class Enhancer:
         )
 
     def istft(self, X):
-        from pb_chime5.nt.transform import istft
+        from nt.transform import istft
         return istft(
             X,
             size=self.stft_size,

@@ -3,18 +3,18 @@ import re
 import functools
 
 import numpy as np
-from pb_chime5.nt.database import HybridASRJSONDatabaseTemplate
-from pb_chime5.nt.database import keys as K
-from pb_chime5.nt.database.chime5.create_json import CHiME5_Keys, SAMPLE_RATE
-from pb_chime5.nt.database.chime5.get_speaker_activity import to_numpy, get_active_speaker
-from pb_chime5.nt.database.iterator import AudioReader
-# from pb_chime5.nt.io.audioread import audioread
-from pb_chime5.nt.io.data_dir import database_jsons
-from pb_chime5.nt.io import load_json
-# from pb_chime5.nt.options import Options
-from pb_chime5.nt.utils.numpy_utils import segment_axis_v2
-from pb_chime5.nt.utils.numpy_utils import pad_axis
-import pb_chime5.nt.io
+from nt.database import HybridASRJSONDatabaseTemplate
+from nt.database import keys as K
+from nt.database.chime5.create_json import CHiME5_Keys, SAMPLE_RATE
+from nt.database.chime5.get_speaker_activity import to_numpy, get_active_speaker
+from nt.database.iterator import AudioReader
+# from nt.io.audioread import audioread
+from nt.io.data_dir import database_jsons
+from nt.io import load_json
+# from nt.options import Options
+from nt.utils.numpy_utils import segment_axis_v2
+from nt.utils.numpy_utils import pad_axis
+import nt.io
 import numbers
 
 kaldi_root = Path('/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/')
@@ -203,7 +203,7 @@ class Chime5AudioReader(AudioReader):
             dst_key='audio_data',
             audio_keys='observation',
             # audio_keys=None,  # is this not better for chime5? Low overhead.
-            read_fn=pb_chime5.nt.io.load_audio,
+            read_fn=nt.io.load_audio,
     ):
         super().__init__(src_key=src_key, dst_key=dst_key,
                          audio_keys=audio_keys,
@@ -485,7 +485,7 @@ def activity_frequency_to_time(
 ):
     """
 
-    >>> from pb_chime5.nt.transform import istft
+    >>> from nt.transform import istft
     >>> vad = np.array(   [0, 1, 0, 1, 0, 0, 1, 0, 0])
     >>> np.set_printoptions(suppress=True)
     >>> activity_frequency_to_time(vad, stft_window_length=4, stft_shift=2, stft_fading=False)
@@ -565,7 +565,7 @@ def activity_time_to_frequency(
         stft_pad=True,
 ):
     """
-    >>> from pb_chime5.nt.transform import stft
+    >>> from nt.transform import stft
     >>> signal = np.array([0, 0, 0, 0, 0, 1, -3, 0, 5, 0, 0, 0, 0, 0])
     >>> vad = np.array(   [0, 0, 0, 0, 0, 1,  1, 0, 1, 0, 0, 0, 0, 0])
     >>> np.set_printoptions(suppress=True)
@@ -599,7 +599,7 @@ def activity_time_to_frequency(
 
     >>> activity_time_to_frequency(np.zeros(200000), stft_window_length=1024, stft_shift=256, stft_fading=False, stft_pad=False).shape
     (778,)
-    >>> from pb_chime5.nt.transform import stft
+    >>> from nt.transform import stft
     >>> stft(np.zeros(200000), size=1024, shift=256, fading=False, pad=False).shape
     (778, 513)
     """
@@ -904,7 +904,7 @@ def backup_orig_start_end(ex):
 def AddContext(samples, equal_start_context=False):
     """
     >>> from IPython.lib.pretty import pprint
-    >>> from pb_chime5.nt.io.data_dir import database_jsons
+    >>> from nt.io.data_dir import database_jsons
     >>> db = Chime5(database_jsons / 'chime5.json')
     >>> it = db.get_iterator_for_session('S02')
     >>> pprint(it[0])  # doctest: +ELLIPSIS
@@ -1165,7 +1165,7 @@ class BadTranscriptionFilter:
 
 
 # cyclic import, has to be at the end of the __init__ file
-from pb_chime5.nt.database.chime5.mapping import (
+from nt.database.chime5.mapping import (
     session_speakers_mapping,
     session_dataset_mapping,
     session_array_to_num_samples_mapping,

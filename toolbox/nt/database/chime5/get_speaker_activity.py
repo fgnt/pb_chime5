@@ -6,8 +6,8 @@ from pathlib import Path
 import click
 import numpy as np
 import tqdm
-from pb_chime5.nt.database.helper import click_convert_to_path
-from pb_chime5.nt.io.json_module import load_json, dump_json
+from nt.database.helper import click_convert_to_path
+from nt.io.json_module import load_json, dump_json
 from itertools import combinations
 FORMAT_STRING = '%H:%M:%S.%f'
 JSON_PATH = Path('/net/vol/jenkins/jsons/chime5_speech_activity')

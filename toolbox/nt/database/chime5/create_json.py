@@ -14,17 +14,17 @@ from warnings import warn
 import click
 import tqdm
 from pathlib import Path
-from pb_chime5.nt.database import keys
-from pb_chime5.nt.database.helper import (
+from nt.database import keys
+from nt.database.helper import (
     dump_database_as_json,
     click_common_options,
     check_audio_files_exist,
     click_convert_to_path,
 )
-from pb_chime5.nt.database.chime5.get_speaker_activity import to_samples
-from pb_chime5.nt.io.data_dir import chime_5
-from pb_chime5.nt.io.json_module import load_json
-from pb_chime5.nt.utils.mapping import Dispatcher
+from nt.database.chime5.get_speaker_activity import to_samples
+from nt.io.data_dir import chime_5
+from nt.io.json_module import load_json
+from nt.utils.mapping import Dispatcher
 
 
 EVAL_TRANSCRIPTIONS_MISSING = True

@@ -71,8 +71,8 @@ import itertools
 import numpy as np
 
 # from pb_chime5.nt import kaldi
-from pb_chime5.nt.database import keys
-from pb_chime5.nt.io.audioread import audioread
+from nt.database import keys
+from nt.io.audioread import audioread
 
 LOG = logging.getLogger('Database')
 

@@ -1,7 +1,7 @@
 """
 This module deals with all sorts of acoustic features and transforms.
 """
-from pb_chime5.nt.transform.module_stft import (
+from nt.transform.module_stft import (
     stft,
     istft,
     spectrogram,

@@ -34,7 +34,7 @@ All other axes are regarded as independent dimensions.
 
 import numpy as np
 from typing import Optional
-from pb_chime5.nt.math.misc import abs_square
+from nt.math.misc import abs_square
 EPS = 1e-18
 
 

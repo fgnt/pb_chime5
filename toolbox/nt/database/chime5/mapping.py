@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from pb_chime5.nt.utils.mapping import Dispatcher
+from nt.utils.mapping import Dispatcher
 
 dev_sess_ref_array_mapping = Dispatcher({
     'S02': ['U02', 'U03', 'U05'],
