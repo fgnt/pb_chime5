@@ -193,7 +193,7 @@ class Beamformer:
         bf = self.type
 
         if bf == 'mvdrSouden_ban':
-            from pb_chime5.enhancement.bf_lorenz import (
+            from pb_chime5.enhancement.beamform import (
                 beamform_mvdr_souden_from_masks,
                 beamform_lcmv_souden_from_masks,
                 beamform_gev_from_masks,
