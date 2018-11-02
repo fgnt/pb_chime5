@@ -19,9 +19,9 @@ def get_activity(
 
     perspective:
         Example:
-            'global_worn' -- global perspective for worn
-            'worn' --
-            'array' --
+            'global_worn' -- global perspective for worn ('P')
+            'worn' -- return perspective for each speaker ('P01', ...)
+            'array' -- return perspective for each array ('U01', ...)
     garbage_class: True, False, None
         True: garbage_class is always one
         False: garbage_class is always zero
@@ -30,7 +30,7 @@ def get_activity(
         value = non_sil_alignment_fn(ex, perspective_mic_array)
         where
             ex is one example in iterator
-            perspective_mic_array is in []
+            perspective_mic_array is in ['U01', ..., 'P01', ..., 'P']
             value is a 1d array indicating if at a sample the source is active
                 or not
         use_ArrayIntervall: ArrayIntervall is a special datatype to reduce
@@ -39,7 +39,7 @@ def get_activity(
     returns:
         dict[session_id][mic_perspective][speaker_id] = array(dtype=bool)
         session_id e.g.: 'S02', ...
-        mic_perspective e.g.: 'global_worn', 'P05', 'U01', ...
+        mic_perspective e.g.: 'P', 'P05', 'U01', ...
         speaker_id e.g.: 'P05', ...
 
     >>> from pb_chime5.nt.database.chime5 import Chime5
@@ -106,6 +106,7 @@ def get_activity(
 
     dict_it_S = iterator.groupby(lambda ex: ex['session_id'])
 
+    # Dispatcher is a dict with better KeyErrors
     all_acitivity = Dispatcher()
     for session_id, it_S in dict_it_S.items():
 
@@ -114,23 +115,28 @@ def get_activity(
         elif perspective == 'global_worn':
             perspective_tmp = ['P']  # Always from target speaker
         elif perspective == 'array':
-            perspective_tmp = mapping.session_to_arrays[session_id]
             # The mapping considers missing arrays
+            perspective_tmp = mapping.session_to_arrays[session_id]
         else:
             perspective_tmp = perspective
 
             if not isinstance(perspective_tmp, (tuple, list)):
                 perspective_tmp = [perspective_tmp, ]
 
-        # num_samples = session_array_to_num_samples_mapping[f'{session_id}_P']
         speaker_ids = mapping.session_to_speakers[session_id]
 
         if use_ArrayIntervall:
             assert dtype == np.bool, dtype
             zeros = ArrayIntervall
+
+            def ones(shape):
+                arr = zeros(shape=shape)
+                arr[:] = 1
+                return arr
         else:
             import functools
             zeros = functools.partial(np.zeros, dtype=dtype)
+            ones = functools.partial(np.ones, dtype=dtype)
 
         all_acitivity[session_id] = Dispatcher({
             p: Dispatcher({
@@ -140,37 +146,32 @@ def get_activity(
             })
             for p in perspective_tmp
         })
+
         if garbage_class is True:
             for p in perspective_tmp:
                 num_samples = mapping.session_array_to_num_samples[
                     f'{session_id}_{p}']
-                if use_ArrayIntervall:
-                    noise = zeros(shape=[num_samples])
-                    noise[:] = 1
-                else:
-                    noise = np.ones(shape=[num_samples], dtype=dtype)
-
-                all_acitivity[session_id][p]['Noise'] = noise
+                all_acitivity[session_id][p]['Noise'] = ones(
+                    shape=[num_samples],
+                )
         elif garbage_class is False:
             for p in perspective_tmp:
                 num_samples = mapping.session_array_to_num_samples[
                     f'{session_id}_{p}']
-                noise = zeros(shape=[num_samples])
-                all_acitivity[session_id][p]['Noise'] = noise
+                all_acitivity[session_id][p]['Noise'] = zeros(
+                    shape=[num_samples]
+                )
         elif garbage_class is None:
             pass
         elif isinstance(garbage_class, int) and garbage_class > 0:
             for noise_idx in range(garbage_class):
                 for p in perspective_tmp:
                     num_samples = mapping.session_array_to_num_samples[
-                        f'{session_id}_{p}']
-                    if use_ArrayIntervall:
-                        noise = zeros(shape=[num_samples])
-                        noise[:] = 1
-                    else:
-                        noise = np.ones(shape=[num_samples], dtype=dtype)
-
-                    all_acitivity[session_id][p][f'Noise{noise_idx}'] = noise
+                        f'{session_id}_{p}'
+                    ]
+                    all_acitivity[session_id][p][f'Noise{noise_idx}'] = ones(
+                        shape=[num_samples]
+                    )
         else:
             raise ValueError(garbage_class)
 
@@ -191,8 +192,8 @@ def get_activity(
                     start = ex['start']['worn'][perspective_mic_array]
                     end = ex['end']['worn'][perspective_mic_array]
                 else:
-                    # if not perspective_mic_array in ex['audio_path']['observation']:
-                    #     continue
+                    if not perspective_mic_array in ex['audio_path']['observation']:
+                        continue
                     start = ex['start']['observation'][perspective_mic_array]
                     end = ex['end']['observation'][perspective_mic_array]
 
