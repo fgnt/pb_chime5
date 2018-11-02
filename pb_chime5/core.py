@@ -19,7 +19,7 @@ import numpy as np
 import nara_wpe
 import nara_wpe.wpe
 from dc_integration.distribution import (
-    ComplexAngularCentralGaussianMixtureModel,
+    CACGMMTrainer
 )
 from dc_integration.distribution.utils import (
     stack_parameters,
@@ -145,12 +145,10 @@ class GSS:
         source_active_mask = np.asarray(acitivity_freq, dtype=np.bool)
         source_active_mask = np.repeat(source_active_mask[None, ...], 513, axis=0)
 
-        cacGMM = ComplexAngularCentralGaussianMixtureModel(
-            # use_pinv=self.use_pinv,
-            # stable=self.stable,
-        )
+        cacGMM = CACGMMTrainer()
 
         learned = []
+        all_affiliations = []
         F = Obs.shape[-1]
         T = Obs.T.shape[-2]
         for f in range(F):
@@ -162,24 +160,27 @@ class GSS:
             # This should not be nessesary, but activity is for inear and not for
             # array.
 
-            cur = cacGMM.fit(
-                Y=Obs.T[f, ...],
+            cur, affiliation = cacGMM.fit(
+                y=Obs.T[f, ...],
                 initialization=initialization[f, ..., :T],
                 iterations=self.iterations,
                 source_activity_mask=source_active_mask[f, ..., :T],
+                return_affiliation=True,
             )
 
             if self.iterations_post != 0:
-                cur = cacGMM.fit(
-                    Y=Obs.T[f, ...],
+                cur, affiliation = cacGMM.fit(
+                    y=Obs.T[f, ...],
                     initialization=cur,
                     iterations=self.iterations_post,
+                    return_affiliation=True,
                 )
 
-            learned.append(cur)
+            # learned.append(cur)
+            all_affiliations.append(affiliation)
 
-        learned = stack_parameters(learned)
-        posterior = learned.affiliation.transpose(1, 2, 0)
+        # learned = stack_parameters(learned)
+        posterior = np.array(all_affiliations).transpose(1, 2, 0)
         return posterior
 
 
