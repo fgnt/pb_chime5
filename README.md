@@ -1,25 +1,18 @@
 # pb_chime5: Front-End Processing for the CHiME-5 Dinner Party Scenario [\[pdf\]](http://spandh.dcs.shef.ac.uk/chime_workshop/papers/CHiME_2018_paper_boeddecker.pdf)
 
+This repository includes all components of the CHiME-5 front-end presented by Paderborn University on the CHiME-5 workshop [PB2018CHiME5].
+In combination with an acoustic model presented by the RWTH Aachen this multi-array front-end achieved the third best results during the challenge with 54.56 %. 
+
+The front-end consists out of WPE, a spacial mixture model that uses time annotations (GSS), beamforming and masking:
+
 ![(System Overview)](doc/images/system.svg)
 
-This repository is not finished (i.e. work in progress).
-Open points:
-
-- [x] core enhancement code
-- [x] remove dependencies from our infrastructure
-- [x] launch script
-- [x] manual script
-- [ ] code cleanup, remove all unnessesary code and rearrange the code files
+The core code is located in the file `pb_chime5/core.py`.
+An example script to run the enhancement is in `pb_chime5/scripts/run.py` and can be executed with `python -m pb_chime5.scripts.run with session_id=dev wpe=True wpe_tabs=2`.
 
 Challenge website: http://spandh.dcs.shef.ac.uk/chime_challenge/
 
 Workshop website: http://spandh.dcs.shef.ac.uk/chime_workshop/
-
-This repository includes all components of the CHiME-5 front-end presented by Paderborn University on the CHiME-5 workshop. In combination with an acoustic model presented by the RWTH Aachen this multi-channel front-end achieved the third best results during the challenge with 54.56 %. 
-
-The core code for this enhamcement is located in the file `pb_chime5/core.py`.
-Run the enhancement with something like `python -m pb_chime5.scripts.run with session_id=dev wpe=True wpe_tabs=2`
-
 
 If you are using this code please cite the following paper:
 
@@ -32,7 +25,15 @@ If you are using this code please cite the following paper:
 }
 ```
 
-## Install
+ToDos:
+
+- [x] core enhancement code
+- [x] remove dependencies from our infrastructure
+- [x] launch script
+- [x] manual script
+- [ ] code cleanup, remove all unnessesary code and rearrange the code files
+
+## Installation
 
 Does not work with Windows.
 
@@ -66,8 +67,11 @@ Start a testrun with
 $ python -m pb_chime5.scripts.run test_run with session_id=dev
 ```
 
-Start a simulation with
+Start a simulation with 9 mpi workers
 ```bash
 $ mpiexec -np 9 python -m pb_chime5.scripts.run with session_id=dev
 ```
+
+
+
 
