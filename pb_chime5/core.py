@@ -41,7 +41,7 @@ class WPE:
     iterations: int
     psd_context: int
 
-    def __call__(self, Obs, stack=None):
+    def __call__(self, Obs, stack=None, debug=False):
         
         if Obs.ndim == 3:
             assert stack is None, stack
@@ -77,6 +77,10 @@ class WPE:
                 raise NotImplementedError(stack)
         else:
             raise NotImplementedError(Obs.shape)
+
+        if debug:
+            self.locals = locals()
+
         return Obs
 
 
@@ -134,7 +138,7 @@ class GSS:
     # use_pinv: bool = False
     # stable: bool = True
 
-    def __call__(self, Obs, acitivity_freq):
+    def __call__(self, Obs, acitivity_freq, debug=False):
 
         initialization = np.asarray(acitivity_freq, dtype=np.float64)
         initialization = np.where(initialization == 0, 1e-10, initialization)
@@ -147,7 +151,8 @@ class GSS:
 
         cacGMM = CACGMMTrainer()
 
-        learned = []
+        if debug:
+            learned = []
         all_affiliations = []
         F = Obs.shape[-1]
         T = Obs.T.shape[-2]
@@ -176,11 +181,16 @@ class GSS:
                     return_affiliation=True,
                 )
 
-            # learned.append(cur)
+            if debug:
+                learned.append(cur)
             all_affiliations.append(affiliation)
 
-        # learned = stack_parameters(learned)
         posterior = np.array(all_affiliations).transpose(1, 2, 0)
+
+        if debug:
+            learned = stack_parameters(learned)
+            self.locals = locals()
+
         return posterior
 
 
@@ -189,7 +199,7 @@ class Beamformer:
     type: str
     postfilter: str
 
-    def __call__(self, Obs, target_mask, distortion_mask):
+    def __call__(self, Obs, target_mask, distortion_mask, debug=False):
         bf = self.type
 
         if bf == 'mvdrSouden_ban':
@@ -219,6 +229,9 @@ class Beamformer:
             X_hat = X_hat * target_mask
         else:
             raise NotImplementedError(self.postfilter)
+
+        if debug:
+            self.locals = locals()
 
         return X_hat
 
@@ -321,6 +334,7 @@ class Enhancer:
     def enhance_example(
             self,
             ex,
+            debug=False,
     ):
         session_id = ex['session_id']
         reference_array = ex['reference_array']
@@ -367,6 +381,7 @@ class Enhancer:
             obs,
             ex_array_activity=ex_array_activity,
             speaker_id=speaker_id,
+            debug=debug,
         )
 
         if self.context_samples > 0:
@@ -378,6 +393,9 @@ class Enhancer:
             # assert x_hat.shape[-1] == num_samples_orig, x_hat.shape
             # That assert does not work for P44_S18_U06_0265232-0265344.wav
 
+        if debug:
+            self.enhance_example_locals = locals()
+
         return x_hat
 
     def enhance_observation(
@@ -385,11 +403,12 @@ class Enhancer:
             obs,
             ex_array_activity,
             speaker_id,
+            debug=False,
     ):
         Obs = self.stft(obs)
 
         if self.wpe_block is not None:
-            Obs = self.wpe_block(Obs)
+            Obs = self.wpe_block(Obs, debug=debug)
 
         acitivity_freq = activity_time_to_frequency(
             np.array(list(ex_array_activity.values())),
@@ -399,7 +418,7 @@ class Enhancer:
             stft_pad=True,
         )
 
-        masks = self.gss_block(Obs, acitivity_freq)
+        masks = self.gss_block(Obs, acitivity_freq, debug=debug)
 
         target_speaker_index = tuple(ex_array_activity.keys()).index(speaker_id)
         target_mask = masks[target_speaker_index]
@@ -412,9 +431,13 @@ class Enhancer:
             Obs,
             target_mask=target_mask,
             distortion_mask=distortion_mask,
+            debug=debug,
         )
 
         x_hat = self.istft(X_hat)
+
+        if debug:
+            self.enhance_observation_locals = locals()
 
         return x_hat
 
