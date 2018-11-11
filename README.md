@@ -67,10 +67,12 @@ Start a testrun with
 $ python -m pb_chime5.scripts.run test_run with session_id=dev
 ```
 
-Start a simulation with 9 mpi workers
+Start a simulation with 9 mpi workers (1 scheduler and 8 actual worker)
 ```bash
 $ mpiexec -np 9 python -m pb_chime5.scripts.run with session_id=dev
 ```
+You can replace `mpiexec -np 9` with your HPC command to start a MPI program.
+It scalles up very well and is tested with 600 distributed cores.
 
 
 
