@@ -74,6 +74,16 @@ $ mpiexec -np 9 python -m pb_chime5.scripts.run with session_id=dev
 You can replace `mpiexec -np 9` with your HPC command to start a MPI program.
 It scalles up very well and is tested with 600 distributed cores.
 
+# FAQ
+
+#### Q: I ran `mpiexec -np 9 python -m pb_chime5.scripts.run with session_id=dev wpe=True wpe_tabs=2` and it generated 9 folders and the estimated duration is around 100 h. Is this right?
+A: It is likely that your mpi4py installation does not work. Execute the following command and check if the output is correct:
+```bash
+$ mpiexec -np 3 python -c 'from mpi4py import MPI; print("My worker rank:", MPI.COMM_WORLD.rank, "Total workers:", MPI.COMM_WORLD.size)'
+My worker rank: 2 Total workers: 3
+My worker rank: 0 Total workers: 3
+My worker rank: 1 Total workers: 3
+```
 
 
 
