@@ -12,4 +12,4 @@ cache:
 
 cache/chime5_orig.json: cache
 	echo `type python`
-	python -m pb_chime5.nt.database.chime5.create_json -j cache/chime5_orig.json --transcription-path CHiME5/transcriptions
+	python -m nt.database.chime5.create_json -j cache/chime5_orig.json --transcription-path CHiME5/transcriptions
