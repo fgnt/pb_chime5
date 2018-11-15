@@ -22,6 +22,14 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 # Arguments marked as "Required" below must be included for upload to PyPI.
 # Fields marked as "Optional" may be commented out.
 
+try:
+    import tensorflow
+except Exception as e:
+    raise Exception(
+        'The nest module from tensorflow (i.e. tensorflow.python.util.nest) is '
+        'required. Install tensorflow before you install this.'
+    ) from e
+
 setup(
     # This is the name of your project. The first time you publish this
     # package, this name will be registered for you. It will determine how
