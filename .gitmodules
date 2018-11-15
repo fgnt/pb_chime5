@@ -1,3 +1,3 @@
 [submodule "pb_bss"]
 	path = pb_bss
-	url = git@github.com:fgnt/pb_bss.git
+	url = https://github.com/fgnt/pb_bss.git
