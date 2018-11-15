@@ -95,6 +95,12 @@ def check_audio_files_exist(
         database_dict, reverse_key_value=True, condition_fn=condition_fn
     )
 
+    assert len(to_check) > 0, (
+        f'Expect at least one wav file. '
+        f'It is likely that the database folder is empty '
+        f'and the greps did not work. to_check: {to_check}'
+    )
+
     if speedup and 'thread' == speedup:
         import os
         from multiprocessing.pool import ThreadPool
