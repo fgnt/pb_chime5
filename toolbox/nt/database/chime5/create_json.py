@@ -211,7 +211,7 @@ def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_tran
 
 
 def get_example(transcription, transcription_realigned, audio_path, kaldi_transcriptions):
-    from pb_chime5.nt.database.chime5.mapping import session_speakers_mapping
+    from nt.database.chime5.mapping import session_speakers_mapping
 
     session_id = transcription['session_id']
 

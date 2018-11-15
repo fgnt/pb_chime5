@@ -11,7 +11,7 @@
 
 import os
 from pathlib import Path
-from pb_chime5 import git_root as _git_root
+from nt import git_root as _git_root
 
 
 def _get_path(environment_name, default):
