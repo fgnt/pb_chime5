@@ -15,11 +15,12 @@ trap 'echo -e "${green}$ $BASH_COMMAND ${NC}"' DEBUG
 mkdir -p venv
 export PYTHONUSERBASE=$(readlink -m venv)
 
-git clone git@ntgit.upb.de:python/toolbox
-source toolbox/bash/cuda.bash
+git clone git@ntgit.upb.de:python/toolbox internal_toolbox
+source internal_toolbox/bash/cuda.bash
 
-git clone https://github.com/fgnt/pb_chime5
-cd pb_chime5
+# git clone https://github.com/fgnt/pb_chime5
+# cd pb_chime5
+
 git submodule init
 git submodule update
 pip install --user -e pb_bss/
