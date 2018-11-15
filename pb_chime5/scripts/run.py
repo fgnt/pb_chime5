@@ -85,6 +85,9 @@ def run(_run, test_run=False):
 
     enhancer = get_enhancer()
 
+    if test_run:
+        print('Database', enhancer.db)
+
     session_ids = get_session_ids()
     if mpi.IS_MASTER:
         print('Enhancer:', enhancer)
