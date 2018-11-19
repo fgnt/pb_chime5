@@ -175,6 +175,7 @@ def get_activity(
         else:
             raise ValueError(garbage_class)
 
+        missing_count = 0
         for ex in it_S:
             for pers in perspective_tmp:
                 if ex['transcription'] == '[redacted]':
@@ -201,11 +202,23 @@ def get_activity(
                     value = 1
                 else:
                     value = non_sil_alignment_fn(ex, perspective_mic_array)
+                    if value is 1:
+                        missing_count += 1
 
                 if debug:
                     all_acitivity[session_id][pers][target_speaker][start:end] += value
                 else:
                     all_acitivity[session_id][pers][target_speaker][start:end] = value
+        if missing_count > len(it_S) // 2:
+            raise RuntimeError(
+                f'Something went wrong.\n'
+                f'Expected {len(it_S) * len(perspective_tmp)} times a '
+                f'finetuned annotation for session {session_id}, but '
+                f'{missing_count} times they are missing.\n'
+                f'Expect that at least {len(it_S) // 2} finetuned annotations '
+                f'are available, when non_sil_alignment_fn is given.\n'
+                f'Otherwise assume something went wrong.'
+            )
 
         del it_S
 
