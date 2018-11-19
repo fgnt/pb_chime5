@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # internal script for jenkins
 
 renice -n 20 $$
@@ -28,7 +30,9 @@ pip install --user -e toolbox/
 pip install --user -e .
 make CHiME5
 make cache/chime5_orig.json
+make cache/annotation/S02.pkl
 python -m pb_chime5.scripts.run test_run with session_id=dev
+python -m pb_chime5.scripts.run test_run with session_id=dev wpe=False activity_type=path activity_path=cache/word_non_sil_alignment
 
 ls
 echo `pwd`
