@@ -86,11 +86,12 @@ class WPE:
 
 @dataclass  # (hash=True)
 class Activity:
-    type: str = 'annotation'   # ['annotation', 'non_sil_alignment']
+    type: str = 'annotation'   # ['annotation', 'path', 'non_sil_alignment']
     garbage_class: bool = False
     # ali_path='/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/egs/chime5/s5/exp/tri3_all_dev_worn_ali',
     # activity_array_ali_path='~/net/storage/jheymann/__share/jensheit/chime5/kaldi/arrayBSS_v5/exp/tri3_u_bss_js_cleaned_dev_new_bss_beam_39_ali',
     database_path: str = str(database_jsons / 'chime5_orig.json')
+    path: str = None
 
     @cached_property
     def db(self):
@@ -120,12 +121,20 @@ class Activity:
         )[session_id]
 
     def __getitem__(self, session_id):
-        return self._getitem(
-            session_id,
-            type=self.type,
-            db=self.db,
-            garbage_class=self.garbage_class,
-        )
+        if self.type in ['annotation']:
+            return self._getitem(
+                session_id,
+                type=self.type,
+                db=self.db,
+                garbage_class=self.garbage_class,
+            )
+        elif self.type == 'path':
+            import pickle
+
+            with open(Path(self.path) / f'{session_id}.pkl', 'rb') as fd:
+                return pickle.load(fd)
+        else:
+            raise ValueError(type)
 
 
 @dataclass
@@ -452,7 +461,8 @@ def get_enhancer(
     wpe_iterations=3,
     wpe_psd_context=0,
 
-    activity_type='annotation',  # ['annotation', 'non_sil_alignment']
+    activity_type='annotation',  # ['annotation', 'path', 'non_sil_alignment']
+    activity_path=None,
     activity_garbage_class=True,
 
     stft_size=1024,
@@ -468,6 +478,8 @@ def get_enhancer(
 
     assert wpe is True or wpe is False, wpe
 
+    assert activity_path is None or activity_type == 'path', (activity_path, activity_type)
+
     return Enhancer(
         multiarray=multiarray,
         context_samples=context_samples,
@@ -480,6 +492,7 @@ def get_enhancer(
         activity=Activity(
             type=activity_type,
             garbage_class=activity_garbage_class,
+            path=activity_path,
             database_path=str(database_jsons / 'chime5_orig.json'),
         ),
         gss_block=GSS(
