@@ -61,15 +61,11 @@ def get_non_sil_alignment_fn_from_kalid(
 
     alignment = get_phone_alignment(
         ali_path,
-        # use_kaldi_id=use_kaldi_id,
         use_kaldi_id=True,
         unique_per_utt=unique_alignments,
         channel_preference=channel_preference,
     )
     non_sil_alignment_dict = Dispatcher({k: v != 'sil' for k, v in alignment.items()})
-
-    # Because of perspective_mic_array is is usefull to use a cache
-    # last = None
 
     import collections
 
@@ -78,8 +74,6 @@ def get_non_sil_alignment_fn_from_kalid(
     from nt.database.chime5 import kaldi_id_to_parts
     from chime5.scripts.create_mapping_json import Chime5KaldiIdMapping, kaldi_to_nt_example_id
     nt_to_kaldi_id = Chime5KaldiIdMapping()
-
-    # non_sil_alignment_dict
 
     source_key_mapping = {
         kaldi_to_nt_example_id(k): k
@@ -93,13 +87,6 @@ def get_non_sil_alignment_fn_from_kalid(
         nonlocal statistics
 
         example_id = ex['example_id']
-
-        # if use_kaldi_id:
-        #     example_id, = nt_to_kaldi_id.get_array_ids_from_nt_id(
-        #         example_id,
-        #         arrays=perspective_mic_array,
-        #         channels='ENH'
-        #     )
 
         if perspective_mic_array[0] == 'P':
             target_time_length = ex['num_samples']['worn'][
@@ -124,13 +111,6 @@ def get_non_sil_alignment_fn_from_kalid(
             else:
                 raise ValueError(array_id, source_example_id, example_id)
 
-            # if use_kaldi_id:
-            #
-            #
-            #     source_time_length = target_time_length
-            # else:
-            #     source_time_length = ex['num_samples']['original']
-
             ret = activity_frequency_to_time(
                 non_sil_alignment_dict[source_example_id],
                 stft_window_length=400,
@@ -153,7 +133,6 @@ def get_non_sil_alignment_fn_from_kalid(
                 pass  # same length
 
         else:
-            # raise Exception(example_id, list(source_key_mapping.keys())[:10])
             print(
                 f"Warning: Could not find {example_id} in non_sil_alignment."
             )
@@ -163,8 +142,6 @@ def get_non_sil_alignment_fn_from_kalid(
                 target_speaker = ex['target_speaker']
                 statistics[f'{target_speaker}_{session_id}'].add(ex['example_id'])
 
-        # if not use_kaldi_id:
-            # last = ex['example_id'], ret
         return ret
 
     example_to_non_sil_alignment.statistics = statistics
