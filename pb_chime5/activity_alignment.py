@@ -204,7 +204,7 @@ if __name__ == '__main__':
         with open(path / f'{session_id}.pkl', 'wb') as fd:
             pickle.dump(v, fd)
 
-    worn_ali_path = '~/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/egs/chime5/s5/exp/tri3_all_dev_worn_ali'
+    worn_ali_path = '/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/egs/chime5/s5/exp/tri3_all_dev_worn_ali'
 
     if Path(worn_ali_path).exists():
         worn_non_sil_alignment_fn = get_non_sil_alignment_fn_from_kalid(
