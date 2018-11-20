@@ -33,8 +33,8 @@ def dump_audio(
         start:
         normalize:
 
-    >>> from pb_chime5.nt.utils.process_caller import run_process
-    >>> from pb_chime5.nt.io import load_audio
+    >>> from nt.utils.process_caller import run_process
+    >>> from nt.io import load_audio
     >>> a = np.array([1, 2, -4, 4], dtype=np.int16)
     >>> import io, os
     >>> # file = io.BytesIO()

@@ -69,7 +69,7 @@ from cached_property import cached_property
 
 import numpy as np
 
-# from pb_chime5.nt import kaldi
+from nt import kaldi
 from nt.io import load_json
 from nt.io.audioread import audioread
 

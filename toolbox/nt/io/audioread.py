@@ -12,7 +12,7 @@ import numpy as np
 import soundfile
 # import wavefile
 
-# import pb_chime5.nt.utils.process_caller as pc
+# import nt.utils.process_caller as pc
 
 UTILS_DIR = os.path.join(os.path.dirname(__file__), 'utils')
 
@@ -110,7 +110,7 @@ def load_audio(
 
     Examples
     --------
-    >>> from pb_chime5.nt.io import load_audio
+    >>> from nt.io import load_audio
     >>> path = '/net/db/timit/pcm/train/dr1/fcjf0/sa1.wav'
     >>> data = load_audio(path)
     >>> data.shape
@@ -166,7 +166,7 @@ def load_audio(
                 'r',
         ) as f:
             if dtype is None:
-                from pb_chime5.nt.utils.mapping import Dispatcher
+                from nt.utils.mapping import Dispatcher
                 mapping = Dispatcher({
                     'PCM_16': np.int16,
                     'FLOAT': np.float32,
@@ -181,7 +181,7 @@ def load_audio(
         raise
         # if path.suffix == '.wav':
         #     # Improve exception msg for NIST SPHERE files.
-        #     from pb_chime5.nt.utils.process_caller import run_process
+        #     from nt.utils.process_caller import run_process
         #     cp = run_process(f'file {path}')
         #     stdout = cp.stdout
         #     raise RuntimeError(f'{stdout}') from e
@@ -197,7 +197,7 @@ def load_audio(
             )
 
     # When signal is multichannel, than soundfile return (samples, channels)
-    # At pb_chime5.nt it is more common to have the shape (channels, samples)
+    # At nt it is more common to have the shape (channels, samples)
     # => transpose
     signal = signal.T
 
@@ -287,7 +287,7 @@ def audioread(path, offset=0.0, duration=None, expected_sample_rate=None):
             wav_reader.read(data)
             return np.squeeze(data), sample_rate
     except OSError as e:
-        from pb_chime5.nt.utils.process_caller import run_process
+        from nt.utils.process_caller import run_process
         cp = run_process(f'file {path}')
         stdout = cp.stdout
         raise OSError(f'{stdout}') from e

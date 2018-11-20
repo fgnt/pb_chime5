@@ -409,7 +409,7 @@ class SpeakerActivityMapper:
     def __init__(self, options, context=0, json_path=database_jsons):
         """
         Add speaker activity per STFT frame to each example.
-        :param options: pb_chime5.nt.Options object containing arguments for STFT length
+        :param options: nt.Options object containing arguments for STFT length
             and shift.
         :param context: Speaker activity added before and after actual
             utterance. Context is given in seconds.
@@ -505,7 +505,7 @@ def activity_frequency_to_time(
         raise NotImplementedError(stft_fading)
 
     frequency_activity = np.asarray(frequency_activity)
-    # import from pb_chime5.nt.transform import istft
+    # import from nt.transform import istft
     # cbj.istft
     # frequency_activity = frequency_activity
     frequency_activity = np.broadcast_to(

@@ -10,16 +10,16 @@ from nt.transform.module_stft import (
     get_stft_center_frequencies,
 )
 
-# from pb_chime5.nt.transform.module_filter import preemphasis
-# from pb_chime5.nt.transform.module_filter import inverse_preemphasis
-# from pb_chime5.nt.transform.module_filter import offset_compensation
-# from pb_chime5.nt.transform.module_filter import preemphasis_with_offset_compensation
-# from pb_chime5.nt.transform.module_fbank import fbank, logfbank
-# from pb_chime5.nt.transform.module_mfcc import mfcc, mfcc_velocity_acceleration
-# from pb_chime5.nt.transform.module_ssc import ssc
-# from pb_chime5.nt.transform.module_bark_fbank import bark_fbank
-# from pb_chime5.nt.transform.module_rastaplp import rasta_plp
-# from pb_chime5.nt.transform.module_ams import ams
+# from nt.transform.module_filter import preemphasis
+# from nt.transform.module_filter import inverse_preemphasis
+# from nt.transform.module_filter import offset_compensation
+# from nt.transform.module_filter import preemphasis_with_offset_compensation
+# from nt.transform.module_fbank import fbank, logfbank
+# from nt.transform.module_mfcc import mfcc, mfcc_velocity_acceleration
+# from nt.transform.module_ssc import ssc
+# from nt.transform.module_bark_fbank import bark_fbank
+# from nt.transform.module_rastaplp import rasta_plp
+# from nt.transform.module_ams import ams
 # import numpy as np
 
 

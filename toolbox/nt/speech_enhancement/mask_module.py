@@ -26,8 +26,8 @@ All other axes are regarded as independent dimensions.
 
 # TODO: Migrate and remove this files:
 # TODO:  - tests/speech_enhancement_test/test_merl_masks.py
-# TODO:  - pb_chime5.nt/speech_enhancement/merl_masks.py
-# TODO:  - pb_chime5.nt/speech_enhancement/mask_estimation.py
+# TODO:  - nt/speech_enhancement/merl_masks.py
+# TODO:  - nt/speech_enhancement/mask_estimation.py
 # TODO: Add test-case for LorenzMask
 # CB: Eventuell einen Dekorator nutzen für force signal np.ndarray?
 # CB: Eventuell einen Dekorator nutzen für force signal.real.dtype == return.dtype?

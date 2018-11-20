@@ -11,8 +11,8 @@ import pickle
 from pathlib import Path
 
 from nt.io import audioread
-# from pb_chime5.nt.io import hdf5
-# from pb_chime5.nt.io import play
+# from nt.io import hdf5
+# from nt.io import play
 from nt.io.json_module import (
     load_json,
     loads_json,
@@ -22,7 +22,7 @@ from nt.io.json_module import (
 from nt.io.json_module import SummaryEncoder
 from nt.io.audioread import load_audio
 from nt.io.audiowrite import dump_audio
-from pb_chime5.nt.io.file_handling import (
+from nt.io.file_handling import (
     mkdir_p,
     symlink,
 )

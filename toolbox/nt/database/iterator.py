@@ -70,7 +70,7 @@ import itertools
 
 import numpy as np
 
-# from pb_chime5.nt import kaldi
+from nt import kaldi
 from nt.database import keys
 from nt.io.audioread import audioread
 

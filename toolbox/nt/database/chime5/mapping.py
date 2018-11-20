@@ -404,8 +404,8 @@ def _get_session_speaker_mapping():
     >>> assert session_speaker_mapping_calc == session_speakers_mapping
 
     """
-    from pb_chime5.nt.io.data_dir import database_jsons
-    from pb_chime5.nt.database.chime5 import Chime5  # cyclic import
+    from nt.io.data_dir import database_jsons
+    from nt.database.chime5 import Chime5  # cyclic import
     db = Chime5(database_jsons / 'chime5_orig.json')
     it = db.get_iterator_by_names(db.database_dict['datasets'].keys())
     summary = defaultdict(set)
@@ -444,8 +444,8 @@ def _get_session_dataset_mapping():
     >>> assert session_dataset_mapping_calc == session_dataset_mapping
 
     """
-    from pb_chime5.nt.database.chime5 import Chime5  # cyclic import
-    from pb_chime5.nt.io.data_dir import database_jsons
+    from nt.database.chime5 import Chime5  # cyclic import
+    from nt.io.data_dir import database_jsons
     db = Chime5(database_jsons / 'chime5_orig.json')
     summary = {}
     for dataset in ['dev', 'train', 'eval']:
@@ -677,9 +677,9 @@ def _get_session_array_to_num_samples_mapping():
     >>> assert session_num_samples_mapping_calc == session_array_to_num_samples_mapping
 
     """
-    from pb_chime5.nt.io.audioread import audio_length
-    from pb_chime5.nt.database.chime5 import Chime5  # cyclic import
-    from pb_chime5.nt.io.data_dir import database_jsons
+    from nt.io.audioread import audio_length
+    from nt.database.chime5 import Chime5  # cyclic import
+    from nt.io.data_dir import database_jsons
 
     from functools import lru_cache
 
