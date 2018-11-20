@@ -22,10 +22,10 @@ from nt.io.json_module import (
 from nt.io.json_module import SummaryEncoder
 from nt.io.audioread import load_audio
 from nt.io.audiowrite import dump_audio
-# from pb_chime5.nt.io.file_handling import (
-#     mkdir_p,
-#     symlink,
-# )
+from pb_chime5.nt.io.file_handling import (
+    mkdir_p,
+    symlink,
+)
 
 __all__ = [
     "load_audio",
