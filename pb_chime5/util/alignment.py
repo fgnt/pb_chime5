@@ -238,7 +238,7 @@ def _helper(
         assert use_kaldi_id is True, use_kaldi_id
 
     if channel_preference is None:
-        from cbj.dict_utils import merge
+        from pb_chime5.util.dict_utils import merge
         ret = dict(sorted(merge(*mapping_channels_examples_data.values()).items()))
     else:
         assert len(mapping_channels_examples_data) == len(channel_preference), f'Expect channels {channel_preference} but found {tuple(mapping_channels_examples_data.keys())}.'
