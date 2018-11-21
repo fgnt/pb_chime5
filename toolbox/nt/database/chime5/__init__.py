@@ -270,6 +270,40 @@ def kaldi_to_nt_example_id(example_id: str):
         raise ValueError(example_id) from e
 
 
+def kaldi_id_to_parts(example_id):
+    """
+    ToDo: start and end
+
+    >>> kaldi_id_to_parts('P28_S09_LIVING.R-0714562-0714764')
+    {'speaker_id': 'P28', 'session_id': 'S09', 'array_id': 'P28', 'location': 'LIVING', 'channel': 'R'}
+    >>> kaldi_id_to_parts('P28_S09_LIVING.L-0714562-0714764')
+    {'speaker_id': 'P28', 'session_id': 'S09', 'array_id': 'P28', 'location': 'LIVING', 'channel': 'L'}
+    >>> kaldi_id_to_parts('P05_S02_U02_KITCHEN.ENH-0007012-0007298')
+    {'speaker_id': 'P05', 'session_id': 'S02', 'array_id': 'P05', 'location': 'KITCHEN', 'channel': 'ENH'}
+    >>> kaldi_id_to_parts('P09_S03_U01_NOLOCATION.CH1-0005948-0006038')
+    {'speaker_id': 'P09', 'session_id': 'S03', 'array_id': 'P09', 'location': 'NOLOCATION', 'channel': 'CH1'}
+    """
+    try:
+        pre, post = example_id.split('.')
+        speaker_id, session_id, *array, location = pre.split('_')
+        channel, start, end = post.split('-')
+        if len(array) == 0:
+            array = speaker_id
+        elif len(array) == 1:
+            array = speaker_id
+        else:
+            raise ValueError(array, example_id)
+        return {
+            'speaker_id': speaker_id,
+            'session_id': session_id,
+            'array_id': array,
+            'location': location,
+            'channel': channel,
+        }
+    except Exception as e:
+        raise ValueError(example_id) from e
+
+
 def kaldi_id_to_channel(example_id):
     """
     >>> kaldi_id_to_channel('P28_S09_LIVING.R-0714562-0714764')
