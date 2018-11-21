@@ -71,9 +71,7 @@ def get_non_sil_alignment_fn_from_kalid(
 
     statistics = collections.defaultdict(set)
 
-    from nt.database.chime5 import kaldi_id_to_parts
-    from chime5.scripts.create_mapping_json import Chime5KaldiIdMapping, kaldi_to_nt_example_id
-    nt_to_kaldi_id = Chime5KaldiIdMapping()
+    from nt.database.chime5 import kaldi_id_to_parts, kaldi_to_nt_example_id
 
     source_key_mapping = {
         kaldi_to_nt_example_id(k): k
