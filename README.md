@@ -85,5 +85,12 @@ My worker rank: 0 Total workers: 3
 My worker rank: 1 Total workers: 3
 ```
 
+#### Q: I want to use my own source activity detector. Can you give me a hint where to start?
+At the end of `pb_chime5/activity_alignment.py` is some code how to generate finetuned time annotations from kaldi worn alignments.
+You have to change the `worn_ali_path` to worn alignments from kaldi and it will generate files (`cache/word_non_sil_alignment/S??.pkl`) for finetuned oracle time annotations.
+Using them for enhancement you have to change the `activity_type` to `path` and `activity_path` to the path of the finetuned time annotations
+e.g. `python -m pb_chime5.scripts.run with activity_type=path activity_path=cache/word_non_sil_alignment`.
+
+
 
 
