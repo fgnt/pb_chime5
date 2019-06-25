@@ -10,6 +10,7 @@ from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
 from os import path
+import numpy
 
 from Cython.Build import cythonize
 
@@ -206,7 +207,7 @@ setup(
         # 'Say Thanks!': 'http://saythanks.io/to/example',
         'Source': 'https://github.com/fgnt/pb_chime5.git',
     },
-
+    include_dirs=[numpy.get_include()],
     ext_modules=cythonize([
         'pb_chime5/utils/intervall_array_util.pyx',
         'pb_chime5/utils/alignment_util.pyx',
