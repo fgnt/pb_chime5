@@ -1,8 +1,8 @@
 import numpy as np
 
 from pb_chime5 import mapping
-from pb_chime5.util import ArrayIntervall
-from nt.utils.mapping import Dispatcher
+from pb_chime5.utils import ArrayIntervall
+from pb_chime5.mapping import Dispatcher
 
 
 def get_activity(
@@ -42,7 +42,7 @@ def get_activity(
         mic_perspective e.g.: 'P', 'P05', 'U01', ...
         speaker_id e.g.: 'P05', ...
 
-    >>> from nt.database.chime5 import Chime5
+    >>> from pb_chime5.database.chime5 import Chime5
     >>> import textwrap
     >>> db = Chime5()
     >>> def display_activity(activity):

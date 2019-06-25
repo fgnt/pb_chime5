@@ -1,7 +1,7 @@
 import numpy as np
-from nt.utils.mapping import Dispatcher
-from nt.database.chime5 import activity_frequency_to_time, adjust_start_end
-from pb_chime5.util.alignment import get_phone_alignment
+from pb_chime5.mapping import Dispatcher
+from pb_chime5.database.chime5 import activity_frequency_to_time
+from pb_chime5.utils.alignment import get_phone_alignment
 
 
 def get_non_sil_alignment_fn_from_kalid(
@@ -34,7 +34,7 @@ def get_non_sil_alignment_fn_from_kalid(
     >>> worn_ali_path = '~/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/egs/chime5/s5/exp/tri3_all_dev_worn_ali'
     >>> array_ali_path = '~/net/storage/jheymann/__share/jensheit/chime5/kaldi/arrayBSS_v5/exp/tri3_u_bss_js_cleaned_dev_new_bss_beam_39_ali'
 
-    >>> from nt.database.chime5 import Chime5
+    >>> from pb_chime5.database.chime5 import Chime5
     >>> db = Chime5()
     >>> it = db.get_iterator_for_session('S02', drop_unknown_target_speaker=True)
     >>> ex = it[1]
@@ -71,7 +71,7 @@ def get_non_sil_alignment_fn_from_kalid(
 
     statistics = collections.defaultdict(set)
 
-    from nt.database.chime5 import kaldi_id_to_parts, kaldi_to_nt_example_id
+    from pb_chime5.database.chime5 import kaldi_id_to_parts, kaldi_to_nt_example_id
 
     source_key_mapping = {
         kaldi_to_nt_example_id(k): k
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     import pickle
     from pathlib import Path
 
-    from nt.database.chime5 import Chime5
+    from pb_chime5.database.chime5 import Chime5
 
     from pb_chime5.activity import get_activity
     from pb_chime5 import git_root
