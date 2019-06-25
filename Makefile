@@ -1,11 +1,7 @@
 
 
 
-
-
-
-CHiME5:
-	ln -s /net/fastdb/chime5/CHiME5
+CHIME5_DIR ?= /net/fastdb/chime5/CHiME5
 
 cache:
 	mkdir cache
