@@ -21,6 +21,12 @@ def config():
     session_id = 'dev'
 
 
+@experiment.named_config
+def multiarray():
+    bf_drop_context = True
+    multiarray = True
+
+
 @experiment.capture
 def get_dir(
         _run,

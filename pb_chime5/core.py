@@ -205,6 +205,30 @@ class GSS:
         return posterior
 
 
+def start_end_context_frames(ex, stft_size, stft_shift, stft_fading):
+    start_context_samples = ex['start_orig']['original'] - ex['start']['original']
+    end_context_samples = ex['end']['original'] - ex['end_orig']['original']
+
+    assert start_context_samples >= 0, (start_context_samples, ex)
+    assert end_context_samples >= 0, (end_context_samples, ex)
+
+    from paderbox.transform.module_stft import _samples_to_stft_frames
+
+    start_context_frames = _samples_to_stft_frames(
+        start_context_samples,
+        size=stft_size,
+        shift=stft_shift,
+        fading=stft_fading,
+    )
+    end_context_frames = _samples_to_stft_frames(
+        end_context_samples,
+        size=stft_size,
+        shift=stft_shift,
+        fading=stft_fading,
+    )
+    return start_context_frames, end_context_frames
+
+
 @dataclass
 class Beamformer:
     type: str
@@ -251,6 +275,8 @@ class Enhancer:
     activity: Activity
     gss_block: GSS
     bf_block: Beamformer
+
+    bf_drop_context: bool
 
     stft_size: int
     stft_shift: int
@@ -405,6 +431,7 @@ class Enhancer:
             obs,
             ex_array_activity=ex_array_activity,
             speaker_id=speaker_id,
+            ex=ex,
             debug=debug,
         )
 
@@ -427,6 +454,7 @@ class Enhancer:
             obs,
             ex_array_activity,
             speaker_id,
+            ex=None,
             debug=False,
     ):
         Obs = self.stft(obs)
@@ -444,12 +472,27 @@ class Enhancer:
 
         masks = self.gss_block(Obs, acitivity_freq, debug=debug)
 
+        if self.bf_drop_context:
+            start_context_frames, end_context_frames = start_end_context_frames(
+                ex,
+                stft_size=self.stft_size,
+                stft_shift=self.stft_shift,
+                stft_fading=self.stft_fading,
+            )
+
+            masks[:, :start_context_frames, :] = 0
+            if end_context_frames > 0:
+                masks[:, -end_context_frames:, :] = 0
+
         target_speaker_index = tuple(ex_array_activity.keys()).index(speaker_id)
         target_mask = masks[target_speaker_index]
         distortion_mask = np.sum(
             np.delete(masks, target_speaker_index, axis=0),
             axis=0,
         )
+
+
+
 
         X_hat = self.bf_block(
             Obs,
@@ -487,6 +530,8 @@ def get_enhancer(
     bss_iterations=20,
     bss_iterations_post=1,
 
+    bf_drop_context=False,
+
     bf='mvdrSouden_ban',
     postfilter=None,
 ):
@@ -515,6 +560,7 @@ def get_enhancer(
             iterations_post=bss_iterations_post,
             verbose=False,
         ),
+        bf_drop_context=bf_drop_context,
         bf_block=Beamformer(
             type=bf,
             postfilter=postfilter,
