@@ -298,9 +298,19 @@ class Enhancer:
             self,
             session_ids,
             audio_dir,
-            test_run=False,
+            dataset_slice=False,
+            audio_dir_exist_ok=False
     ):
         """
+
+        Args:
+            session_ids:
+            audio_dir:
+            dataset_slice:
+
+        Returns:
+
+
         >>> enhancer = get_enhancer(wpe=False, bss_iterations=2)
         >>> for x_hat in enhancer.enhance_session('S02'):
         ...     print(x_hat)
@@ -310,20 +320,22 @@ class Enhancer:
         it = self.get_iterator(session_ids)
 
         if mpi.IS_MASTER:
-            audio_dir.mkdir()
+            audio_dir.mkdir(exist_ok=audio_dir_exist_ok)
 
             for dataset in set(mapping.session_to_dataset.values()):
-                (audio_dir / dataset).mkdir()
+                (audio_dir / dataset).mkdir(exist_ok=audio_dir_exist_ok)
 
         mpi.barrier()
 
-        if test_run is not False:
-            if test_run is True:
+        if dataset_slice is not False:
+            if dataset_slice is True:
                 it = it[:2]
-            elif isinstance(test_run, int):
-                it = it[:test_run]
+            elif isinstance(dataset_slice, int):
+                it = it[:dataset_slice]
+            elif isinstance(dataset_slice, slice):
+                it = it[dataset_slice]
             else:
-                raise ValueError(test_run)
+                raise ValueError(dataset_slice)
 
         for ex in mpi.share_master(it, allow_single_worker=True):
             x_hat = self.enhance_example(ex)

@@ -96,7 +96,7 @@ def run(_run, test_run=False):
     enhancer.enhance_session(
         session_ids,
         _dir / 'audio',
-        test_run=test_run,
+        dataset_slice=test_run,
     )
     if mpi.IS_MASTER:
         print('Finished experiment dir:', _dir)
