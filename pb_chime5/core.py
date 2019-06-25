@@ -18,20 +18,22 @@ import numpy as np
 
 import nara_wpe
 import nara_wpe.wpe
-from dc_integration.distribution import (
+from pb_bss.distribution import (
     CACGMMTrainer
 )
-from dc_integration.distribution.utils import (
+from pb_bss.distribution.utils import (
     stack_parameters,
 )
 
-from nt.utils.numpy_utils import morph
-from nt.io.data_dir import database_jsons
-from nt.database.chime5 import activity_time_to_frequency
+from pb_chime5 import git_root
+from pb_chime5.utils import mpi
+from pb_chime5.utils.numpy_utils import morph
+from pb_chime5.database.chime5 import activity_time_to_frequency
 
 from pb_chime5.io import load_audio, dump_audio
 from pb_chime5 import mapping
-from pb_chime5.util import mpi
+
+JSON_PATH = git_root / 'cache'
 
 
 @dataclass
@@ -90,12 +92,12 @@ class Activity:
     garbage_class: bool = False
     # ali_path='/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/egs/chime5/s5/exp/tri3_all_dev_worn_ali',
     # activity_array_ali_path='~/net/storage/jheymann/__share/jensheit/chime5/kaldi/arrayBSS_v5/exp/tri3_u_bss_js_cleaned_dev_new_bss_beam_39_ali',
-    database_path: str = str(database_jsons / 'chime5_orig.json')
+    database_path: str = str(JSON_PATH / 'chime5.json')
     path: str = None
 
     @cached_property
     def db(self):
-        from nt.database.chime5 import Chime5
+        from pb_chime5.database.chime5 import Chime5
         return Chime5(self.database_path)
 
     @staticmethod
@@ -111,7 +113,7 @@ class Activity:
         assert type in ['annotation'], type
 
         return get_activity(
-            iterator=db.get_iterator_by_names(session_id),
+            iterator=db.get_datasets(session_id),
             perspective='array',
             garbage_class=garbage_class,
             dtype=np.bool,
@@ -212,10 +214,8 @@ class Beamformer:
         bf = self.type
 
         if bf == 'mvdrSouden_ban':
-            from pb_chime5.enhancement.beamform import (
-                beamform_mvdr_souden_from_masks,
-                beamform_lcmv_souden_from_masks,
-                beamform_gev_from_masks,
+            from pb_chime5.speech_enhancement.beamforming_wrapper import (
+                beamform_mvdr_souden_from_masks
             )
             X_hat = beamform_mvdr_souden_from_masks(
                 Y=Obs,
@@ -267,7 +267,7 @@ class Enhancer:
         return self.activity.db
 
     def stft(self, x):
-        from nt.transform import stft
+        from nara_wpe.utils import stft
         return stft(
             x,
             size=self.stft_size,
@@ -276,7 +276,7 @@ class Enhancer:
         )
 
     def istft(self, X):
-        from nt.transform import istft
+        from nara_wpe.utils import istft
         return istft(
             X,
             size=self.stft_size,
@@ -508,7 +508,7 @@ def get_enhancer(
             type=activity_type,
             garbage_class=activity_garbage_class,
             path=activity_path,
-            database_path=str(database_jsons / 'chime5_orig.json'),
+            database_path=str(JSON_PATH / 'chime5.json'),
         ),
         gss_block=GSS(
             iterations=bss_iterations,

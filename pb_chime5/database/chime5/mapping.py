@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from nt.utils.mapping import Dispatcher
+from pb_chime5.mapping import Dispatcher
 
 dev_sess_ref_array_mapping = Dispatcher({
     'S02': ['U02', 'U03', 'U05'],
@@ -404,10 +404,9 @@ def _get_session_speaker_mapping():
     >>> assert session_speaker_mapping_calc == session_speakers_mapping
 
     """
-    from nt.io.data_dir import database_jsons
-    from nt.database.chime5 import Chime5  # cyclic import
-    db = Chime5(database_jsons / 'chime5_orig.json')
-    it = db.get_iterator_by_names(db.database_dict['datasets'].keys())
+    from pb_chime5.database.chime5 import Chime5  # cyclic import
+    db = Chime5()
+    it = db.get_datasets(db.database_dict['datasets'].keys())
     summary = defaultdict(set)
     for ex in it:
         summary[ex['session_id']] |= set(ex['speaker_id'])
@@ -444,12 +443,11 @@ def _get_session_dataset_mapping():
     >>> assert session_dataset_mapping_calc == session_dataset_mapping
 
     """
-    from nt.database.chime5 import Chime5  # cyclic import
-    from nt.io.data_dir import database_jsons
-    db = Chime5(database_jsons / 'chime5_orig.json')
+    from pb_chime5.database.chime5 import Chime5  # cyclic import
+    db = Chime5()
     summary = {}
     for dataset in ['dev', 'train', 'eval']:
-        it = db.get_iterator_by_names(dataset)
+        it = db.get_datasets(dataset)
         for ex in it:
             assert dataset == summary.get(ex['session_id'], dataset), (
                 dataset, summary.get(ex['session_id'], dataset)
@@ -677,9 +675,8 @@ def _get_session_array_to_num_samples_mapping():
     >>> assert session_num_samples_mapping_calc == session_array_to_num_samples_mapping
 
     """
-    from nt.io.audioread import audio_length
-    from nt.database.chime5 import Chime5  # cyclic import
-    from nt.io.data_dir import database_jsons
+    from pb_chime5.io.audioread import audio_length
+    from pb_chime5.database.chime5 import Chime5  # cyclic import
 
     from functools import lru_cache
 
@@ -687,10 +684,10 @@ def _get_session_array_to_num_samples_mapping():
     def get_audio_length(file):
         return audio_length(file)
 
-    db = Chime5(database_jsons / 'chime5_orig.json')
+    db = Chime5()
     summary = {}
     for dataset in ['dev', 'train', 'eval']:
-        it = db.get_iterator_by_names(dataset)
+        it = db.get_datasets(dataset)
         for ex in it:
             for array_id, files in ex['audio_path']['observation'].items():
                 length = {get_audio_length(file) for file in files}

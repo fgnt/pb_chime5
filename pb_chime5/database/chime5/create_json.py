@@ -9,25 +9,25 @@ import logging
 import os
 from datetime import datetime
 from functools import partial
-from warnings import warn
 
 import click
 import tqdm
 from pathlib import Path
-from nt.database import keys
-from nt.database.helper import (
+from pb_chime5.database import keys
+from pb_chime5.database.helper import (
     dump_database_as_json,
     click_common_options,
     check_audio_files_exist,
     click_convert_to_path,
 )
-from nt.database.chime5.get_speaker_activity import to_samples
-from nt.io.data_dir import chime_5
-from nt.io.json_module import load_json
-from nt.utils.mapping import Dispatcher
+from pb_chime5.database.chime5.get_speaker_activity import to_samples
+
+from pb_chime5 import git_root
+from pb_chime5.io.json_module import load_json
+from pb_chime5.mapping import Dispatcher
 
 
-EVAL_TRANSCRIPTIONS_MISSING = True
+EVAL_TRANSCRIPTIONS_MISSING = False
 
 
 class CHiME5_Keys:
@@ -84,8 +84,8 @@ def create_database(database_path, transcription_realigned_path):
         p.name: p
         for p in Path(transcription_realigned_path).glob('**/*.json')
     })
-    from .create_kaldi_text import get_kaldi_transcriptions
-    kaldi_transcriptions = get_kaldi_transcriptions()
+
+    kaldi_transcriptions = dict()
 
     for dataset in set_length.keys():
         out_dict = get_dataset(database_path, dataset, transcription_realigned_pathes, kaldi_transcriptions)
@@ -211,7 +211,7 @@ def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_tran
 
 
 def get_example(transcription, transcription_realigned, audio_path, kaldi_transcriptions):
-    from nt.database.chime5.mapping import session_speakers_mapping
+    from pb_chime5.database.chime5.mapping import session_speakers_mapping
 
     session_id = transcription['session_id']
 
@@ -224,7 +224,7 @@ def get_example(transcription, transcription_realigned, audio_path, kaldi_transc
         for key in transcription['start_time'].keys()
         if 'P' in key
     ]
-    if session_id in ['S01', 'S21']:
+    if EVAL_TRANSCRIPTIONS_MISSING and session_id in ['S01', 'S21']:
         # eval
         assert speaker_ids == [], (speaker_ids, session_id)
         speaker_ids = session_speakers_mapping[session_id]
@@ -432,11 +432,9 @@ def get_time_from_dict(time, speaker_ids, arrays, dataset):
 
 
 @click.command()
-@click_common_options('chime5.json', chime_5)
+@click_common_options('chime5.json', git_root / 'CHiME5')
 @click.option(
     '--transcription-path',
-    # '-j',
-    default='/net/vol/boeddeker/deploy/git/hub/chime5-synchronisation/transcriptions_aligned',
     type=click.Path(),
     callback=click_convert_to_path
 )
