@@ -1,5 +1,13 @@
+class Dispatcher(dict):
+    """Is basically a dict with a better error message on key error."""
 
-Dispatcher = dict
+    def __getitem__(self, item):
+        try:
+            return super().__getitem__(item)
+        except KeyError:
+            raise KeyError(
+                f'Invalid option {item!r}. Possible keys are {self.keys()!r}.'
+            )
 
 session_to_speakers = Dispatcher({
     'S01': ['P01', 'P02', 'P03', 'P04'],
