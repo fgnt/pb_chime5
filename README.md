@@ -50,13 +50,12 @@ Create a symlink to the chime5 database e.g. `ln -s /net/fastdb/chime5/CHiME5 CH
 Install this package, toolbox and pb_bss 
 ```bash
 $ pip install --user -e pb_bss/
-$ pip install --user -e toolbox/  # Copy of some internal developed code.
 $ pip install --user -e .
 ```
 
 Create the database description file
 ```bash
-$ make cache/chime5_orig.json
+$ make cache/chime5.json
 ```
 
 It is assumed that the folder `sacred` in this git is the simulation folder.
