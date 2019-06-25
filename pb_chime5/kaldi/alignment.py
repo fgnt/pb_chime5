@@ -1,9 +1,8 @@
 from pathlib import Path
 import numpy as np
 from tempfile import NamedTemporaryFile
-from nt.kaldi.helper import get_kaldi_env, excute_kaldi_commands
-from nt.io.data_dir import kaldi_root
-from nt.kaldi import helper as kaldi_helper
+from pb_chime5.kaldi.helper import get_kaldi_env, excute_kaldi_commands
+from pb_chime5.kaldi import helper as kaldi_helper
 import logging
 import sys
 
@@ -34,7 +33,7 @@ def _import_alignment(ark, model_file, extract_cmd, extract_cmd_finish,
     dest_param = 'ark,t:-'
     if import_options is None:
         import_options = []
-    from nt.utils.process_caller import run_process
+    from pb_chime5.utils.process_caller import run_process
 
     completed_process = run_process([extract_cmd, *import_options, model_file, src_param, dest_param],
                                     environment=get_kaldi_env())

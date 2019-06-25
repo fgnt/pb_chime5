@@ -1,7 +1,8 @@
 from pathlib import Path
 import subprocess
 import os
-from nt.io.data_dir import kaldi_root as KALDI_ROOT
+
+KALDI_ROOT = os.environ['KALDI_ROOT']
 
 WSJ_EG = '{}/egs/wsj/s5'.format(KALDI_ROOT)
 INT2SYM = '{}/egs/wsj/s5/utils/int2sym.pl'.format(KALDI_ROOT)
