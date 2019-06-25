@@ -3,7 +3,6 @@ from pathlib import Path
 
 import numpy as np
 
-from pb_chime5 import kaldi
 from pb_chime5.database import keys
 from pb_chime5.io.audioread import load_audio
 
@@ -133,80 +132,6 @@ def to_list(x):
     if isinstance(x, (list, tuple)):
         return x
     return [x]
-
-
-class AlignmentReader:
-    def __init__(
-            self, alignment_path: Path = None, alignments: dict = None,
-            example_id_map_fn=lambda x: x[keys.EXAMPLE_ID],
-            dst_key=keys.ALIGNMENT):
-        assert alignment_path is not None or alignments is not None, (
-            'Either alignments or the path to the alignments must be specified'
-        )
-        self._ali_path = alignment_path
-        self._alignments = alignments
-        self._map_fn = example_id_map_fn
-        self._dst_key = dst_key
-
-    def __call__(self, example):
-        if self._alignments is None:
-            self._alignments = \
-                kaldi.alignment.import_alignment_data(self._ali_path)
-            LOG.debug(
-                f'Read {len(self._alignments)} alignments '
-                f'from path {self._ali_path}'
-            )
-        try:
-            example[self._dst_key] = self._alignments[
-                self._map_fn(example)
-            ]
-            example[keys.NUM_ALIGNMENT_FRAMES] = len(example[self._dst_key])
-        except KeyError:
-            LOG.warning(
-                f'No alignment found for example id {example[keys.EXAMPLE_ID]} '
-                f'(mapped: {self._map_fn(example)}).'
-            )
-        return example
-
-
-class ExamplesWithoutAlignmentRemover:
-    def __init__(self, alignment_key=keys.ALIGNMENT):
-        self._key = alignment_key
-
-    def __call__(self, example):
-        valid_ali = self._key in example and len(example[self._key])
-        if not valid_ali:
-            LOG.warning(
-                f'Removing example {example[keys.EXAMPLE_ID]} because '
-                f'it has no alignment')
-            return False
-        if keys.NUM_SAMPLES in example:
-            num_samples = example[keys.NUM_SAMPLES]
-            if isinstance(num_samples, dict):
-                num_samples = num_samples[keys.OBSERVATION]
-        else:
-            return True  # Only happens for Kaldi databases
-
-        # TODO: This assumes fixed size and shift. Does not work for 8 kHz.
-        num_frames = (num_samples - 400 + 160) // 160
-        num_frames_lfr = (num_frames + np.mod(-num_frames, 3)) // 3
-        len_ali = len(example[self._key])
-        valid_ali = (
-            len_ali == num_frames or
-            len_ali == num_frames_lfr
-        )
-        if not valid_ali:
-            LOG.warning(
-                f'Example {example[keys.EXAMPLE_ID]}: Alignment has {len_ali} '
-                f'frames but the observation has '
-                f'{num_frames} [{num_frames_lfr}] frames. Dropping example.'
-            )
-            return False
-        return True
-
-
-def remove_examples_without_alignment(example):
-    return ExamplesWithoutAlignmentRemover()(example)
 
 
 def remove_zero_length_example(example, audio_key='observation',
