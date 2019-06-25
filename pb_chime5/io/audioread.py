@@ -10,7 +10,6 @@ from pathlib import Path
 import numpy as np
 import soundfile
 
-from pb_chime5.io.load_decorator import recursive_load_decorator
 import pb_chime5.utils.process_caller as pc
 
 
@@ -31,7 +30,7 @@ def normalize_path(file, as_str=False, allow_fd=True):
 
 UTILS_DIR = os.path.join(os.path.dirname(__file__), 'utils')
 
-@recursive_load_decorator(default_list_to='array')
+
 def load_audio(
         path,
         *,

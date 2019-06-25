@@ -16,12 +16,14 @@ from pb_chime5.io.json_module import (
     dumps_json,
 )
 from pb_chime5.io.json_module import SummaryEncoder
-from pb_chime5.io.audioread import load_audio
+from pb_chime5.io.audioread import load_audio as _load_audio
 from pb_chime5.io.audiowrite import dump_audio
 from pb_chime5.io.file_handling import (
     mkdir_p,
     symlink,
 )
+from pb_chime5.io.load_decorator import recursive_load_decorator
+load_audio = recursive_load_decorator(default_list_to='array')(_load_audio)
 
 __all__ = [
     "load_audio",

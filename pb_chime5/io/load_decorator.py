@@ -1,6 +1,3 @@
-from pb_chime5.io import load_audio as _load_audio
-from pb_chime5.io import dump_audio
-
 import numpy as np
 
 
