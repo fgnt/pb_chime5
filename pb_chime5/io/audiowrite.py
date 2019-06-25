@@ -7,7 +7,7 @@ import soundfile
 from scipy.io.wavfile import write as wav_write
 
 from pb_chime5.mapping import Dispatcher
-from pb_chime5.io.path_utils import normalize_path
+from pb_chime5.io.audioread import normalize_path
 
 int16_max = np.iinfo(np.int16).max
 int16_min = np.iinfo(np.int16).min
@@ -35,8 +35,8 @@ def dump_audio(
         start:
         normalize:
 
-    >>> from paderbox.utils.process_caller import run_process
-    >>> from paderbox.io import load_audio
+    >>> from pb_chime5.utils.process_caller import run_process
+    >>> from pb_chime5.io import load_audio
     >>> a = np.array([1, 2, -4, 4], dtype=np.int16)
     >>> import io, os
     >>> # file = io.BytesIO()

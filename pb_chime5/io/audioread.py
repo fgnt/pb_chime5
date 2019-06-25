@@ -11,7 +11,7 @@ import numpy as np
 import soundfile
 
 from pb_chime5.io.load_decorator import recursive_load_decorator
-import pb_chime5.util.process_caller as pc
+import pb_chime5.utils.process_caller as pc
 
 
 def normalize_path(file, as_str=False, allow_fd=True):
@@ -184,7 +184,7 @@ def load_audio(
                 'r',
         ) as f:
             if dtype is None:
-                from paderbox.utils.mapping import Dispatcher
+                from pb_chime5.mapping import Dispatcher
                 mapping = Dispatcher({
                     'PCM_16': np.int16,
                     'FLOAT': np.float32,
@@ -199,7 +199,7 @@ def load_audio(
         if isinstance(path, (Path, str)):
             if Path(path).suffix == '.wav':
                 # Improve exception msg for NIST SPHERE files.
-                from paderbox.utils.process_caller import run_process
+                from pb_chime5.utils.process_caller import run_process
                 cp = run_process(f'file {path}')
                 stdout = cp.stdout
                 raise RuntimeError(f'{stdout}') from e
@@ -306,7 +306,7 @@ def audioread(path, offset=0.0, duration=None, expected_sample_rate=None):
             wav_reader.read(data)
             return np.squeeze(data), sample_rate
     except OSError as e:
-        from paderbox.utils.process_caller import run_process
+        from pb_chime5.utils.process_caller import run_process
         cp = run_process(f'file {path}')
         stdout = cp.stdout
         raise OSError(f'{stdout}') from e
