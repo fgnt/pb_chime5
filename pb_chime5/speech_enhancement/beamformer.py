@@ -17,7 +17,7 @@ import warnings
 import numpy as np
 from scipy.linalg import eig
 from scipy.linalg import eigh
-# from nt.math.correlation import covariance  # as shortcut!
+
 from pb_chime5.math.solve import stable_solve
 
 

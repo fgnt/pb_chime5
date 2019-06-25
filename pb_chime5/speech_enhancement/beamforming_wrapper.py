@@ -2,9 +2,9 @@ import numpy as np
 
 from cached_property import cached_property
 
-from nt.utils.numpy_utils import morph
-from nt.speech_enhancement import beamformer
-from nt.speech_enhancement.mask_module import lorenz_mask, quantil_mask
+from pb_chime5.utils.numpy_utils import morph
+from pb_chime5.speech_enhancement import beamformer
+from pb_chime5.speech_enhancement.mask_module import lorenz_mask, quantil_mask
 
 
 class _Beamformer:
