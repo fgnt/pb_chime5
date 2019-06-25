@@ -1,15 +1,14 @@
 from pb_chime5.io import load_audio as _load_audio
 from pb_chime5.io import dump_audio
-# from pb_chime5.nt.io.recusive import recursive_load_decorator as _recursive_load_decorator
 
 import numpy as np
 
 
-def _recursive_load_decorator(default_list_to='list'):
+def recursive_load_decorator(default_list_to='list'):
     """
     >>> from pb_chime5.io import load_audio
     >>> np.set_string_function(lambda a: f'array(shape={a.shape}, dtype={a.dtype})')
-    >>> load_audio = _recursive_load_decorator(default_list_to='array')(load_audio)
+    >>> load_audio = recursive_load_decorator(default_list_to='array')(load_audio)
     >>> prefix = '/net/fastdb/chime3/audio/16kHz/isolated/dt05_str_simu'
     >>> data = {
     ...     'a': [
@@ -52,6 +51,3 @@ def _recursive_load_decorator(default_list_to='list'):
                 return func(path, *args, **kwargs)
         return wrapper
     return decorator
-
-
-load_audio = _recursive_load_decorator(default_list_to='array')(_load_audio)

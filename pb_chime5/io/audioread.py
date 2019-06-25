@@ -1,22 +1,37 @@
 """
 This module deals with all sorts of audio input and output.
 """
-import inspect
 import os
 import tempfile
 import wave
-from io import BytesIO
+from io import BytesIO, IOBase
 from pathlib import Path
 
 import numpy as np
 import soundfile
 
+from pb_chime5.io.load_decorator import recursive_load_decorator
 import pb_chime5.util.process_caller as pc
-from pb_chime5.io.path_utils import normalize_path
+
+
+def normalize_path(file, as_str=False, allow_fd=True):
+    if allow_fd and isinstance(file, IOBase):
+        return file
+    elif isinstance(file, (str, Path)):
+        # expanduser: ~ to username
+        # resolve: better exception i.e. absolute path
+        file = Path(file).expanduser().resolve()
+        if as_str:
+            return str(file)
+        else:
+            return file
+    else:
+        raise TypeError(file)
+
 
 UTILS_DIR = os.path.join(os.path.dirname(__file__), 'utils')
 
-
+@recursive_load_decorator(default_list_to='array')
 def load_audio(
         path,
         *,
