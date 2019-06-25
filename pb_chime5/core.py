@@ -307,6 +307,9 @@ class Enhancer:
             session_ids:
             audio_dir:
             dataset_slice:
+            audio_dir_exist_ok:
+                When True: It is ok, when the audio dir exists and the files
+                insinde may be overwritten.
 
         Returns:
 
