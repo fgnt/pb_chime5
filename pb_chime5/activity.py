@@ -62,7 +62,7 @@ def get_activity(
     ...                 indent_print(f'{k}: ...')
     ...     else:
     ...         indent_print(activity)
-    >>> activity = get_activity(db.get_iterator_by_names('S02'), perspective='global_worn', garbage_class=True)
+    >>> activity = get_activity(db.get_datasets('S02'), perspective='global_worn', garbage_class=True)
     >>> display_activity(activity)
     S02:
       P:
@@ -73,7 +73,7 @@ def get_activity(
         P08: ...
         Noise:
           [ True  True  True ...  True  True  True]
-    >>> activity = get_activity(db.get_iterator_by_names('S02'), perspective='worn', garbage_class=False)
+    >>> activity = get_activity(db.get_datasets('S02'), perspective='worn', garbage_class=False)
     >>> display_activity(activity)
     S02:
       P05:
@@ -87,7 +87,7 @@ def get_activity(
       P06: ...
       P07: ...
       P08: ...
-    >>> activity = get_activity(db.get_iterator_by_names('S02'), perspective='array', garbage_class=None)
+    >>> activity = get_activity(db.get_datasets('S02'), perspective='array', garbage_class=None)
     >>> display_activity(activity)
     S02:
       U01:

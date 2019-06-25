@@ -316,11 +316,11 @@ def calculate_overlap(dataset, sessions, json_path=database_jsons,
 
     db = Chime5()
     if dataset == 'train':
-        iterator = db.get_iterator_by_names(db.datasets_train)
+        iterator = db.get_datasets(db.datasets_train)
     elif dataset == 'dev':
-        iterator = db.get_iterator_by_names(db.datasets_eval)
+        iterator = db.get_datasets(db.datasets_eval)
     elif dataset == 'test':
-        iterator = db.get_iterator_by_names(db.datasets_test)
+        iterator = db.get_datasets(db.datasets_test)
     else:
         raise ValueError(f'Datset {dataset} unknown')
     iterator = iterator.filter(CrossTalkFilter(dataset, json_path,

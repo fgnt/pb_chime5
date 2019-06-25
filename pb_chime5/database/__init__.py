@@ -145,7 +145,7 @@ class DictDatabase:
             (object,),
             {
                 # 'abc': property(lambda self: 'cdf'),
-                '__getitem__': (lambda _, dataset_name: self.get_iterator_by_names(dataset_name)),
+                '__getitem__': (lambda _, dataset_name: self.get_datasets(dataset_name)),
                 **{
                     k: property(lambda self: self[k])
                     for k in dataset_names
