@@ -11,7 +11,7 @@ from datetime import datetime
 from functools import partial
 
 import click
-import tqdm
+
 from pathlib import Path
 from pb_chime5.database import keys
 from pb_chime5.database.helper import (
@@ -21,6 +21,7 @@ from pb_chime5.database.helper import (
     click_convert_to_path,
 )
 from pb_chime5.database.chime5.get_speaker_activity import to_samples
+from pb_chime5.database.chime5 import CHiME5_Keys
 
 from pb_chime5 import git_root
 from pb_chime5.io.json_module import load_json
@@ -28,18 +29,6 @@ from pb_chime5.mapping import Dispatcher
 
 
 EVAL_TRANSCRIPTIONS_MISSING = False
-
-
-class CHiME5_Keys:
-    """
-    >>> print(dir(keys))
-    """
-    WORN = 'worn'
-    TARGET_SPEAKER = 'target_speaker'
-    NOTES = 'notes'
-    SESSION_ID = 'session_id'
-    LOCATION = 'location'
-    REFERENCE_ARRAY = 'reference_array'
 
 
 for k in dir(keys):

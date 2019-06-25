@@ -2,10 +2,9 @@
 import numpy as np
 from pb_chime5.database import JsonDatabase
 from pb_chime5.database import keys as K
-from pb_chime5.database.chime5.create_json import CHiME5_Keys, SAMPLE_RATE
-from pb_chime5.database.chime5.get_speaker_activity import to_numpy, get_active_speaker
+
 from pb_chime5.database.iterator import AudioReader
-from pb_chime5.io import load_json, load_audio
+from pb_chime5.io import load_audio
 from pb_chime5 import git_root
 from pb_chime5.utils.numpy_utils import segment_axis_v2
 from pb_chime5.utils.numpy_utils import pad_axis
@@ -13,6 +12,17 @@ import numbers
 
 
 FORMAT_STRING = '%H:%M:%S.%f'
+
+class CHiME5_Keys:
+    """
+    >>> print(dir(K))
+    """
+    WORN = 'worn'
+    TARGET_SPEAKER = 'target_speaker'
+    NOTES = 'notes'
+    SESSION_ID = 'session_id'
+    LOCATION = 'location'
+    REFERENCE_ARRAY = 'reference_array'
 
 
 class Chime5(JsonDatabase):
@@ -865,10 +875,3 @@ class SessionFilter:
     def __call__(self, example):
         return example['session_id'] == self.session_id
 
-
-# cyclic import, has to be at the end of the __init__ file
-from pb_chime5.database.chime5.mapping import (
-    session_speakers_mapping,
-    session_dataset_mapping,
-    session_array_to_num_samples_mapping,
-)
