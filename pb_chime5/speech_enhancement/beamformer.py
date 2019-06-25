@@ -14,13 +14,11 @@ The functions themselves are written more generic, though.
 """
 
 import warnings
-from scipy.linalg import sqrtm
 import numpy as np
-from numpy.linalg import solve
 from scipy.linalg import eig
 from scipy.linalg import eigh
 # from nt.math.correlation import covariance  # as shortcut!
-from nt.math.solve import stable_solve
+from pb_chime5.math.solve import stable_solve
 
 
 try:
@@ -159,70 +157,6 @@ def get_pca_vector(target_psd_matrix):
     return get_pca(target_psd_matrix)[0]
 
 
-# TODO: Possible test case: Assert W^H * H = 1.
-# TODO: Make function more stable for badly conditioned noise matrices.
-# Write tests for these cases.
-def get_mvdr_vector(atf_vector, noise_psd_matrix):
-    """
-    Returns the MVDR beamforming vector.
-
-    :param atf_vector: Acoustic transfer function vector
-        with shape (..., bins, sensors)
-    :param noise_psd_matrix: Noise PSD matrix
-        with shape (bins, sensors, sensors)
-    :return: Set of beamforming vectors with shape (..., bins, sensors)
-    """
-
-    while atf_vector.ndim > noise_psd_matrix.ndim - 1:
-        noise_psd_matrix = np.expand_dims(noise_psd_matrix, axis=0)
-
-    # Make sure matrix is hermitian
-    noise_psd_matrix = 0.5 * (
-        noise_psd_matrix + np.conj(noise_psd_matrix.swapaxes(-1, -2))
-    )
-    try:
-        numerator = solve(noise_psd_matrix, atf_vector)
-    except np.linalg.LinAlgError:
-        bins = noise_psd_matrix.shape[0]
-        numerator = np.empty_like(atf_vector)
-        for f in range(bins):
-            numerator[f], *_ = np.linalg.lstsq(noise_psd_matrix[f],
-                                               atf_vector[..., f, :])
-    denominator = np.einsum('...d,...d->...', atf_vector.conj(), numerator)
-    beamforming_vector = numerator / np.expand_dims(denominator, axis=-1)
-
-    return beamforming_vector
-
-
-def get_mvdr_vector_merl(target_psd_matrix, noise_psd_matrix):
-    """
-    Returns the MVDR beamforming vector.
-
-    This implementation is based on a variant described in 
-    https://www.merl.com/publications/docs/TR2016-072.pdf
-    It selects a reference channel that maximizes the post-SNR.
-
-    :param target_psd_matrix: Target PSD matrix
-        with shape (..., bins, sensors, sensors)
-    :param noise_psd_matrix: Noise PSD matrix
-        with shape (..., bins, sensors, sensors)
-    :return: Set of beamforming vectors with shape (..., bins, sensors)
-    """
-    G = np.linalg.solve(noise_psd_matrix, target_psd_matrix)
-    lambda_ = np.trace(G, axis1=-2, axis2=-1)
-    h = G / lambda_[..., None, None]
-
-    nom = np.sum(
-        np.einsum('...fac,fab,...fbc->c', h.conj(), target_psd_matrix, h)
-    )
-    denom = np.sum(
-        np.einsum('...fac,fab,...fbc->c', h.conj(), noise_psd_matrix, h)
-    )
-    h_idx = np.argmax(nom/denom)
-
-    return h[..., h_idx]
-
-
 def get_gev_vector(target_psd_matrix, noise_psd_matrix, force_cython=False,
                    use_eig=False):
     """
@@ -306,45 +240,6 @@ def _get_gev_vector(target_psd_matrix, noise_psd_matrix, use_eig=False):
     return beamforming_vector.reshape(original_shape[:-1])
 
 
-def get_lcmv_vector(atf_vectors, response_vector, noise_psd_matrix):
-    """
-
-    :param atf_vectors: Acoustic transfer function vectors for
-        each source with shape (targets k, bins f, sensors d)
-    :param response_vector: Defines, which sources you are interested in.
-        Set it to [1, 0, ..., 0], if you are interested in the first speaker.
-        It has the shape (targets,)
-    :param noise_psd_matrix: Noise PSD matrix
-        with shape (bins f, sensors d, sensors D)
-    :return: Set of beamforming vectors with shape (bins f, sensors d)
-    """
-    response_vector = np.asarray(response_vector)
-    # TODO: If it is a list, a list of response_vectors is returned.
-
-    Phi_inverse_times_H = solve(
-        noise_psd_matrix[None, ...],  # 1, f, d, D
-        atf_vectors  # k, f, d
-    )  # k, f, d
-
-    H_times_Phi_inverse_times_H = np.einsum(
-        'k...d,K...d->...kK',
-        atf_vectors.conj(),
-        Phi_inverse_times_H
-    )  # f, k, K
-
-    temp = solve(
-        H_times_Phi_inverse_times_H,
-        response_vector[None, ...],  # 1, K
-    )  # f, k
-    beamforming_vector = np.einsum(
-        'k...d,...k->...d',
-        Phi_inverse_times_H,
-        temp
-    )
-
-    return beamforming_vector
-
-
 def blind_analytic_normalization(vector, noise_psd_matrix,
                                  target_psd_matrix=None):
     """Reduces distortions in beamformed ouptput.
@@ -373,77 +268,6 @@ def blind_analytic_normalization(vector, noise_psd_matrix,
     return vector * np.abs(normalization[..., np.newaxis])
 
 
-def distortionless_normalization(vector, atf_vector, noise_psd_matrix):
-    nominator = np.einsum(
-        'fab,fb,fc->fac', noise_psd_matrix, vector, vector.conj()
-    )
-    denominator = np.einsum(
-        'fa,fab,fb->f', vector.conj(), noise_psd_matrix, vector
-    )
-    projection_matrix = nominator / denominator[..., None, None]
-    return np.einsum('fab,fb->fa', projection_matrix, atf_vector)
-
-
-def mvdr_snr_postfilter(vector, target_psd_matrix, noise_psd_matrix):
-    nominator = np.einsum(
-        'fa,fab,fb->f', vector.conj(), target_psd_matrix, vector
-    )
-    denominator = np.einsum(
-        'fa,fab,fb->f', vector.conj(), noise_psd_matrix, vector
-    )
-    return (nominator / denominator)[:, None]
-
-
-def zero_degree_normalization(vector, reference_channel):
-    return vector * np.exp(-1j * np.tile(np.angle(vector[:, reference_channel]), (vector.shape[-1],1))).transpose()
-
-
-def phase_correction(vector):
-    """Phase correction to reduce distortions due to phase inconsistencies.
-
-    We need a copy first, because not all elements are touched during the
-    multiplication. Otherwise, the vector would be modified in place.
-
-    TODO: Write test cases.
-    TODO: Only use non-loopy version when test case is written.
-
-    Args:
-        vector: Beamforming vector with shape (..., bins, sensors).
-    Returns: Phase corrected beamforming vectors. Lengths remain.
-
-    >>> w = np.array([[1, 1], [-1, -1]], dtype=np.complex128)
-    >>> np.around(phase_correction(w), decimals=14)
-    array([[ 1.+0.j,  1.+0.j],
-           [ 1.-0.j,  1.-0.j]])
-    >>> np.around(phase_correction([w]), decimals=14)[0]
-    array([[ 1.+0.j,  1.+0.j],
-           [ 1.-0.j,  1.-0.j]])
-    >>> w  # ensure that w is not modified
-    array([[ 1.+0.j,  1.+0.j],
-           [-1.+0.j, -1.+0.j]])
-    """
-
-    # w = W.copy()
-    # F, D = w.shape
-    # for f in range(1, F):
-    #     w[f, :] *= np.exp(-1j*np.angle(
-    #         np.sum(w[f, :] * w[f-1, :].conj(), axis=-1, keepdims=True)))
-    # return w
-
-    vector = np.array(vector, copy=True)
-    vector[..., 1:, :] *= np.cumprod(
-        np.exp(
-            1j * np.angle(
-                np.sum(
-                    vector[..., 1:, :].conj() * vector[..., :-1, :],
-                    axis=-1, keepdims=True
-                )
-            )
-        ), axis=0
-    )
-    return vector
-
-
 def apply_beamforming_vector(vector, mix):
     """Applies a beamforming vector such that the sensor dimension disappears.
 
@@ -452,156 +276,6 @@ def apply_beamforming_vector(vector, mix):
     :return: A beamformed signal with dimensions ..., time-frames
     """
     return np.einsum('...a,...at->...t', vector.conj(), mix)
-
-
-def apply_online_beamforming_vector(vector, mix):
-    """Applies a beamforming vector such that the sensor dimension disappears.
-
-    :param vector: Beamforming vector with dimensions ..., sensors
-    :param mix: Observed signal with dimensions ..., sensors, time-frames
-    :return: A beamformed signal with dimensions ..., time-frames
-    """
-    vector = vector.transpose(1, 2, 0)
-    return np.einsum('...at,...at->...t', vector.conj(), mix)
-
-
-def gev_wrapper_on_masks(mix, noise_mask=None, target_mask=None,
-                         normalization=False):
-    if noise_mask is None and target_mask is None:
-        raise ValueError('At least one mask needs to be present.')
-
-    mix = mix.T
-    if noise_mask is not None:
-        noise_mask = noise_mask.T
-    if target_mask is not None:
-        target_mask = target_mask.T
-
-    if target_mask is None:
-        target_mask = np.clip(1 - noise_mask, 1e-6, 1)
-    if noise_mask is None:
-        noise_mask = np.clip(1 - target_mask, 1e-6, 1)
-
-    target_psd_matrix = get_power_spectral_density_matrix(mix, target_mask)
-    noise_psd_matrix = get_power_spectral_density_matrix(mix, noise_mask)
-
-    W_gev = get_gev_vector(target_psd_matrix, noise_psd_matrix)
-
-    if normalization:
-        W_gev = blind_analytic_normalization(W_gev, noise_psd_matrix)
-
-    output = apply_beamforming_vector(W_gev, mix)
-
-    return output.T
-
-
-def pca_wrapper_on_masks(mix, noise_mask=None, target_mask=None):
-    if noise_mask is None and target_mask is None:
-        raise ValueError('At least one mask needs to be present.')
-
-    mix = mix.T
-    if noise_mask is not None:
-        noise_mask = noise_mask.T
-    if target_mask is not None:
-        target_mask = target_mask.T
-
-    if target_mask is None:
-        target_mask = np.clip(1 - noise_mask, 1e-6, 1)
-
-    target_psd_matrix = get_power_spectral_density_matrix(mix, target_mask)
-
-    W_pca = get_pca_vector(target_psd_matrix)
-
-    output = apply_beamforming_vector(W_pca, mix)
-
-    return output.T
-
-
-def pca_mvdr_wrapper_on_masks(mix, noise_mask=None, target_mask=None,
-                              regularization=None):
-    if noise_mask is None and target_mask is None:
-        raise ValueError('At least one mask needs to be present.')
-
-    mix = mix.T
-    if noise_mask is not None:
-        noise_mask = noise_mask.T
-    if target_mask is not None:
-        target_mask = target_mask.T
-
-    if target_mask is None:
-        target_mask = np.clip(1 - noise_mask, 1e-6, 1)
-    if noise_mask is None:
-        noise_mask = np.clip(1 - target_mask, 1e-6, 1)
-
-    target_psd_matrix = get_power_spectral_density_matrix(mix, target_mask)
-    noise_psd_matrix = get_power_spectral_density_matrix(mix, noise_mask)
-
-    if regularization is not None:
-        noise_psd_matrix += np.tile(
-            regularization * np.eye(noise_psd_matrix.shape[1]),
-            (noise_psd_matrix.shape[0], 1, 1)
-        )
-
-    W_pca = get_pca_vector(target_psd_matrix)
-    W_mvdr = get_mvdr_vector(W_pca, noise_psd_matrix)
-
-    output = apply_beamforming_vector(W_mvdr, mix)
-
-    return output.T
-
-
-def get_mvdr_vector_souden_old(
-        target_psd_matrix,
-        noise_psd_matrix,
-        ref_channel=0,
-        eps=1e-5,
-):
-    """
-    Returns the MVDR beamforming vector described in [Souden10].
-
-    :param target_psd_matrix: Target PSD matrix
-        with shape (..., bins, sensors, sensors)
-    :param noise_psd_matrix: Noise PSD matrix
-        with shape (..., bins, sensors, sensors)
-    :param ref_channel:
-    :param eps:
-    :return: Set of beamforming vectors with shape (..., bins, sensors)
-    """
-
-    # Make sure matrix is hermitian
-    shape = target_psd_matrix.shape
-    noise_psd_matrix = 0.5 * (
-        noise_psd_matrix + np.conj(noise_psd_matrix.swapaxes(-1, -2))
-    )
-    assert target_psd_matrix.shape == noise_psd_matrix.shape
-    assert target_psd_matrix.shape[-2] == target_psd_matrix.shape[-1]
-    sensors = target_psd_matrix.shape[-1]
-
-    target_psd_matrix = target_psd_matrix.reshape((-1, sensors, sensors))
-    noise_psd_matrix = noise_psd_matrix.reshape((-1, sensors, sensors))
-
-    bins = target_psd_matrix.shape[0]
-    numerator = np.empty((bins, sensors, sensors), dtype=np.complex128)
-    for f in range(bins):
-        try:
-            numerator[f, :, :] = np.linalg.solve(
-                noise_psd_matrix[f, :, :], target_psd_matrix[f, :, :])
-
-        except ValueError:
-            raise ValueError('Error for frequency {}\n'
-                             'phi_xx: {}\n'
-                             'phi_nn: {}'.format(
-                f, target_psd_matrix[f, :, :],
-                noise_psd_matrix[f, :, :]))
-        except np.linalg.LinAlgError:
-            raise np.linalg.LinAlgError('Error for frequency {}\n'
-                                        'phi_xx: {}\n'
-                                        'phi_nn: {}'.format(
-                f, target_psd_matrix[f, :, :],
-                noise_psd_matrix[f, :, :]))
-    denominator = np.trace(numerator, axis1=-1, axis2=-2)
-    beamforming_vector = numerator[:, ref_channel] / np.expand_dims(denominator + eps, axis=-1)
-    beamforming_vector = beamforming_vector.reshape(shape[:-1])
-    return beamforming_vector
 
 
 def get_mvdr_vector_souden(
