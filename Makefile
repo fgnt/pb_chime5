@@ -10,9 +10,10 @@ CHiME5:
 cache:
 	mkdir cache
 
-cache/chime5_orig.json: cache
+cache/chime5.json: cache
 	echo `type python`
-	python -m nt.database.chime5.create_json -j cache/chime5_orig.json --transcription-path CHiME5/transcriptions
+	echo $(CHIME5_DIR)
+	python -m pb_chime5.database.chime5.create_json -j cache/chime5.json -db $(CHIME5_DIR) --transcription-path $(CHIME5_DIR)/transcriptions
 
 cache/annotation/S02.pkl: cache
 	# See pb_chime5.activity_alignment for an example how to create activity patterns
