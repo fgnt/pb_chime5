@@ -9,7 +9,7 @@ from sacred.observers import FileStorageObserver
 
 from pb_chime5.core import get_enhancer
 from pb_chime5 import mapping
-from pb_chime5.util import mpi
+from pb_chime5.utils import mpi
 
 experiment = sacred.Experiment('Chime5 Array Enhancement')
 

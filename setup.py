@@ -208,7 +208,7 @@ setup(
     },
 
     ext_modules=cythonize([
-        'pb_chime5/util/intervall_array_util.pyx',
-        'pb_chime5/util/alignment_util.pyx',
+        'pb_chime5/utils/intervall_array_util.pyx',
+        'pb_chime5/utils/alignment_util.pyx',
     ])
 )
