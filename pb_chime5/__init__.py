@@ -17,7 +17,6 @@ git_root = Path(__file__).parent.parent.resolve().expanduser()
 
 from . import (
     activity,
-    io,
     mapping,
     core,
 )
