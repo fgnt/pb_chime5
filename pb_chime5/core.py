@@ -212,7 +212,7 @@ def start_end_context_frames(ex, stft_size, stft_shift, stft_fading):
     assert start_context_samples >= 0, (start_context_samples, ex)
     assert end_context_samples >= 0, (end_context_samples, ex)
 
-    from paderbox.transform.module_stft import _samples_to_stft_frames
+    from nara_wpe.utils import _samples_to_stft_frames
 
     start_context_frames = _samples_to_stft_frames(
         start_context_samples,
