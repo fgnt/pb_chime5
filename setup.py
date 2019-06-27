@@ -148,6 +148,7 @@ setup(
         'cached_property',
         'sacred',
         'nara_wpe',
+	'lazy_dataset',
     ],  # Optional
 
     # List additional groups of dependencies here (e.g. development
