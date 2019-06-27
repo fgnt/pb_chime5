@@ -99,7 +99,7 @@ def get_phone_alignment(
 
 
     """
-    import nt.kaldi
+    import pb_chime5.kaldi
 
     if isinstance(ali_path, (tuple, list)):
         alignments_list = [
@@ -126,9 +126,9 @@ def get_phone_alignment(
     id2phone = {int(k): v for k, v in tmp}
     assert len(id2phone) == len(tmp)
 
-    _alignments = nt.kaldi.alignment.import_alignment_data(
+    _alignments = pb_chime5.kaldi.alignment.import_alignment_data(
         ali_path,
-        import_fn=nt.kaldi.alignment.import_phone_alignment_from_file,
+        import_fn=pb_chime5.kaldi.alignment.import_phone_alignment_from_file,
         per_frame=True,
         model_name=ali_path / 'final.mdl'
     )
