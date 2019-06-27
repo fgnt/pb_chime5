@@ -19,6 +19,7 @@ export PYTHONUSERBASE=$(readlink -m venv)
 
 git clone git@ntgit.upb.de:python/toolbox internal_toolbox
 source internal_toolbox/bash/cuda.bash
+source internal_toolbox/bash/kaldi.bash
 
 # git clone https://github.com/fgnt/pb_chime5
 # cd pb_chime5
