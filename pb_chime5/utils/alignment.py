@@ -6,10 +6,10 @@ import operator
 
 import numpy as np
 
-from nt.utils.mapping import Dispatcher
-from nt.database.chime5 import kaldi_to_nt_example_id, kaldi_id_to_channel, activity_frequency_to_time
+from pb_chime5.mapping import Dispatcher
+from pb_chime5.database.chime5.database import kaldi_to_nt_example_id, kaldi_id_to_channel, activity_frequency_to_time
 
-from pb_chime5.util.alignment_util import cy_alignment_id2phone
+from pb_chime5.utils.alignment_util import cy_alignment_id2phone
 
 
 def get_phone_alignment(
