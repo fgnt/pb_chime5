@@ -28,7 +28,7 @@ git submodule update
 pip install --user -e pb_bss/
 pip install --user -e toolbox/
 pip install --user -e .
-make CHiME5
+
 make cache/chime5.json
 make cache/annotation/S02.pkl
 python -m pb_chime5.scripts.run test_run with session_id=dev
