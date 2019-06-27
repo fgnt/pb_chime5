@@ -1,7 +1,7 @@
-from nt.kaldi import helper
+from pb_chime5.kaldi import helper
 import re
 import os
-from nt.io import mkdir_p
+from pb_chime5.io import mkdir_p
 from collections import defaultdict
 import warnings
 import pandas

@@ -1,6 +1,6 @@
 from pathlib import Path
-from nt.io.data_dir import kaldi_root
-from nt.kaldi import helper as kaldi_helper
+# from nt.io.data_dir import kaldi_root
+from pb_chime5.kaldi import helper as kaldi_helper
 import logging
 
 LOG = logging.getLogger('Kaldi')

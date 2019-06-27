@@ -2,7 +2,7 @@ import ast
 import re
 
 from pathlib import Path
-from nt.utils.mapping import Dispatcher
+from pb_chime5.mapping import Dispatcher
 
 
 def word2id(words_txt):
