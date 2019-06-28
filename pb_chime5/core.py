@@ -530,7 +530,7 @@ def get_enhancer(
     bss_iterations=20,
     bss_iterations_post=1,
 
-    bf_drop_context=False,
+    bf_drop_context=True,
 
     bf='mvdrSouden_ban',
     postfilter=None,
