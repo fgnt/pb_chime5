@@ -640,6 +640,69 @@ def nest_broadcast(
     return inner(shallow_tree, input_tree)
 
 
+def nest_map_structure(
+        func,
+        *structures,
+        mapping_type=dict,
+        sequence_type=(tuple, list),
+):
+    """
+
+    Calls func(element) on each element of structure.
+    See tensorflow.nest.map_structure.
+
+    Args:
+        func:
+        structure: nested structure
+
+    Returns:
+
+
+    >>> structure = {'a': [1, 2, (3, 4)], 'b': [5, (6,)]}
+    >>> nest_map_structure(lambda e: e + 10, structure)
+    {'a': [11, 12, (13, 14)], 'b': [15, (16,)]}
+    >>> nest_map_structure(lambda e: e + 10, {'a': 11, 'b': 12})
+    {'a': 21, 'b': 22}
+    >>> nest_map_structure(lambda e: e + 10, {'a': 11, 'b': [13, 14]})
+    {'a': 21, 'b': [23, 24]}
+    >>> nest_map_structure(lambda e: e * 2, structure, sequence_type=None)
+    {'a': [1, 2, (3, 4), 1, 2, (3, 4)], 'b': [5, (6,), 5, (6,)]}
+
+    >>> nest_map_structure(lambda a, b: a + b, structure, structure)
+    {'a': [2, 4, (6, 8)], 'b': [10, (12,)]}
+
+
+    >>> nest_map_structure(lambda a, b: a + b, structure, {'a': 2, 'b': 4})
+    Traceback (most recent call last):
+    ...
+    AssertionError: ([<class 'list'>, <class 'int'>], ([1, 2, (3, 4)], 2))
+    """
+    types = {type(s) for s in structures}
+
+    if mapping_type and isinstance(structures[0], mapping_type):
+        assert len(types) == 1, ([type(s) for s in structures], structures)
+        return structures[0].__class__({
+            k: nest_map_structure(
+                func,
+                *[
+                    s[k]
+                    for s in structures
+                ],
+                mapping_type=mapping_type,
+                sequence_type=sequence_type,
+            )
+            for k in structures[0].keys()
+        })
+    elif sequence_type and isinstance(structures[0], sequence_type):
+        assert len(types) == 1, ([type(s) for s in structures], structures)
+        return structures[0].__class__([
+            nest_map_structure(func, *args, mapping_type=mapping_type, sequence_type=sequence_type)
+            for args in zip(*structures)
+        ])
+    else:
+        return func(*structures)
+
+
 def backup_orig_start_end(ex):
     ex['start_orig'] = ex[K.START]
     ex['end_orig'] = ex[K.END]
@@ -862,7 +925,6 @@ def AddContext(samples, equal_start_context=False):
     ...
     AssertionError: Negative context value (-50) is not supported
     """
-    from tensorflow.python.util import nest
 
     def split(samples):
         if isinstance(samples, dict):
@@ -909,21 +971,30 @@ def AddContext(samples, equal_start_context=False):
             assert 'end_orig' in ex, ex
             assert 'num_samples_orig' in ex, ex
 
-            ex[K.START] = nest.map_structure(
+            ex[K.START] = nest_map_structure(
                 lambda time: max(time - start_context, 0),
                 ex[K.START],
             )
             if equal_start_context:
-                start_flat = nest.flatten(ex[K.START])
-                start_orig_flat = nest.flatten(ex['start_orig'])
-                smallest_start_context = np.min(np.array(start_orig_flat) - np.array(start_flat))
+                start_context_delta = nest_map_structure(
+                    lambda start, start_orig: start_orig - start,
+                    ex[K.START],
+                    ex['start_orig'],
+                )
 
-                ex[K.START] = nest.map_structure(
+                start_context_delta_flat = []
+                _ = nest_map_structure(
+                    lambda val: start_context_delta_flat.append(val),
+                    start_context_delta,
+                )
+                smallest_start_context = np.min(start_context_delta_flat)
+
+                ex[K.START] = nest_map_structure(
                     lambda time: max(time - smallest_start_context, 0),
                     ex['start_orig'],
                 )
 
-            ex[K.END] = nest.map_structure(
+            ex[K.END] = nest_map_structure(
                 lambda time: time + end_context,
                 ex[K.END],
             )
@@ -933,7 +1004,7 @@ def AddContext(samples, equal_start_context=False):
             #     lambda time: time + duration_context,
             #     ex[K.NUM_SAMPLES],
             # )
-            ex[K.NUM_SAMPLES] = nest.map_structure(
+            ex[K.NUM_SAMPLES] = nest_map_structure(
                 lambda start, end: end - start,
                 ex[K.START],
                 ex[K.END],
@@ -949,7 +1020,7 @@ def AddContext(samples, equal_start_context=False):
             bc_end_context = nest_broadcast(ex[K.END], end_context)
             bc_duration_context = nest_broadcast(ex[K.NUM_SAMPLES], duration_context)
 
-            ex[K.START] = nest.map_structure(
+            ex[K.START] = nest_map_structure(
                 lambda time, start_context: max(time - start_context, 0),
                 ex[K.START],
                 bc_start_context,
@@ -959,7 +1030,7 @@ def AddContext(samples, equal_start_context=False):
             #     ex[K.START],
             #     bc_start_context,
             # )
-            ex[K.END] = nest.map_structure(
+            ex[K.END] = nest_map_structure(
                 lambda time, end_context: time + end_context,
                 ex[K.END],
                 bc_end_context,
@@ -972,7 +1043,7 @@ def AddContext(samples, equal_start_context=False):
             #     ex[K.NUM_SAMPLES],
             #     bc_duration_context,
             # )
-            ex[K.NUM_SAMPLES] = nest.map_structure(
+            ex[K.NUM_SAMPLES] = nest_map_structure(
                 lambda start, end: end - start,
                 ex[K.START],
                 ex[K.END],
