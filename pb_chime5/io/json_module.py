@@ -89,7 +89,7 @@ def dump_json(
         if create_path:
             path.parent.mkdir(parents=True, exist_ok=True)
 
-        with path.open('w') as f:
+        with path.open('w', encoding='utf8') as f:
             json.dump(obj, f, cls=Encoder, indent=indent,
                       sort_keys=sort_keys, **kwargs)
     else:
@@ -106,7 +106,7 @@ def load_json(path, **kwargs):
     assert isinstance(path, (str, Path)), path
     path = Path(path).expanduser()
 
-    with path.open() as fid:
+    with path.open(encoding='utf8') as fid:
         return json.load(fid, **kwargs)
 
 

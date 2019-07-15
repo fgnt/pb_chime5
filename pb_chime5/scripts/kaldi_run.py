@@ -1,6 +1,6 @@
 """
 
-python -m pb_chime5.scripts.kaldi_run with storage_dir=<...> session_id=dev job_id=0 number_of_jobs=1
+python -m pb_chime5.scripts.kaldi_run with storage_dir=<...> session_id=dev job_id=1 number_of_jobs=1
 
 """
 
@@ -24,7 +24,7 @@ def config():
     session_id = 'dev'
     storage_dir: str = None
 
-    job_id = 0
+    job_id = 1
     number_of_jobs = 1
 
     assert storage_dir is not None, (storage_dir, 'overwrite the storage_dir from the command line')
@@ -53,7 +53,7 @@ def test_run(_run, storage_dir, test_run=True):
 def run(_run, storage_dir, job_id, number_of_jobs, session_id, test_run=False):
     print_config(_run)
 
-    assert job_id < number_of_jobs, (job_id, number_of_jobs)
+    assert job_id >= 1 and job_id <= number_of_jobs, (job_id, number_of_jobs)
 
     enhancer = get_enhancer()
 
@@ -61,7 +61,7 @@ def run(_run, storage_dir, job_id, number_of_jobs, session_id, test_run=False):
         print('Database', enhancer.db)
 
     if test_run is False:
-        dataset_slice = slice(job_id, None, number_of_jobs)
+        dataset_slice = slice(job_id - 1, None, number_of_jobs)
     else:
         dataset_slice = test_run
 
