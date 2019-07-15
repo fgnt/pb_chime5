@@ -640,6 +640,69 @@ def nest_broadcast(
     return inner(shallow_tree, input_tree)
 
 
+def nest_map_structure(
+        func,
+        *structures,
+        mapping_type=dict,
+        sequence_type=(tuple, list),
+):
+    """
+
+    Calls func(element) on each element of structure.
+    See tensorflow.nest.map_structure.
+
+    Args:
+        func:
+        structure: nested structure
+
+    Returns:
+
+
+    >>> structure = {'a': [1, 2, (3, 4)], 'b': [5, (6,)]}
+    >>> nest_map_structure(lambda e: e + 10, structure)
+    {'a': [11, 12, (13, 14)], 'b': [15, (16,)]}
+    >>> nest_map_structure(lambda e: e + 10, {'a': 11, 'b': 12})
+    {'a': 21, 'b': 22}
+    >>> nest_map_structure(lambda e: e + 10, {'a': 11, 'b': [13, 14]})
+    {'a': 21, 'b': [23, 24]}
+    >>> nest_map_structure(lambda e: e * 2, structure, sequence_type=None)
+    {'a': [1, 2, (3, 4), 1, 2, (3, 4)], 'b': [5, (6,), 5, (6,)]}
+
+    >>> nest_map_structure(lambda a, b: a + b, structure, structure)
+    {'a': [2, 4, (6, 8)], 'b': [10, (12,)]}
+
+
+    >>> nest_map_structure(lambda a, b: a + b, structure, {'a': 2, 'b': 4})
+    Traceback (most recent call last):
+    ...
+    AssertionError: ([<class 'list'>, <class 'int'>], ([1, 2, (3, 4)], 2))
+    """
+    types = {type(s) for s in structures}
+
+    if mapping_type and isinstance(structures[0], mapping_type):
+        assert len(types) == 1, ([type(s) for s in structures], structures)
+        return structures[0].__class__({
+            k: nest_map_structure(
+                func,
+                *[
+                    s[k]
+                    for s in structures
+                ],
+                mapping_type=mapping_type,
+                sequence_type=sequence_type,
+            )
+            for k in structures[0].keys()
+        })
+    elif sequence_type and isinstance(structures[0], sequence_type):
+        assert len(types) == 1, ([type(s) for s in structures], structures)
+        return structures[0].__class__([
+            nest_map_structure(func, *args, mapping_type=mapping_type, sequence_type=sequence_type)
+            for args in zip(*structures)
+        ])
+    else:
+        return func(*structures)
+
+
 def backup_orig_start_end(ex):
     ex['start_orig'] = ex[K.START]
     ex['end_orig'] = ex[K.END]
@@ -654,83 +717,197 @@ def AddContext(samples, equal_start_context=False):
     >>> it = db.get_iterator_for_session('S02')
     >>> pprint(it[0])  # doctest: +ELLIPSIS
     {...
-     'end': {'observation': {'U01': [701587, 701587, 701587, 701587],
+     'end': {'observation': {'U01': 701600,
      ...
-      'worn_microphone': {'P05': 701120,
-      ...
-     'num_samples': {'observation': {'U01': [51520, 51520, 51520, 51520],
+      'worn': {'P05': 701120, 'P06': 701120, 'P07': 701120, 'P08': 701120}},
      ...
-      'worn_microphone': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}},
+     'num_samples': {'observation': {'U01': 51520,
      ...
-     'start': {'observation': {'U01': [650067, 650067, 650067, 650067],
+      'worn': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}},
+     ...
+     'start': {'observation': {'U01': 650080,
       ...
-      'worn_microphone': {'P05': 649600,
+      'worn': {'P05': 649600, 'P06': 649600, 'P07': 649600, 'P08': 649600}},
+     ...
+    >>> it = it.map(backup_orig_start_end)
+    >>> pprint(it[0])  # doctest: +ELLIPSIS
+    {...
+     'end': {'observation': {'U01': 701600,
+     ...
+      'original': 701120,
+      'worn': {'P05': 701120, 'P06': 701120, 'P07': 701120, 'P08': 701120}},
+     ...
+     'num_samples': {'observation': {'U01': 51520,
+     ...
+      'original': 51520,
+      'worn': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}},
+     ...
+     'start': {'observation': {'U01': 650080,
       ...
+      'original': 649600,
+      'worn': {'P05': 649600, 'P06': 649600, 'P07': 649600, 'P08': 649600}},
+     ...
+     'start_orig': {'observation': {'U01': 650080,
+      ...
+      'original': 649600,
+      'worn': {'P05': 649600, 'P06': 649600, 'P07': 649600, 'P08': 649600}},
+     'end_orig': {'observation': {'U01': 701600,
+     ...
+      'original': 701120,
+      'worn': {'P05': 701120, 'P06': 701120, 'P07': 701120, 'P08': 701120}},
+     'num_samples_orig': {'observation': {'U01': 51520,
+     ...
+      'original': 51520,
+      'worn': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}}}
     >>> pprint(it.map(AddContext(100))[0])  # doctest: +ELLIPSIS
     {...
-     'end': {'observation': {'U01': [701687, 701687, 701687, 701687],
+     'end': {'observation': {'U01': 701700,
+     ...
+      'original': 701220,
+      'worn': {'P05': 701220, 'P06': 701220, 'P07': 701220, 'P08': 701220}},
+     ...
+     'num_samples': {'observation': {'U01': 51720,
+     ...
+      'original': 51720,
+      'worn': {'P05': 51720, 'P06': 51720, 'P07': 51720, 'P08': 51720}},
+     ...
+     'start': {'observation': {'U01': 649980,
       ...
-      'worn_microphone': {'P05': 701220,
+      'original': 649500,
+      'worn': {'P05': 649500, 'P06': 649500, 'P07': 649500, 'P08': 649500}},
+     ...
+     'start_orig': {'observation': {'U01': 650080,
       ...
-     'num_samples': {'observation': {'U01': [51720, 51720, 51720, 51720],
-      ...
-      'worn_microphone': {'P05': 51720, 'P06': 51720, 'P07': 51720, 'P08': 51720}},
-    ...
-     'start': {'observation': {'U01': [649967, 649967, 649967, 649967],
-      ...
-      'worn_microphone': {'P05': 649500,
-      ...
+      'original': 649600,
+      'worn': {'P05': 649600, 'P06': 649600, 'P07': 649600, 'P08': 649600}},
+     'end_orig': {'observation': {'U01': 701600,
+     ...
+      'original': 701120,
+      'worn': {'P05': 701120, 'P06': 701120, 'P07': 701120, 'P08': 701120}},
+     'num_samples_orig': {'observation': {'U01': 51520,
+     ...
+      'original': 51520,
+      'worn': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}}}
     >>> pprint(it.map(AddContext(10**10))[0])  # doctest: +ELLIPSIS
     {...
-     'num_samples': {'observation': {'U01': [10000701587,
+     'end': {'observation': {'U01': 10000701600,
      ...
-     'start': {'observation': {'U01': [0, 0, 0, 0],
-       'U02': [0, 0, 0, 0],
-       'U03': [0, 0, 0, 0],
-       'U04': [0, 0, 0, 0],
-       'U05': [0, 0, 0, 0],
-       'U06': [0, 0, 0, 0]},
-      'worn_microphone': {'P05': 0, 'P06': 0, 'P07': 0, 'P08': 0}},
+      'original': 10000701120,
+      'worn': {'P05': 10000701120,
      ...
+     'num_samples': {'observation': {'U01': 10000701600,
+     ...
+      'original': 10000701120,
+      'worn': {'P05': 10000701120,
+     ...
+     'start': {'observation': {'U01': 0,
+      ...
+      'original': 0,
+      'worn': {'P05': 0, 'P06': 0, 'P07': 0, 'P08': 0}},
+     ...
+     'start_orig': {'observation': {'U01': 650080,
+      ...
+      'original': 649600,
+      'worn': {'P05': 649600, 'P06': 649600, 'P07': 649600, 'P08': 649600}},
+     'end_orig': {'observation': {'U01': 701600,
+     ...
+      'original': 701120,
+      'worn': {'P05': 701120, 'P06': 701120, 'P07': 701120, 'P08': 701120}},
+     'num_samples_orig': {'observation': {'U01': 51520,
+     ...
+      'original': 51520,
+      'worn': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}}}
     >>> pprint(it.map(AddContext(10**10, equal_start_context=True))[0])  # doctest: +ELLIPSIS
     {...
-     'end': {'observation': {'U01': [10000701587,...
-     'num_samples': {'observation': {'U01': [10000701113,...
-     'start': {'observation': {'U01': [474, 474, 474, 474],
-       'U02': [285, 285, 285, 285],
-       'U03': [152, 152, 152, 152],
-       'U04': [109, 109, 109, 109],
-       'U05': [23, 23, 23, 23],
-       'U06': [3, 3, 3, 3]},
-      'worn_microphone': {'P05': 7, 'P06': 4, 'P07': 0, 'P08': 9}},...
+     'end': {'observation': {'U01': 10000701600,
+     ...
+      'original': 10000701120,
+      'worn': {'P05': 10000701120,
+     ...
+     'num_samples': {'observation': {'U01': 10000701120,
+     ...
+      'original': 10000701120,
+      'worn': {'P05': 10000701120,
+     ...
+     'start': {'observation': {'U01': 480,
+       'U02': 320,
+       'U03': 160,
+       'U04': 160,
+       'U05': 0,
+       'U06': 0},
+      'original': 0,
+      'worn': {'P05': 0, 'P06': 0, 'P07': 0, 'P08': 0}},
+     ...
+     'start_orig': {'observation': {'U01': 650080,
+      ...
+      'original': 649600,
+      'worn': {'P05': 649600, 'P06': 649600, 'P07': 649600, 'P08': 649600}},
+     'end_orig': {'observation': {'U01': 701600,
+     ...
+      'original': 701120,
+      'worn': {'P05': 701120, 'P06': 701120, 'P07': 701120, 'P08': 701120}},
+     'num_samples_orig': {'observation': {'U01': 51520,
+     ...
+      'original': 51520,
+      'worn': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}}}
     >>> pprint(it.map(AddContext([100, 50]))[0])  # doctest: +ELLIPSIS
     {...
-     'end': {'observation': {'U01': [701637, 701637, 701637, 701637],
-      ...
-      'worn_microphone': {'P05': 701170,
-      ...
-     'num_samples': {'observation': {'U01': [51670, 51670, 51670, 51670],
-      ...
-      'worn_microphone': {'P05': 51670, 'P06': 51670, 'P07': 51670, 'P08': 51670}},
+     'end': {'observation': {'U01': 701650,
      ...
-     'start': {'observation': {'U01': [649967, 649967, 649967, 649967],
+      'original': 701170,
+      'worn': {'P05': 701170, 'P06': 701170, 'P07': 701170, 'P08': 701170}},
+     ...
+     'num_samples': {'observation': {'U01': 51670,
+     ...
+      'original': 51670,
+      'worn': {'P05': 51670, 'P06': 51670, 'P07': 51670, 'P08': 51670}},
+     ...
+     'start': {'observation': {'U01': 649980,
       ...
-      'worn_microphone': {'P05': 649500,
+      'original': 649500,
+      'worn': {'P05': 649500, 'P06': 649500, 'P07': 649500, 'P08': 649500}},
+     ...
+     'start_orig': {'observation': {'U01': 650080,
       ...
-    >>> pprint(it.map(AddContext({'worn_microphone': 0, 'observation': [100, 50]}))[0])  # doctest: +ELLIPSIS
+      'original': 649600,
+      'worn': {'P05': 649600, 'P06': 649600, 'P07': 649600, 'P08': 649600}},
+     'end_orig': {'observation': {'U01': 701600,
+     ...
+      'original': 701120,
+      'worn': {'P05': 701120, 'P06': 701120, 'P07': 701120, 'P08': 701120}},
+     'num_samples_orig': {'observation': {'U01': 51520,
+     ...
+      'original': 51520,
+      'worn': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}}}
+    >>> pprint(it.map(AddContext({'worn': 0, 'original': 0, 'observation': [100, 50]}))[0])  # doctest: +ELLIPSIS
     {...
-     'end': {'observation': {'U01': [701637, 701637, 701637, 701637],
-      ...
-      'worn_microphone': {'P05': 701120,
-      ...
-     'num_samples': {'observation': {'U01': [51670, 51670, 51670, 51670],
-      ...
-      'worn_microphone': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}},
+     'end': {'observation': {'U01': 701650,
      ...
-     'start': {'observation': {'U01': [649967, 649967, 649967, 649967],
+      'original': 701120,
+      'worn': {'P05': 701120, 'P06': 701120, 'P07': 701120, 'P08': 701120}},
+     ...
+     'num_samples': {'observation': {'U01': 51670,
+     ...
+      'original': 51520,
+      'worn': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}},
+     ...
+     'start': {'observation': {'U01': 649980,
       ...
-      'worn_microphone': {'P05': 649600,
+      'original': 649600,
+      'worn': {'P05': 649600, 'P06': 649600, 'P07': 649600, 'P08': 649600}},
+     ...
+     'start_orig': {'observation': {'U01': 650080,
       ...
+      'original': 649600,
+      'worn': {'P05': 649600, 'P06': 649600, 'P07': 649600, 'P08': 649600}},
+     'end_orig': {'observation': {'U01': 701600,
+     ...
+      'original': 701120,
+      'worn': {'P05': 701120, 'P06': 701120, 'P07': 701120, 'P08': 701120}},
+     'num_samples_orig': {'observation': {'U01': 51520,
+     ...
+      'original': 51520,
+      'worn': {'P05': 51520, 'P06': 51520, 'P07': 51520, 'P08': 51520}}}
     >>> pprint(it.map(AddContext([100, -50]))[0])
     Traceback (most recent call last):
     ...
@@ -748,7 +925,6 @@ def AddContext(samples, equal_start_context=False):
     ...
     AssertionError: Negative context value (-50) is not supported
     """
-    from tensorflow.python.util import nest
 
     def split(samples):
         if isinstance(samples, dict):
@@ -795,21 +971,30 @@ def AddContext(samples, equal_start_context=False):
             assert 'end_orig' in ex, ex
             assert 'num_samples_orig' in ex, ex
 
-            ex[K.START] = nest.map_structure(
+            ex[K.START] = nest_map_structure(
                 lambda time: max(time - start_context, 0),
                 ex[K.START],
             )
             if equal_start_context:
-                start_flat = nest.flatten(ex[K.START])
-                start_orig_flat = nest.flatten(ex['start_orig'])
-                smallest_start_context = np.min(np.array(start_orig_flat) - np.array(start_flat))
+                start_context_delta = nest_map_structure(
+                    lambda start, start_orig: start_orig - start,
+                    ex[K.START],
+                    ex['start_orig'],
+                )
 
-                ex[K.START] = nest.map_structure(
+                start_context_delta_flat = []
+                _ = nest_map_structure(
+                    lambda val: start_context_delta_flat.append(val),
+                    start_context_delta,
+                )
+                smallest_start_context = np.min(start_context_delta_flat)
+
+                ex[K.START] = nest_map_structure(
                     lambda time: max(time - smallest_start_context, 0),
                     ex['start_orig'],
                 )
 
-            ex[K.END] = nest.map_structure(
+            ex[K.END] = nest_map_structure(
                 lambda time: time + end_context,
                 ex[K.END],
             )
@@ -819,7 +1004,7 @@ def AddContext(samples, equal_start_context=False):
             #     lambda time: time + duration_context,
             #     ex[K.NUM_SAMPLES],
             # )
-            ex[K.NUM_SAMPLES] = nest.map_structure(
+            ex[K.NUM_SAMPLES] = nest_map_structure(
                 lambda start, end: end - start,
                 ex[K.START],
                 ex[K.END],
@@ -835,7 +1020,7 @@ def AddContext(samples, equal_start_context=False):
             bc_end_context = nest_broadcast(ex[K.END], end_context)
             bc_duration_context = nest_broadcast(ex[K.NUM_SAMPLES], duration_context)
 
-            ex[K.START] = nest.map_structure(
+            ex[K.START] = nest_map_structure(
                 lambda time, start_context: max(time - start_context, 0),
                 ex[K.START],
                 bc_start_context,
@@ -845,7 +1030,7 @@ def AddContext(samples, equal_start_context=False):
             #     ex[K.START],
             #     bc_start_context,
             # )
-            ex[K.END] = nest.map_structure(
+            ex[K.END] = nest_map_structure(
                 lambda time, end_context: time + end_context,
                 ex[K.END],
                 bc_end_context,
@@ -858,7 +1043,7 @@ def AddContext(samples, equal_start_context=False):
             #     ex[K.NUM_SAMPLES],
             #     bc_duration_context,
             # )
-            ex[K.NUM_SAMPLES] = nest.map_structure(
+            ex[K.NUM_SAMPLES] = nest_map_structure(
                 lambda start, end: end - start,
                 ex[K.START],
                 ex[K.END],

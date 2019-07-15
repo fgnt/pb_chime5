@@ -8,8 +8,6 @@ import click
 from pb_chime5.database.keys import *
 from pb_chime5.io.json_module import dump_json
 
-# from tensorflow.python.util import nest
-
 
 # http://codereview.stackexchange.com/questions/21033/flatten-dictionary-in-python-functional-style
 def flatten_with_key_paths(
