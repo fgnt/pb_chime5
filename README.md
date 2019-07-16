@@ -1,7 +1,9 @@
 # pb_chime5: Front-End Processing for the CHiME-5 Dinner Party Scenario [\[pdf\]](http://spandh.dcs.shef.ac.uk/chime_workshop/papers/CHiME_2018_paper_boeddecker.pdf)
 
 This repository includes all components of the CHiME-5 front-end presented by Paderborn University on the CHiME-5 workshop [PB2018CHiME5].
-In combination with an acoustic model presented by the RWTH Aachen this multi-array front-end achieved the third best results during the challenge with 54.56 %. 
+Using the baseline backend provided by the challenge organizers on the data enhanced with this multi-array front-end a WER of 60.89 % was achieved on the development set.
+In combination with an acoustic model presented by the RWTH Aachen this multi-array front-end achieved the third best results during the challenge with 54.56 % on the development and 55.30 % on the evaluation set.
+A later cooperation with Hitachi led to WER of 39.94 % on the development and 41.64 % on the evaluation set, using the multi-array front-end presented in this repository.
 
 The front-end consists out of WPE, a spacial mixture model that uses time annotations (GSS), beamforming and masking:
 
@@ -31,7 +33,7 @@ ToDos:
 - [x] remove dependencies from our infrastructure
 - [x] launch script
 - [x] manual script
-- [ ] code cleanup, remove all unnessesary code and rearrange the code files
+- [x] code cleanup, remove all unnessesary code and rearrange the code files
 
 ## Installation
 
@@ -45,7 +47,10 @@ $ # Download submodule dependencies  # https://stackoverflow.com/a/3796947/57669
 $ git submodule init  
 $ git submodule update
 ```
-Create a symlink to the chime5 database e.g. `ln -s /net/fastdb/chime5/CHiME5 CHiME5`
+Use the environmental variable CHIME5_DIR to direct the repository to your chime5 data:
+```bash
+$ export CHIME5_DIR=/path/to/chime5/data/CHiME5
+```
 
 Install this package and pb_bss 
 ```bash
