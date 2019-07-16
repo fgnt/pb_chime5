@@ -218,6 +218,15 @@ def get_example(transcription, transcription_realigned, audio_path, kaldi_transc
         assert speaker_ids == [], (speaker_ids, session_id)
         speaker_ids = session_speakers_mapping[session_id]
     else:
+        if speaker_ids == [] and session_id in ['S01', 'S21']:
+            raise AssertionError(
+                'The eval transcriptions are missing.\n'
+                'The eval transcriptions were released after the challenge.\n'
+                'When you do not want to download them, you can try to '
+                'set `EVAL_TRANSCRIPTIONS_MISSING` in this file to True.\n'
+                'But the code is not tested, to work with missing eval'
+                'transcriptions.'
+            )
         assert speaker_ids == session_speakers_mapping[session_id], (speaker_ids, session_id)
 
     try:
