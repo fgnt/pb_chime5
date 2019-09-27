@@ -2,8 +2,11 @@
 
 This repository includes all components of the CHiME-5 front-end presented by Paderborn University on the CHiME-5 workshop [PB2018CHiME5].
 Using the baseline backend provided by the challenge organizers on the data enhanced with this multi-array front-end using the default parameters which differ slightly from the original paper a WER of 60.89 % was achieved on the development set.
-In combination with an acoustic model presented by the RWTH Aachen this multi-array front-end achieved the third best results during the challenge with 54.56 % on the development and 55.30 % on the evaluation set.
-A later cooperation with Hitachi led to WER of 39.94 % on the development and 41.64 % on the evaluation set, using the multi-array front-end presented in this repository.
+In combination with an acoustic model presented by the RWTH Aachen [Kitza2018] this multi-array front-end achieved the third best results during the challenge with 54.56 % on the development and 55.30 % on the evaluation set.
+
+A later cooperation with Hitachi [Kanda2019] led to WER of 39.94 % on the development and 41.64 % on the evaluation set, using the multi-array front-end presented in this repository.
+
+The best single system WERs with this enhancement are 41.6 % on the development and 43.2 % on the evaluation set reported in [Zorila2019].
 
 The front-end consists out of WPE, a spacial mixture model that uses time annotations (GSS), beamforming and masking:
 
@@ -16,10 +19,9 @@ Challenge website: http://spandh.dcs.shef.ac.uk/chime_challenge/
 
 Workshop website: http://spandh.dcs.shef.ac.uk/chime_workshop/
 
-If you are using this code please cite the following paper:
-
+If you are using this code please cite the following paper ([pdf](https://groups.uni-paderborn.de/nt/pubs/2018/INTERSPEECH_2018_Heitkaemper_Paper.pdf), [poster](https://groups.uni-paderborn.de/nt/pubs/2018/INTERSPEECH_2018_Heitkaemper_Poster.pdf)):
 ```
-@Article{PB2018CHiME5,
+@inproceedings{PB2018CHiME5,
   author    = {Boeddeker, Christoph and Heitkaemper, Jens and Schmalenstroeer, Joerg and Drude, Lukas and Heymann, Jahn and Haeb-Umbach, Reinhold},
   title     = {{Front-End Processing for the CHiME-5 Dinner Party Scenario}},
   year      = {2018},
@@ -27,13 +29,35 @@ If you are using this code please cite the following paper:
 }
 ```
 
-ToDos:
+Related work:
 
-- [x] core enhancement code
-- [x] remove dependencies from our infrastructure
-- [x] launch script
-- [x] manual script
-- [x] code cleanup, remove all unnessesary code and rearrange the code files
+The RWTH/UPB System Combination for the CHiME 2018 Workshop ([pdf](https://groups.uni-paderborn.de/nt/pubs/2018/INTERSPEECH_2018_Heitkaemper_RWTH_Paper.pdf))
+```
+@inproceedings{Kitza2018,
+  author    = {Kitza, Markus and Michel, Wilfried and Boeddeker, Christoph and Heitkaemper, Jens and Menne, Tobias and Schl{\"u}ter, Ralf and Ney, Hermann and Schmalenstroeer, Joerg and Drude, Lukas and Heymann, Jahn and others},
+  title     = {The RWTH/UPB system combination for the CHiME 2018 workshop},
+  year      = {2018}
+  booktitle = {CHiME-5 Workshop},
+}
+```
+Guided Source Separation Meets a Strong ASR Backend: Hitachi/Paderborn University Joint Investigation for Dinner Party ASR ([pdf](https://arxiv.org/pdf/1905.12230.pdf), [slides](https://groups.uni-paderborn.de/nt/pubs/2018/INTERSPEECH_2019_Boeddeker_Slides.pdf))
+```
+@Article{Kanda2019,
+  author    = {Kanda, Naoyuki and Boeddeker, Christoph and Heitkaemper, Jens and Fujita, Yusuke and Horiguchi, Shota and Nagamatsu, Kenji and Haeb-Umbach, Reinhold},
+  title     = {{Guided Source Separation Meets a Strong ASR Backend: Hitachi/Paderborn University Joint Investigation for Dinner Party ASR}},
+  year      = {2019},
+  booktitle = {Interspeech},
+}
+```
+An Investigation into the Effectiveness of Enhancement in ASR Training and Test for CHiME-5 Dinner Party Transcription ([pdf](https://arxiv.org/pdf/1909.12208.pdf))
+```
+@inproceedings{Zorila2019,
+  title     = {An Investigation into the Effectiveness of Enhancement in ASR Training and Test for CHiME-5 Dinner Party Transcription},
+  author    = {Zoril\u{a}, C\u{a}t\u{a}lin and Boeddeker, Christoph and Doddipatla, Rama and Haeb-Umbach, Reinhold},
+  year={2019},
+  booktitle = {2019 IEEE Workshop on Automatic Speech Recognition and Understanding (ASRU)},
+}
+```
 
 ## Installation
 
@@ -94,7 +118,3 @@ At the end of `pb_chime5/activity_alignment.py` is some code how to generate fin
 You have to change the `worn_ali_path` to worn alignments from kaldi and it will generate files (`cache/word_non_sil_alignment/S??.pkl`) for finetuned oracle time annotations.
 Using them for enhancement you have to change the `activity_type` to `path` and `activity_path` to the path of the finetuned time annotations
 e.g. `python -m pb_chime5.scripts.run with activity_type=path activity_path=cache/word_non_sil_alignment`.
-
-
-
-
