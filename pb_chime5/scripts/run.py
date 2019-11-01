@@ -7,9 +7,10 @@ import sacred
 from sacred.commands import print_config
 from sacred.observers import FileStorageObserver
 
+import dlp_mpi
+
 from pb_chime5.core import get_enhancer
 from pb_chime5 import mapping
-from pb_chime5.utils import mpi
 
 experiment = sacred.Experiment('Chime5 Array Enhancement')
 
@@ -80,14 +81,14 @@ def test_run(_run, test_run=True):
 
 
 def run(_run, test_run=False):
-    if mpi.IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         print_config(_run)
         _dir = get_dir()
         print('Experiment dir:', _dir)
     else:
         _dir = None
 
-    _dir = mpi.bcast(_dir, mpi.MASTER)
+    _dir = dlp_mpi.bcast(_dir, dlp_mpi.MASTER)
 
     enhancer = get_enhancer()
 
@@ -95,7 +96,7 @@ def run(_run, test_run=False):
         print('Database', enhancer.db)
 
     session_ids = get_session_ids()
-    if mpi.IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         print('Enhancer:', enhancer)
         print(session_ids)
 
@@ -104,7 +105,7 @@ def run(_run, test_run=False):
         _dir / 'audio',
         dataset_slice=test_run,
     )
-    if mpi.IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         print('Finished experiment dir:', _dir)
 
 
@@ -124,7 +125,7 @@ if __name__ == '__main__':
     parsed, args = parser.parse_known_args()
     argv = argv[:1] + args
 
-    if mpi.IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         path = Path(parsed.file_storage).expanduser().resolve()
         experiment.observers.append(FileStorageObserver.create(str(path)))
 

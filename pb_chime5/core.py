@@ -16,6 +16,9 @@ from cached_property import cached_property
 
 import numpy as np
 
+import dlp_mpi
+from dlp_mpi.util import ensure_single_thread_numeric
+
 import nara_wpe
 import nara_wpe.wpe
 from pb_bss.distribution import (
@@ -26,7 +29,6 @@ from pb_bss.distribution.utils import (
 )
 
 from pb_chime5 import git_root
-from pb_chime5.utils import mpi
 from pb_chime5.utils.numpy_utils import morph
 from pb_chime5.database.chime5 import activity_time_to_frequency
 
@@ -344,17 +346,19 @@ class Enhancer:
         >>> for x_hat in enhancer.enhance_session('S02'):
         ...     print(x_hat)
         """
+        ensure_single_thread_numeric()
+
         audio_dir = Path(audio_dir)
 
         it = self.get_iterator(session_ids)
 
-        if mpi.IS_MASTER:
+        if dlp_mpi.IS_MASTER:
             audio_dir.mkdir(exist_ok=audio_dir_exist_ok)
 
             for dataset in set(mapping.session_to_dataset.values()):
                 (audio_dir / dataset).mkdir(exist_ok=audio_dir_exist_ok)
 
-        mpi.barrier()
+        dlp_mpi.barrier()
 
         if dataset_slice is not False:
             if dataset_slice is True:
@@ -366,7 +370,7 @@ class Enhancer:
             else:
                 raise ValueError(dataset_slice)
 
-        for ex in mpi.share_master(it, allow_single_worker=True):
+        for ex in dlp_mpi.split_managed(it, allow_single_worker=True):
             x_hat = self.enhance_example(ex)
             example_id = ex["example_id"]
             session_id = ex["session_id"]

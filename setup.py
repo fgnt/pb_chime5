@@ -141,6 +141,7 @@ setup(
         'sacred',
         'nara_wpe',
     	'lazy_dataset',
+        'dlp_mpi',
     ],  # Optional
 
     # List additional groups of dependencies here (e.g. development

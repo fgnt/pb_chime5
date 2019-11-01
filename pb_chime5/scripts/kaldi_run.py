@@ -11,8 +11,9 @@ import sacred
 from sacred.commands import print_config
 from sacred.observers import FileStorageObserver
 
+import dlp_mpi
+
 from pb_chime5.core import get_enhancer
-from pb_chime5.utils import mpi
 
 experiment = sacred.Experiment('Chime5 Array Enhancement')
 
@@ -65,7 +66,7 @@ def run(_run, storage_dir, job_id, number_of_jobs, session_id, test_run=False):
     else:
         dataset_slice = test_run
 
-    if mpi.IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         print('Enhancer:', enhancer)
         print(session_id)
 
@@ -75,7 +76,8 @@ def run(_run, storage_dir, job_id, number_of_jobs, session_id, test_run=False):
         dataset_slice=dataset_slice,
         audio_dir_exist_ok=True,
     )
-    if mpi.IS_MASTER:
+
+    if dlp_mpi.IS_MASTER:
         print('Finished experiment dir:', storage_dir)
 
 
