@@ -2,9 +2,10 @@ import numpy as np
 
 from cached_property import cached_property
 
+from pb_bss.extraction import beamformer
+from pb_bss.extraction.mask_module import lorenz_mask, quantile_mask
+
 from pb_chime5.utils.numpy_utils import morph
-from pb_chime5.speech_enhancement import beamformer
-from pb_chime5.speech_enhancement.mask_module import lorenz_mask, quantil_mask
 
 
 class _Beamformer:
@@ -235,9 +236,9 @@ def beamform_mvdr_souden_with_quantil_mask(
     if X_hat is None:
         X_hat = Y
 
-    X_mask, N_mask = quantil_mask(
+    X_mask, N_mask = quantile_mask(
         X_hat,
-        quantil=quantil,
+        quantile=quantil,
         sensor_axis=None,
         axis=-2,
     )
