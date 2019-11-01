@@ -429,6 +429,42 @@ class Enhancer:
                 )
                 for array in sorted(ex['audio_path']['observation'].keys())
             ]))
+        elif self.multiarray == 'outer_array_mics':
+            def concaternate_arrays(arrays):
+                # The context does not consider the end of an utterance.
+                # It can happen that some utterances are longer than others.
+                # values = list(arrays.values())
+                assert {v.ndim for v in arrays} == {2}, [v.shape for v in arrays]
+                time_length = min([v.shape[-1] for v in arrays])
+                values = [v[(0, -1), :time_length] for v in arrays]
+                return np.array(values)
+
+            obs = morph('ACN->A*CN', concaternate_arrays([
+                load_audio(
+                    ex['audio_path']['observation'][array],
+                    start=ex['start']['observation'][array],
+                    stop=ex['end']['observation'][array],
+                )
+                for array in sorted(ex['audio_path']['observation'].keys())
+            ]))
+        elif self.multiarray == 'first_array_mics':
+            def concaternate_arrays(arrays):
+                # The context does not consider the end of an utterance.
+                # It can happen that some utterances are longer than others.
+                # values = list(arrays.values())
+                assert {v.ndim for v in arrays} == {2}, [v.shape for v in arrays]
+                time_length = min([v.shape[-1] for v in arrays])
+                values = [v[(0,), :time_length] for v in arrays]
+                return np.array(values)
+
+            obs = morph('ACN->A*CN', concaternate_arrays([
+                load_audio(
+                    ex['audio_path']['observation'][array],
+                    start=ex['start']['observation'][array],
+                    stop=ex['end']['observation'][array],
+                )
+                for array in sorted(ex['audio_path']['observation'].keys())
+            ]))
         elif self.multiarray is False:
             obs = load_audio(
                 ex['audio_path']['observation'][reference_array],
