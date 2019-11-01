@@ -205,7 +205,5 @@ setup(
     ext_modules=cythonize([
         'pb_chime5/utils/intervall_array_util.pyx',
         'pb_chime5/utils/alignment_util.pyx',
-        'pb_chime5/speech_enhancement/cythonized/get_gev_vector.pyx',
-        'pb_chime5/speech_enhancement/cythonized/c_eig.pyx',
     ])
 )
