@@ -3,7 +3,7 @@
 # internal script for jenkins
 
 renice -n 20 $$
-source /net/ssd/software/conda/bin/activate
+source /net/software/python/2018_12/anaconda/bin/activate
 
 # set a prefix for each cmd
 green='\033[0;32m'
