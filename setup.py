@@ -139,9 +139,9 @@ setup(
     install_requires=[
         'cached_property',
         'sacred',
-        'nara_wpe',
+        'nara_wpe>=0.0.6',
     	'lazy_dataset',
-        'dlp_mpi',
+        'dlp_mpi>=0.0.2',
     ],  # Optional
 
     # List additional groups of dependencies here (e.g. development
