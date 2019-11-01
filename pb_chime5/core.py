@@ -177,22 +177,29 @@ class GSS:
             # T: Consider end of signal.
             # This should not be nessesary, but activity is for inear and not for
             # array.
-
-            cur, affiliation = cacGMM.fit(
+            cur = cacGMM.fit(
                 y=Obs.T[f, ...],
                 initialization=initialization[f, ..., :T],
                 iterations=self.iterations,
                 source_activity_mask=source_active_mask[f, ..., :T],
-                return_affiliation=True,
+                # return_affiliation=True,
             )
 
             if self.iterations_post != 0:
-                cur, affiliation = cacGMM.fit(
-                    y=Obs.T[f, ...],
-                    initialization=cur,
-                    iterations=self.iterations_post,
-                    return_affiliation=True,
+                if self.iterations_post != 1:
+                    cur = cacGMM.fit(
+                        y=Obs.T[f, ...],
+                        initialization=cur,
+                        iterations=self.iterations_post - 1,
+                    )
+                affiliation = cur.predict(
+                    Obs.T[f, ...],
                 )
+            else:
+               affiliation = cur.predict(
+                   Obs.T[f, ...],
+                   source_activity_mask=source_active_mask[f, ..., :T]
+               )
 
             if debug:
                 learned.append(cur)
