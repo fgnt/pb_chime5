@@ -27,7 +27,6 @@ source internal_toolbox/bash/kaldi.bash
 git submodule init
 git submodule update
 pip install --user -e pb_bss/
-pip install --user -e toolbox/
 pip install --user -e .
 
 make cache/chime5.json
