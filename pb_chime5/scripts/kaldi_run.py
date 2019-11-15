@@ -30,7 +30,7 @@ def config():
 
     assert storage_dir is not None, (storage_dir, 'overwrite the storage_dir from the command line')
 
-    if mpi.IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         experiment.observers.append(FileStorageObserver.create(str(
             Path(storage_dir).expanduser().resolve() / 'sacred'
         )))
