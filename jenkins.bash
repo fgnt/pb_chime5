@@ -34,5 +34,13 @@ make cache/annotation/S02.pkl
 python -m pb_chime5.scripts.run test_run with session_id=dev
 python -m pb_chime5.scripts.run test_run with session_id=dev wpe=False activity_type=path activity_path=cache/word_non_sil_alignment
 
+mkdir kaldi_run_storage_dir
+python -m pb_chime5.scripts.kaldi_run with storage_dir=kaldi_run_storage_dir session_id=dev job_id=1 number_of_jobs=2000
+
+make cache/chime6.json
+python -m pb_chime5.scripts.run test_run with session_id=dev database_path=cache/chime6.json
+mkdir kaldi_run_storage_dir_chime6
+python -m pb_chime5.scripts.kaldi_run with storage_dir=kaldi_run_storage_dir_chime6 session_id=dev job_id=1 number_of_jobs=2000 database_path=cache/chime6.json
+
 ls
 echo `pwd`
