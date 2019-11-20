@@ -64,7 +64,7 @@ set_length = dict(
 )
 
 
-def create_database(database_path, transcription_realigned_path):
+def create_database(database_path, transcription_realigned_path, chime6):
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
     datasets = dict()
     alias = dict()
@@ -77,14 +77,14 @@ def create_database(database_path, transcription_realigned_path):
     kaldi_transcriptions = dict()
 
     for dataset in set_length.keys():
-        out_dict = get_dataset(database_path, dataset, transcription_realigned_pathes, kaldi_transcriptions)
+        out_dict = get_dataset(database_path, dataset, transcription_realigned_pathes, kaldi_transcriptions, chime6)
         for session_id, v in out_dict.items():
             datasets[session_id] = v
         alias[dataset] = list(out_dict.keys())
     return {keys.DATASETS: datasets, 'alias': alias}
 
 
-def transform_transciption_list(transciption_list):
+def transform_transciption_list(transciption_list, chime6=False):
     """
     >>> transciption_list = [{
     ...     "end_time": {
@@ -145,26 +145,101 @@ def transform_transciption_list(transciption_list):
       'speaker': 'P12',
       'session_id': 'S03'}]
 
+    >>> chime6_transciption_list = [{
+    ...     "end_time": "0:01:0.3800000",
+    ...     "start_time": "0:00:57.5400000",
+    ...     "words": "[noise] What were we talking about again? [inaudible 0:00:58.96]",
+    ...     "speaker": "P12",
+    ...     "session_id": "S03"
+    ... }]
+    >>> from IPython.lib.pretty import pprint
+    >>> pprint(transform_transciption_list(chime6_transciption_list, chime6=True))
+    [{'end_time': 966080,
+      'start_time': 920640,
+      'words': '[noise] What were we talking about again? [inaudible 0:00:58.96]',
+      'speaker': 'P12',
+      'session_id': 'S03'}]
+      
+      
+    >>> transform_transciption_list(transciption_list, chime6=True) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    ValueError: The transcriptions have CHiME5 style (start_time has type dict), but the chime6 option was set.
+    Example transcription:
+    {'end_time': {'original': '0:01:0.3800000', ...}, ...}
+    >>> transform_transciption_list(chime6_transciption_list, chime6=False) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    ValueError: The transcriptions have CHiME6 style (start_time has type int), but the chime6 option was not set.
+    Example transcription:
+    {'end_time': '0:01:0.3800000', ...}
+
+
     """
+    if chime6:
+        if not isinstance(transciption_list[0]['start_time'], str):
+            if isinstance(transciption_list[0]['start_time'], dict):
+                raise ValueError(
+                    'The transcriptions have CHiME5 style '
+                    '(start_time has type dict), but the chime6 option was '
+                    'set.\n'
+                    'Example transcription:\n'
+                    f'{transciption_list[0]}'
+                )
+            else:
+                raise RuntimeError(
+                    'start_time in the transcriptions has the wrong datatype.\n'
+                    'Expected a str, got:\n'
+                    f'{transciption_list[0]}'
+                )
+
+        return [
+            {
+                key: to_samples(value) if key.endswith('time') else value
+                for key, value in example.items()
+            }
+            for example in transciption_list
+        ]
+
+    if not isinstance(transciption_list[0]['start_time'], dict):
+        if isinstance(transciption_list[0]['start_time'], str):
+            raise ValueError(
+                'The transcriptions have CHiME6 style '
+                '(start_time has type int), but the chime6 option was not '
+                'set.\n'
+                'Example transcription:\n'
+                f'{transciption_list[0]}'
+            )
+        else:
+            raise RuntimeError(
+                'start_time in the transcriptions has the wrong datatype.\n'
+                'Expected a dict of str, got:\n'
+                f'{transciption_list[0]}'
+            )
 
     def transform(entry):
-
         return {
             k: {
                 array_id: to_samples(time)
                 for array_id, time in v.items()
-            } if isinstance(v, dict) else v
+            } if k.endswith('time') else v
             for k, v in entry.items()
         }
 
     return list(map(transform, transciption_list))
 
 
-def load_transciption_json(path):
-    return transform_transciption_list(load_json(path))
+def load_transciption_json(path, chime6):
+    try:
+        return transform_transciption_list(load_json(path), chime6)
+    except Exception as e:
+        raise RuntimeError(
+            'See above exception msg.\n'
+            f'The problematic json file is {path}.'
+        ) from e
 
 
-def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_transcriptions):
+def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_transcriptions, chime6):
     # database_path = database_path / 'CHiME5'
     dataset_transciption_path = database_path / 'transcriptions' / dataset
     dataset_transciption_realigned_path = transcription_realigned_path #  / dataset
@@ -173,8 +248,8 @@ def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_tran
     for session_path in dataset_transciption_path.glob('*.json'):
         session_id = session_path.name.split('.')[0]
         json_dict[session_id] = {}
-        trans = load_transciption_json(session_path)
-        trans_realigned = load_transciption_json(dataset_transciption_realigned_path[session_path.name])
+        trans = load_transciption_json(session_path, chime6=chime6)
+        trans_realigned = load_transciption_json(dataset_transciption_realigned_path[session_path.name], chime6=chime6)
 
         total = len(trans)
         assert len(trans) == len(trans_realigned), (len(trans), len(trans_realigned))
@@ -188,7 +263,12 @@ def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_tran
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(os.cpu_count()) as ex:
             for example_id, example in ex.map(
-                    partial(get_example, audio_path=dataset_audio_path, kaldi_transcriptions=kaldi_transcriptions),
+                    partial(
+                        get_example,
+                        audio_path=dataset_audio_path,
+                        kaldi_transcriptions=kaldi_transcriptions,
+                        chime6=chime6,
+                    ),
                     trans, trans_realigned
             ):
                 if example_id in ['P45_S21_0356170-0356149']:
@@ -199,7 +279,7 @@ def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_tran
     return json_dict
 
 
-def get_example(transcription, transcription_realigned, audio_path, kaldi_transcriptions):
+def get_example(transcription, transcription_realigned, audio_path, kaldi_transcriptions, chime6):
     from pb_chime5.database.chime5.mapping import session_speakers_mapping
 
     session_id = transcription['session_id']
@@ -208,26 +288,43 @@ def get_example(transcription, transcription_realigned, audio_path, kaldi_transc
     dataset = session_dataset_mapping[session_id]
 
     notes = list()
-    speaker_ids = [
-        key
-        for key in transcription['start_time'].keys()
-        if 'P' in key
-    ]
-    if EVAL_TRANSCRIPTIONS_MISSING and session_id in ['S01', 'S21']:
-        # eval
-        assert speaker_ids == [], (speaker_ids, session_id)
+    if chime6:
+        if not isinstance(transcription['start_time'], int):
+            if isinstance(transcription['start_time'], dict):
+                raise ValueError(
+                    'You requested the CHiME6 json, but the transcriptions '
+                    'have CHiME5 style.\n'
+                    'In CHiME6 start_time and end_time are no longer dict.\n'
+                    f'Got:\n{transcription}'
+                )
+            else:
+                raise RuntimeError(
+                    'Something went wrong. Expected that start_time is an '
+                    'integer that represents the number of samples.'
+                    f'Got:\n{transcription}'
+                )
         speaker_ids = session_speakers_mapping[session_id]
     else:
-        if speaker_ids == [] and session_id in ['S01', 'S21']:
-            raise AssertionError(
-                'The eval transcriptions are missing.\n'
-                'The eval transcriptions were released after the challenge.\n'
-                'When you do not want to download them, you can try to '
-                'set `EVAL_TRANSCRIPTIONS_MISSING` in this file to True.\n'
-                'But the code is not tested, to work with missing eval'
-                'transcriptions.'
-            )
-        assert speaker_ids == session_speakers_mapping[session_id], (speaker_ids, session_id)
+        speaker_ids = [
+            key
+            for key in transcription['start_time'].keys()
+            if 'P' in key
+        ]
+        if EVAL_TRANSCRIPTIONS_MISSING and session_id in ['S01', 'S21']:
+            # eval
+            assert speaker_ids == [], (speaker_ids, session_id)
+            speaker_ids = session_speakers_mapping[session_id]
+        else:
+            if speaker_ids == [] and session_id in ['S01', 'S21']:
+                raise AssertionError(
+                    'The eval transcriptions are missing.\n'
+                    'The eval transcriptions were released after the challenge.\n'
+                    'When you do not want to download them, you can try to '
+                    'set `EVAL_TRANSCRIPTIONS_MISSING` in this file to True.\n'
+                    'But the code is not tested, to work with missing eval'
+                    'transcriptions.'
+                )
+            assert speaker_ids == session_speakers_mapping[session_id], (speaker_ids, session_id)
 
     try:
         target_speaker_id = transcription['speaker']
@@ -235,8 +332,12 @@ def get_example(transcription, transcription_realigned, audio_path, kaldi_transc
         target_speaker_id = 'unknown'
         notes.append('target_speaker_id is missing')
 
-    start_sample = transcription['start_time']['original']
-    end_sample = transcription['end_time']['original']
+    if chime6:
+        start_sample = transcription['start_time']
+        end_sample = transcription['end_time']
+    else:
+        start_sample = transcription['start_time']['original']
+        end_sample = transcription['end_time']['original']
 
     example_id = get_example_id(
         start_sample=start_sample,
@@ -260,30 +361,38 @@ def get_example(transcription, transcription_realigned, audio_path, kaldi_transc
         audio_path,
         dataset,
     )
-    start_time_dict = get_time_from_dict(
-        transcription_realigned['start_time'],
-        speaker_ids,
-        arrays,
-        dataset,
-    )
-    end_time_dict = get_time_from_dict(
-        transcription_realigned['end_time'],
-        speaker_ids,
-        arrays,
-        dataset,
-    )
-    num_samples = get_num_samples(start_time_dict, end_time_dict)
+
+    if chime6:
+        start_time_dict = transcription_realigned['start_time']
+        end_time_dict = transcription_realigned['end_time']
+        num_samples = end_time_dict - start_time_dict
+    else:
+        start_time_dict = get_time_from_dict(
+            transcription_realigned['start_time'],
+            speaker_ids,
+            arrays,
+            dataset,
+        )
+        end_time_dict = get_time_from_dict(
+            transcription_realigned['end_time'],
+            speaker_ids,
+            arrays,
+            dataset,
+        )
+        num_samples = get_num_samples(start_time_dict, end_time_dict)
+
     empty_keys = [
-        key for key1, mic_samples in num_samples.items()
+        key for key1, mic_samples in audio_path_dict.items()
         if key1 != 'original'
         for key, value in mic_samples.items()
         if (isinstance(value, int) and value == 0) or
            (isinstance(value, list) and value[0] == 0)
     ]
     for key in empty_keys:
-        del num_samples[keys.OBSERVATION][key]
-        del start_time_dict[keys.OBSERVATION][key]
-        del end_time_dict[keys.OBSERVATION][key]
+        if not chime6:
+            del num_samples[keys.OBSERVATION][key]
+            del start_time_dict[keys.OBSERVATION][key]
+            del end_time_dict[keys.OBSERVATION][key]
         del audio_path_dict[keys.OBSERVATION][key]
         notes.append(f'Array {key} is missing, this may be expected')
 
@@ -436,9 +545,20 @@ def get_time_from_dict(time, speaker_ids, arrays, dataset):
     type=click.Path(),
     callback=click_convert_to_path
 )
-def main(database_path, json_path, transcription_path):
+@click.option('--chime6', default=False, is_flag=True)
+def main(
+        database_path: Path,
+        json_path: Path,
+        transcription_path: Path,
+        chime6,
+):
+    database_path = database_path.expanduser().resolve()
+    assert database_path.exists(), database_path
+    json_path = json_path.expanduser().resolve()
+    transcription_path = transcription_path.expanduser().resolve()
+    assert transcription_path.exists(), database_path
 
-    json = create_database(database_path, transcription_path)
+    json = create_database(database_path, transcription_path, chime6)
 
     print('Check that all wav files in the json exsist.')
     check_audio_files_exist(json, speedup='thread')
