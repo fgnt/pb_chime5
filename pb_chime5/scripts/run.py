@@ -10,6 +10,7 @@ from sacred.observers import FileStorageObserver
 import dlp_mpi
 
 from pb_chime5.core import get_enhancer
+from pb_chime5.core_chime6 import get_enhancer as get_enhancer_chime6
 from pb_chime5 import mapping
 
 experiment = sacred.Experiment('Chime5 Array Enhancement')
@@ -17,7 +18,11 @@ experiment = sacred.Experiment('Chime5 Array Enhancement')
 
 @experiment.config
 def config():
-    locals().update({k: v.default for k, v in inspect.signature(get_enhancer).parameters.items()})
+    chime6 = False
+    if chime6:
+        locals().update({k: v.default for k, v in inspect.signature(get_enhancer_chime6).parameters.items()})
+    else:
+        locals().update({k: v.default for k, v in inspect.signature(get_enhancer).parameters.items()})
 
     session_id = 'dev'
 
@@ -67,6 +72,7 @@ def get_session_ids(session_id):
 
 
 get_enhancer = experiment.capture(get_enhancer)
+get_enhancer_chime6 = experiment.capture(get_enhancer_chime6)
 
 
 @experiment.main
@@ -80,7 +86,7 @@ def test_run(_run, test_run=True):
     run(_run, test_run=test_run)
 
 
-def run(_run, test_run=False):
+def run(_run, test_run=False, chime6=False):
     if dlp_mpi.IS_MASTER:
         print_config(_run)
         _dir = get_dir()
@@ -90,7 +96,10 @@ def run(_run, test_run=False):
 
     _dir = dlp_mpi.bcast(_dir, dlp_mpi.MASTER)
 
-    enhancer = get_enhancer()
+    if chime6:
+        enhancer = get_enhancer_chime6()
+    else:
+        enhancer = get_enhancer()
 
     if test_run:
         print('Database', enhancer.db)
@@ -104,6 +113,7 @@ def run(_run, test_run=False):
         session_ids,
         _dir / 'audio',
         dataset_slice=test_run,
+        audio_dir_exist_ok=True
     )
     if dlp_mpi.IS_MASTER:
         print('Finished experiment dir:', _dir)

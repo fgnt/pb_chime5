@@ -94,7 +94,7 @@ class Activity:
     garbage_class: bool = False
     # ali_path='/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/egs/chime5/s5/exp/tri3_all_dev_worn_ali',
     # activity_array_ali_path='~/net/storage/jheymann/__share/jensheit/chime5/kaldi/arrayBSS_v5/exp/tri3_u_bss_js_cleaned_dev_new_bss_beam_39_ali',
-    database_path: str = str(JSON_PATH / 'chime5.json')
+    database_path: str = str(JSON_PATH / 'chime6.json')
     path: str = None
 
     @cached_property
@@ -110,13 +110,12 @@ class Activity:
             db,
             garbage_class,
     ):
-        from pb_chime5.activity import get_activity
+        from pb_chime5.activity import get_activity_chime6
 
         assert type in ['annotation'], type
 
-        return get_activity(
+        return get_activity_chime6(
             iterator=db.get_datasets(session_id),
-            perspective='array',
             garbage_class=garbage_class,
             dtype=np.bool,
             non_sil_alignment_fn=None,
@@ -215,8 +214,8 @@ class GSS:
 
 
 def start_end_context_frames(ex, stft_size, stft_shift, stft_fading):
-    start_context_samples = ex['start_orig']['original'] - ex['start']['original']
-    end_context_samples = ex['end']['original'] - ex['end_orig']['original']
+    start_context_samples = ex['start_orig'] - ex['start']
+    end_context_samples = ex['end'] - ex['end_orig']
 
     assert start_context_samples >= 0, (start_context_samples, ex)
     assert end_context_samples >= 0, (end_context_samples, ex)
@@ -323,10 +322,10 @@ class Enhancer:
         return self.db.get_iterator_for_session(
             session_id,
             audio_read=False,
-            adjust_times=True,
+            adjust_times=False,  # not nessesary for chime6
             drop_unknown_target_speaker=True,
             context_samples=self.context_samples,
-            equal_start_context=True,
+            equal_start_context=False,  # not nessesary for chime6
         )
 
     def enhance_session(
@@ -401,12 +400,12 @@ class Enhancer:
         reference_array = ex['reference_array']
         speaker_id = ex['speaker_id']
 
-        array_start = ex['start']['observation'][reference_array]
-        array_end = ex['end']['observation'][reference_array]
+        array_start = ex['start']
+        array_end = ex['end']
 
         ex_array_activity = {
             k: arr[array_start:min(array_end, len(arr))]
-            for k, arr in self.activity[session_id][reference_array].items()
+            for k, arr in self.activity[session_id].items()
         }
 
         if self.multiarray is True:
@@ -424,8 +423,8 @@ class Enhancer:
             obs = morph('ACN->A*CN', concaternate_arrays([
                 load_audio(
                     ex['audio_path']['observation'][array],
-                    start=ex['start']['observation'][array],
-                    stop=ex['end']['observation'][array],
+                    start=ex['start'],
+                    stop=ex['end'],
                 )
                 for array in sorted(ex['audio_path']['observation'].keys())
             ]))
@@ -442,8 +441,8 @@ class Enhancer:
             obs = morph('ACN->A*CN', concaternate_arrays([
                 load_audio(
                     ex['audio_path']['observation'][array],
-                    start=ex['start']['observation'][array],
-                    stop=ex['end']['observation'][array],
+                    start=ex['start'],
+                    stop=ex['end'],
                 )
                 for array in sorted(ex['audio_path']['observation'].keys())
             ]))
@@ -460,16 +459,16 @@ class Enhancer:
             obs = morph('ACN->A*CN', concaternate_arrays([
                 load_audio(
                     ex['audio_path']['observation'][array],
-                    start=ex['start']['observation'][array],
-                    stop=ex['end']['observation'][array],
+                    start=ex['start'],
+                    stop=ex['end'],
                 )
                 for array in sorted(ex['audio_path']['observation'].keys())
             ]))
         elif self.multiarray is False:
             obs = load_audio(
                 ex['audio_path']['observation'][reference_array],
-                start=ex['start']['observation'][reference_array],
-                stop=ex['end']['observation'][reference_array],
+                start=ex['start'],
+                stop=ex['end'],
             )
         else:
             raise ValueError(self.multiarray)
@@ -483,10 +482,10 @@ class Enhancer:
         )
 
         if self.context_samples > 0:
-            start_orig = ex['start_orig']['observation'][reference_array]
-            start = ex['start']['observation'][reference_array]
+            start_orig = ex['start_orig']
+            start = ex['start']
             start_context = start_orig - start
-            num_samples_orig = ex['num_samples_orig']['observation'][reference_array]
+            num_samples_orig = ex['num_samples_orig']
             x_hat = x_hat[..., start_context:start_context + num_samples_orig]
             # assert x_hat.shape[-1] == num_samples_orig, x_hat.shape
             # That assert does not work for P44_S18_U06_0265232-0265344.wav
@@ -581,6 +580,8 @@ def get_enhancer(
 
     bf='mvdrSouden_ban',
     postfilter=None,
+
+    database_path=str(JSON_PATH / 'chime6.json'),
 ):
 
     assert wpe is True or wpe is False, wpe
@@ -600,7 +601,7 @@ def get_enhancer(
             type=activity_type,
             garbage_class=activity_garbage_class,
             path=activity_path,
-            database_path=str(JSON_PATH / 'chime5.json'),
+            database_path=str(database_path),
         ),
         gss_block=GSS(
             iterations=bss_iterations,

@@ -14,13 +14,18 @@ from sacred.observers import FileStorageObserver
 import dlp_mpi
 
 from pb_chime5.core import get_enhancer
+from pb_chime5.core_chime6 import get_enhancer as get_enhancer_chime6
 
 experiment = sacred.Experiment('Chime5 Array Enhancement')
 
 
 @experiment.config
 def config():
-    locals().update({k: v.default for k, v in inspect.signature(get_enhancer).parameters.items()})
+    chime6 = False
+    if chime6:
+        locals().update({k: v.default for k, v in inspect.signature(get_enhancer_chime6).parameters.items()})
+    else:
+        locals().update({k: v.default for k, v in inspect.signature(get_enhancer).parameters.items()})
 
     session_id = 'dev'
     storage_dir: str = None
@@ -37,6 +42,7 @@ def config():
 
 
 get_enhancer = experiment.capture(get_enhancer)
+get_enhancer_chime6 = experiment.capture(get_enhancer_chime6)
 
 
 @experiment.main
@@ -51,12 +57,15 @@ def test_run(_run, storage_dir, test_run=True):
 
 
 @experiment.capture
-def run(_run, storage_dir, job_id, number_of_jobs, session_id, test_run=False):
+def run(_run, storage_dir, job_id, number_of_jobs, session_id, chime6, test_run=False):
     print_config(_run)
 
     assert job_id >= 1 and job_id <= number_of_jobs, (job_id, number_of_jobs)
 
-    enhancer = get_enhancer()
+    if chime6:
+        enhancer = get_enhancer_chime6()
+    else:
+        enhancer = get_enhancer()
 
     if test_run:
         print('Database', enhancer.db)
