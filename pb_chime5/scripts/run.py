@@ -86,7 +86,8 @@ def test_run(_run, test_run=True):
     run(_run, test_run=test_run)
 
 
-def run(_run, test_run=False, chime6=False):
+@experiment.capture
+def run(_run, chime6, test_run=False):
     if dlp_mpi.IS_MASTER:
         print_config(_run)
         _dir = get_dir()
