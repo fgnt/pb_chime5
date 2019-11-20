@@ -223,3 +223,182 @@ def get_activity(
         del it_S
 
     return all_acitivity
+
+
+def get_activity_chime6(
+        iterator,
+        *,
+        garbage_class,
+        dtype=np.bool,
+        non_sil_alignment_fn=None,
+        debug=False,
+        use_ArrayIntervall=False,
+):
+    """
+
+    garbage_class: True, False, None
+        True: garbage_class is always one
+        False: garbage_class is always zero
+        None: the number of classes is 4 and not 5
+    non_sil_alignment_fn: None or a function with the signature:
+        value = non_sil_alignment_fn(ex, perspective_mic_array)
+        where
+            ex is one example in iterator
+            perspective_mic_array is in ['U01', ..., 'P01', ..., 'P']
+            value is a 1d array indicating if at a sample the source is active
+                or not
+        use_ArrayIntervall: ArrayIntervall is a special datatype to reduce
+            memory usage
+
+    returns:
+        dict[session_id][mic_perspective][speaker_id] = array(dtype=bool)
+        session_id e.g.: 'S02', ...
+        mic_perspective e.g.: 'P', 'P05', 'U01', ...
+        speaker_id e.g.: 'P05', ...
+
+    >>> from pb_chime5.database.chime5 import Chime5
+    >>> import textwrap
+    >>> db = Chime5()
+    >>> def display_activity(activity):
+    ...     print(tuple(activity.keys()))
+    ...     print(' '*2, tuple(activity['S02'].keys()))
+    ...     print(' '*4, tuple(activity['S02']['P'].keys()))
+    ...     print(' '*6, activity['S02']['P']['P05'])
+    ...     print(' '*6, activity['S02']['P']['Noise'])
+    >>> def display_activity(activity, indent=0):
+    ...     indent_print = lambda x: print(textwrap.indent(str(x), ' '*indent))
+    ...     if isinstance(activity, dict):
+    ...         for i, (k, v) in enumerate(activity.items()):
+    ...             if i == 0 or k in ['Noise']:
+    ...                 indent_print(f'{k}:')
+    ...                 display_activity(v, indent=indent+2)
+    ...             else:
+    ...                 indent_print(f'{k}: ...')
+    ...     else:
+    ...         indent_print(activity)
+    >>> activity = get_activity(db.get_datasets('S02'), perspective='global_worn', garbage_class=True)
+    >>> display_activity(activity)
+    S02:
+      P:
+        P05:
+          [False False False ... False False False]
+        P06: ...
+        P07: ...
+        P08: ...
+        Noise:
+          [ True  True  True ...  True  True  True]
+    >>> activity = get_activity(db.get_datasets('S02'), perspective='worn', garbage_class=False)
+    >>> display_activity(activity)
+    S02:
+      P05:
+        P05:
+          [False False False ... False False False]
+        P06: ...
+        P07: ...
+        P08: ...
+        Noise:
+          [False False False ... False False False]
+      P06: ...
+      P07: ...
+      P08: ...
+    >>> activity = get_activity(db.get_datasets('S02'), perspective='array', garbage_class=None)
+    >>> display_activity(activity)
+    S02:
+      U01:
+        P05:
+          [False False False ... False False False]
+        P06: ...
+        P07: ...
+        P08: ...
+      U02: ...
+      U03: ...
+      U04: ...
+      U05: ...
+      U06: ...
+
+    """
+
+    dict_it_S = iterator.groupby(lambda ex: ex['session_id'])
+
+    # Dispatcher is a dict with better KeyErrors
+    all_acitivity = Dispatcher()
+    for session_id, it_S in dict_it_S.items():
+        speaker_ids = mapping.session_to_speakers[session_id]
+
+        if use_ArrayIntervall:
+            assert dtype == np.bool, dtype
+            zeros = ArrayIntervall
+
+            def ones(shape):
+                arr = zeros(shape=shape)
+                arr[:] = 1
+                return arr
+        else:
+            import functools
+            zeros = functools.partial(np.zeros, dtype=dtype)
+            ones = functools.partial(np.ones, dtype=dtype)
+
+        # Select a length that is high enough for each session
+        # Later the relevent part is cutted
+        # For ArrayIntervall the length does not matter
+        max_num_samples = 60 * 60 * 16000 * 10  # 10 hours
+        all_acitivity[session_id] = Dispatcher({
+            s: zeros(shape=[max_num_samples])
+            for s in speaker_ids
+        })
+
+        if garbage_class is True:
+            all_acitivity[session_id]['Noise'] = ones(
+                shape=[max_num_samples],
+            )
+        elif garbage_class is False:
+            all_acitivity[session_id]['Noise'] = zeros(
+                shape=[max_num_samples]
+            )
+        elif garbage_class is None:
+            pass
+        elif isinstance(garbage_class, int) and garbage_class > 0:
+            for noise_idx in range(garbage_class):
+                all_acitivity[session_id][f'Noise{noise_idx}'] = ones(
+                    shape=[max_num_samples]
+                )
+        else:
+            raise ValueError(garbage_class)
+
+        missing_count = 0
+        for ex in it_S:
+            if ex['transcription'] == '[redacted]':
+                continue
+
+            target_speaker = ex['speaker_id']
+            # example_id = ex['example_id']
+
+            if non_sil_alignment_fn is None:
+                value = 1
+            else:
+                raise NotImplementedError(non_sil_alignment_fn)
+                value = non_sil_alignment_fn(ex, perspective_mic_array)
+                if value is 1:
+                    missing_count += 1
+
+            start = ex['start']
+            end = ex['end']
+
+            if debug:
+                all_acitivity[session_id][target_speaker][start:end] += value
+            else:
+                all_acitivity[session_id][target_speaker][start:end] = value
+        if missing_count > len(it_S) // 2:
+            raise RuntimeError(
+                f'Something went wrong.\n'
+                f'Expected {len(it_S)} times a '
+                f'finetuned annotation for session {session_id}, but '
+                f'{missing_count} times they are missing.\n'
+                f'Expect that at least {len(it_S) // 2} finetuned annotations '
+                f'are available, when non_sil_alignment_fn is given.\n'
+                f'Otherwise assume something went wrong.'
+            )
+
+        del it_S
+
+    return all_acitivity
