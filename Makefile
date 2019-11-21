@@ -12,10 +12,11 @@ cache/chime5.json: cache
 	echo $(CHIME5_DIR)
 	python -m pb_chime5.database.chime5.create_json -j cache/chime5.json -db $(CHIME5_DIR) --transcription-path $(CHIME5_DIR)/transcriptions
 
-cache/chime6.json: cache $(CHIME6_DIR)
+cache/chime6.json: cache
 	python -m pb_chime5.database.chime5.create_json -j cache/chime6.json -db $(CHIME6_DIR) --transcription-path $(CHIME6_DIR)/transcriptions --chime6
 
 $(CHIME6_DIR):
+	# Generate a dummy CHiME 6 folder with invalid time stamps and audio files that aren't sync
 	python -m pb_chime5.scripts.simulate_chime6_transcriptions $(CHIME5_DIR) $(CHIME6_DIR)
 
 cache/annotation/S02.pkl: cache
