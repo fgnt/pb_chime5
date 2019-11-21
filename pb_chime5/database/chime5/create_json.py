@@ -55,23 +55,23 @@ NOTES_DICT = dict(SO3='P11 dropped from min ~15 to ~30',
                   S24='P54 mic unreliable, P53 disconnects for bathroom',
                   S01='No registration tone')
 
+# Note for CHiME-6
 # The audio-sync version of the evaluation data (S01) is not released yet (Nov 2019)
 # and we only use the training and development data sets at this moment.
 # This will be fixed once the evaluation data is released
-'''
-set_length = dict(
+set_length_chime5 = dict(
     train=dict(S03=4090, S04=5563, S05=4939, S06=5097, S07=3656, S17=5892,
                S08=6175, S16=5004, S12=3300, S13=4193, S19=4292, S20=5365,
                S18=4907, S22=4758, S23=7054, S24=5695),
     dev=dict(S02=3822, S09=3618),
     eval=dict(S01=5797, S21=5231)
 )
-'''
-set_length = dict(
+set_length_chime6 = dict(
     train=dict(S03=4090, S04=5563, S05=4939, S06=5097, S07=3656, S17=5892,
                S08=6175, S16=5004, S12=3300, S13=4193, S19=4292, S20=5365,
                S18=4907, S22=4758, S23=7054, S24=5695),
     dev=dict(S02=3822, S09=3618)
+    # eval=dict(S01=5797, S21=5231)
 )
 
 
@@ -86,6 +86,11 @@ def create_database(database_path, transcription_realigned_path, chime6):
     })
 
     kaldi_transcriptions = dict()
+
+    if chime6:
+        set_length = set_length_chime6
+    else:
+        set_length = set_length_chime5
 
     for dataset in set_length.keys():
         out_dict = get_dataset(database_path, dataset, transcription_realigned_pathes, kaldi_transcriptions, chime6)
@@ -266,10 +271,10 @@ def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_tran
         assert len(trans) == len(trans_realigned), (len(trans), len(trans_realigned))
         # ToDo: Fix this exception to test equality.
         #       In chime6 the number of utterances changed -> Disabled at the moment
-        if not chime6 and total < set_length[dataset][session_id]:
+        if not chime6 and total < set_length_chime5[dataset][session_id]:
             raise ValueError(
                 f'missing utterances in session {session_id} expected length'
-                f' {set_length[dataset][session_id]} available length {total}')
+                f' {set_length_chime5[dataset][session_id]} available length {total}')
 
         assert total > 0, ('Each session should have at least one example', dataset_transciption_realigned_path[session_path.name])
         # elif total > set_length[dataset][session_id]:
