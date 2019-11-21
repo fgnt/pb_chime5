@@ -55,12 +55,23 @@ NOTES_DICT = dict(SO3='P11 dropped from min ~15 to ~30',
                   S24='P54 mic unreliable, P53 disconnects for bathroom',
                   S01='No registration tone')
 
+# The audio-sync version of the evaluation data (S01) is not released yet (Nov 2019)
+# and we only use the training and development data sets at this moment.
+# This will be fixed once the evaluation data is released
+'''
 set_length = dict(
     train=dict(S03=4090, S04=5563, S05=4939, S06=5097, S07=3656, S17=5892,
                S08=6175, S16=5004, S12=3300, S13=4193, S19=4292, S20=5365,
                S18=4907, S22=4758, S23=7054, S24=5695),
     dev=dict(S02=3822, S09=3618),
     eval=dict(S01=5797, S21=5231)
+)
+'''
+set_length = dict(
+    train=dict(S03=4090, S04=5563, S05=4939, S06=5097, S07=3656, S17=5892,
+               S08=6175, S16=5004, S12=3300, S13=4193, S19=4292, S20=5365,
+               S18=4907, S22=4758, S23=7054, S24=5695),
+    dev=dict(S02=3822, S09=3618)
 )
 
 
@@ -351,7 +362,15 @@ def get_example(transcription, transcription_realigned, audio_path, kaldi_transc
     )
 
     arrays = [f'U0{array+1}' for array in range(NUM_ARRAYS)]
-    if session_id in ['S05', 'S22']:
+    if session_id in ['S05']:
+        if chime6:
+            del arrays[3]
+            del arrays[2]
+            notes.append('Array U03 and U04 are missing, this is expected')
+        else:
+            del arrays[2]
+            notes.append('Array U03 is missing, this is expected')
+    elif session_id in ['S22']:
         del arrays[2]
         notes.append('Array U03 is missing, this is expected')
     elif session_id == 'S09':
