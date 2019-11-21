@@ -253,10 +253,14 @@ def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_tran
 
         total = len(trans)
         assert len(trans) == len(trans_realigned), (len(trans), len(trans_realigned))
-        if total < set_length[dataset][session_id]:
+        # ToDo: Fix this exception to test equality.
+        #       In chime6 the number of utterances changed -> Disabled at the moment
+        if chime6 or total < set_length[dataset][session_id]:
             raise ValueError(
                 f'missing utterances in session {session_id} expected length'
                 f' {set_length[dataset][session_id]} available length {total}')
+
+        assert total > 0, ('Each session should have at least one example', dataset_transciption_realigned_path[session_path.name])
         # elif total > set_length[dataset][session_id]:
         #     warn(f'there are {total - set_length[dataset][session_id]} examples'
         #           f' more than expected in session {session_id}')
