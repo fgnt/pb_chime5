@@ -364,6 +364,7 @@ def get_example(transcription, transcription_realigned, audio_path, kaldi_transc
         end_sample=end_sample,
         session_id=session_id,
         speaker_id=target_speaker_id,
+        chime6=chime6,
     )
 
     arrays = [f'U0{array+1}' for array in range(NUM_ARRAYS)]
@@ -474,6 +475,7 @@ def get_example_id(
         end_sample,
         speaker_id,
         session_id,
+        chime6,
 ):
     """
     >>> get_example_id(45963520, 45987360, 'P09', 'S03')
@@ -482,7 +484,10 @@ def get_example_id(
     """
     start_sample_str = str(int(start_sample * 100 / SAMPLE_RATE)).zfill(7)
     end_sample_str = str(int(end_sample * 100 / SAMPLE_RATE)).zfill(7)
-    return f'{speaker_id}_{session_id}_{start_sample_str}-{end_sample_str}'
+    if chime6:
+        return f'{speaker_id}_{session_id}-{start_sample_str}-{end_sample_str}'
+    else:
+        return f'{speaker_id}_{session_id}_{start_sample_str}-{end_sample_str}'
 
 
 from functools import lru_cache
