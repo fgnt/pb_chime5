@@ -55,10 +55,6 @@ NOTES_DICT = dict(SO3='P11 dropped from min ~15 to ~30',
                   S24='P54 mic unreliable, P53 disconnects for bathroom',
                   S01='No registration tone')
 
-# Note for CHiME-6
-# The audio-sync version of the evaluation data (S01) is not released yet (Nov 2019)
-# and we only use the training and development data sets at this moment.
-# This will be fixed once the evaluation data is released
 set_length_chime5 = dict(
     train=dict(S03=4090, S04=5563, S05=4939, S06=5097, S07=3656, S17=5892,
                S08=6175, S16=5004, S12=3300, S13=4193, S19=4292, S20=5365,
@@ -70,8 +66,8 @@ set_length_chime6 = dict(
     train=dict(S03=4090, S04=5563, S05=4939, S06=5097, S07=3656, S17=5892,
                S08=6175, S16=5004, S12=3300, S13=4193, S19=4292, S20=5365,
                S18=4907, S22=4758, S23=7054, S24=5695),
-    dev=dict(S02=3822, S09=3618)
-    # eval=dict(S01=5797, S21=5231)
+    dev=dict(S02=3822, S09=3618),
+    eval=dict(S01=5797, S21=5231)
 )
 
 
@@ -367,8 +363,14 @@ def get_example(transcription, transcription_realigned, audio_path, kaldi_transc
         chime6=chime6,
     )
 
+    # in CHiME-6 there are additional missing arrays (S01_U03 and S05_U04) due to the difficulty of the audio synchronization
+    # see https://github.com/chimechallenge/chime6-synchronisation#known-issues (Nov. 27 2019)
     arrays = [f'U0{array+1}' for array in range(NUM_ARRAYS)]
-    if session_id in ['S05']:
+    if session_id in ['S01']:
+        if chime6:
+            del arrays[2]
+            notes.append('Array U03 is missing, this is expected')
+    elif session_id in ['S05']:
         if chime6:
             del arrays[3]
             del arrays[2]
