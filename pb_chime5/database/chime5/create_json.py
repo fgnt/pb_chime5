@@ -298,7 +298,10 @@ def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_tran
                     # The number of samples is negative
                     continue
                 else:
-                    assert example['num_samples'] >= 0, example
+                    if chime6:
+                        assert example['num_samples'] >= 0, example
+                    # ToDo: add an assert for chime5.
+                    #       In chime5 num_samples is a nested dict
 
                 json_dict[session_id][example_id] = example
     return json_dict
