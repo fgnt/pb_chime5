@@ -287,9 +287,17 @@ def get_dataset(database_path, dataset, transcription_realigned_path, kaldi_tran
                     ),
                     trans, trans_realigned
             ):
-                if example_id in ['P45_S21_0356170-0356149']:
+                if example_id in [
+                        'P45_S21_0356170-0356149',  # CHiME5
+                        'P45_S21-0356170-0356149',  # CHiME6
+                ]:
                     # The number of samples is negative
                     continue
+                else:
+                    if chime6:
+                        assert example['num_samples'] >= 0, example
+                    # ToDo: add an assert for chime5.
+                    #       In chime5 num_samples is a nested dict
 
                 json_dict[session_id][example_id] = example
     return json_dict
