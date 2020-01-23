@@ -44,9 +44,17 @@ def ArrayIntervall_from_str(string, shape):
 
 def ArrayIntervalls_from_rttm(rttm_file, shape=None, sample_rate=16000):
     """
-
-    >>> f = '/net/vol/boeddeker/chime6/kaldi/egs/chime6/s5_track2_download/data/dev_beamformit_dereverb_stats_seg/rttm.U06'
-    >>> ArrayIntervalls_from_rttm(f)
+    >>> import tempfile
+    >>> with tempfile.TemporaryDirectory() as tmpdir:
+    ...     file = Path(tmpdir) / 'dummy.rttm'
+    ...     file.write_text("SPEAKER S02 1 0 1 <NA> <NA> 1 <NA>\\nSPEAKER S02 1 2 1 <NA> <NA> 1 <NA>\\nSPEAKER S02 1 0 2 <NA> <NA> 2 <NA>")
+    ...     print(file.read_text())
+    ...     print(ArrayIntervalls_from_rttm(file))
+    104
+    SPEAKER S02 1 0 1 <NA> <NA> 1 <NA>
+    SPEAKER S02 1 2 1 <NA> <NA> 1 <NA>
+    SPEAKER S02 1 0 2 <NA> <NA> 2 <NA>
+    {'S02': {'1': ArrayIntervall("0:16000, 32000:512016000", shape=None), '2': ArrayIntervall("0:32000", shape=None)}}
     """
 
     # Description for rttm files copied from kaldi chime6 receipt
@@ -68,7 +76,7 @@ def ArrayIntervalls_from_rttm(rttm_file, shape=None, sample_rate=16000):
     rttm_file = Path(rttm_file)
     lines = rttm_file.read_text().splitlines()
 
-    ai = ArrayIntervall(shape)
+    # ai = ArrayIntervall(shape)
     # SPEAKER S02_U06.ENH 1   40.60    3.22 <NA> <NA> P05 <NA>
 
     data = collections.defaultdict(lambda: ArrayIntervall(shape))
@@ -82,8 +90,8 @@ def ArrayIntervalls_from_rttm(rttm_file, shape=None, sample_rate=16000):
         duration_time = decimal.Decimal(parts[4])
         name = parts[7]
 
-        begin_time = begin_time * sample_rate
         end_time = (begin_time + duration_time) * sample_rate
+        begin_time = begin_time * sample_rate
 
         assert begin_time == int(begin_time)
         assert end_time == int(end_time)
