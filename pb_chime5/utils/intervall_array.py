@@ -1,3 +1,5 @@
+from pathlib import Path
+import collections
 import numpy as np
 from pb_chime5.utils.intervall_array_util import (
     cy_non_intersection,
@@ -16,7 +18,7 @@ def ArrayIntervall_from_str(string, shape):
     >>> ArrayIntervall_from_str('1:4,', shape=50)
     ArrayIntervall("1:4", shape=(50,))
     >>> ArrayIntervall_from_str('0:142464640,', shape=242464640)
-    ArrayIntervall("0:142464640", shape=(50,))
+    ArrayIntervall("0:142464640", shape=(242464640,))
 
     """
     ai = ArrayIntervall(shape)
@@ -39,6 +41,56 @@ def ArrayIntervall_from_str(string, shape):
             raise Exception(string) from e
     return ai
 
+
+def ArrayIntervalls_from_rttm(rttm_file, shape=None, sample_rate=16000):
+    """
+
+    >>> f = '/net/vol/boeddeker/chime6/kaldi/egs/chime6/s5_track2_download/data/dev_beamformit_dereverb_stats_seg/rttm.U06'
+    >>> ArrayIntervalls_from_rttm(f)
+    """
+
+    # Description for rttm files copied from kaldi chime6 receipt
+    #    `steps/segmentation/convert_utt2spk_and_segments_to_rttm.py`:
+    # <type> <file-id> <channel-id> <begin-time> \
+    #         <duration> <ortho> <stype> <name> <conf>
+    # <type> = SPEAKER for each segment.
+    # <file-id> - the File-ID of the recording
+    # <channel-id> - the Channel-ID, usually 1
+    # <begin-time> - start time of segment
+    # <duration> - duration of segment
+    # <ortho> - <NA> (this is ignored)
+    # <stype> - <NA> (this is ignored)
+    # <name> - speaker name or id
+    # <conf> - <NA> (this is ignored)
+    from paderbox.utils.nested import deflatten
+    import decimal
+
+    rttm_file = Path(rttm_file)
+    lines = rttm_file.read_text().splitlines()
+
+    ai = ArrayIntervall(shape)
+    # SPEAKER S02_U06.ENH 1   40.60    3.22 <NA> <NA> P05 <NA>
+
+    data = collections.defaultdict(lambda: ArrayIntervall(shape))
+
+    for line in lines:
+        parts = line.split()
+        assert parts[0] == 'SPEAKER'
+        file_id = parts[1]
+        channel_id = parts[2]
+        begin_time = decimal.Decimal(parts[3])
+        duration_time = decimal.Decimal(parts[4])
+        name = parts[7]
+
+        begin_time = begin_time * sample_rate
+        end_time = (begin_time + duration_time) * sample_rate
+
+        assert begin_time == int(begin_time)
+        assert end_time == int(end_time)
+
+        data[(file_id, name)][int(begin_time):int(end_time)] = 1
+
+    return deflatten(data, sep=None)
 
 class ArrayIntervall:
     from_str = staticmethod(ArrayIntervall_from_str)
@@ -107,10 +159,15 @@ class ArrayIntervall:
         if isinstance(shape, int):
             shape = [shape]
 
-        assert len(shape) == 1, shape
+        if shape is None:
+            pass
+        else:
+            assert len(shape) == 1, shape
 
-        self.shape = tuple(shape)
-        # self._intervals = (,)
+            shape = tuple(shape)
+            # self._intervals = (,)
+
+        self.shape = shape
 
     _intervals_normalized = True
     # _normalized_intervals = ()
@@ -203,13 +260,14 @@ class ArrayIntervall:
 
         for v in [start, stop]:
             assert v >= 0, (v, item)
-            assert v <= self.shape[-1], (v, item)
-
-        size = self.shape[-1]
+            if self.shape is not None:
+                assert v <= self.shape[-1], (v, item)
 
         if start < 0:
+            size = self.shape[-1]
             start = start % size
         if stop < 0:
+            size = self.shape[-1]
             stop = start % size
 
         return start, stop

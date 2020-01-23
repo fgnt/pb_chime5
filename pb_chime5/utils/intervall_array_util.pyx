@@ -60,28 +60,37 @@ def cy_parse_item(item, shape):
         int v
         int size
 
-    size = shape[-1]
+    if shape is not None:
+        size = shape[-1]
 
-    assert isinstance(item, (slice)), (type(item), item)
-    assert item.step is None, (item)
+    if not isinstance(item, (slice)):
+        raise AssertionError(
+            f'Expect item ({item}) to has the type slice and not {type(item)}.'
+        )
+    # assert isinstance(item, (slice)), (type(item), item)
+    assert item.step is None, (item, 'Step is not supported.')
 
     if item.start is None:
         start = 0
     else:
         start = item.start
     if item.stop is None:
+        assert shape is not None
         stop = size
     else:
         stop = item.stop
 
     assert start >= 0, (start, item)
-    assert start <= size, (start, item)
     assert stop >= 0, (stop, item)
-    assert stop <= size, (stop, item)
+    if shape is not None:
+        assert start <= size, (start, item)
+        assert stop <= size, (stop, item)
 
     if start < 0:
+        assert shape is not None
         start = start % size
     if stop < 0:
+        assert shape is not None
         stop = start % size
 
     return start, stop
