@@ -35,7 +35,7 @@ def config():
     assert activity_rttm is not None, (database_rttm, 'overwrite the activity_rttm from the command line')
 
     if dlp_mpi.IS_MASTER:
-        experiment.observers.append(FileStorageObserver(str(
+        experiment.observers.append(FileStorageObserver.create(str(
             Path(storage_dir).expanduser().resolve() / 'sacred'
         )))
 
