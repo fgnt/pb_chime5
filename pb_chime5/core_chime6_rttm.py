@@ -238,9 +238,6 @@ class Enhancer:
         if self.wpe_block is not None:
             Obs = self.wpe_block(Obs, debug=debug)
 
-        if self.gss_block.mm == 'NoisyGammacACGMM':
-            assert list(ex_array_activity.keys())[-1] == 'Noise', (ex_array_activity.keys())
-
         acitivity_freq = activity_time_to_frequency(
             np.array(list(ex_array_activity.values())),
             stft_window_length=self.stft_size,
