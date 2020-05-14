@@ -17,7 +17,7 @@ trap 'echo -e "${green}$ $BASH_COMMAND ${NC}"' DEBUG
 mkdir -p venv
 export PYTHONUSERBASE=$(readlink -m venv)
 
-git clone git@ntgit.upb.de:python/toolbox internal_toolbox
+git clone git@ntgit.upb.de:python/toolbox/padercontrib internal_toolbox
 source internal_toolbox/bash/cuda.bash
 source internal_toolbox/bash/kaldi.bash
 
