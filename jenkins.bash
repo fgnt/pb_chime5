@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # internal script for jenkins
-
+set -e
 renice -n 20 $$
 source /net/software/python/2018_12/anaconda/bin/activate
 
