@@ -36,293 +36,50 @@ from pb_chime5.database.chime5 import activity_time_to_frequency
 from pb_chime5.io import load_audio, dump_audio
 from pb_chime5 import mapping
 
+from pb_chime5.core_chime6 import WPE, GSS, start_end_context_frames, Beamformer
+
 JSON_PATH = git_root / 'cache'
-
-
-@dataclass
-class WPE:
-    taps: int
-    delay: int
-    iterations: int
-    psd_context: int
-
-    def __call__(self, Obs, stack=None, debug=False):
-        
-        if Obs.ndim == 3:
-            assert stack is None, stack
-            Obs = nara_wpe.wpe.wpe_v8(
-                Obs.transpose(2, 0, 1),
-                taps=self.taps,
-                delay=self.delay,
-                iterations=self.iterations,
-                psd_context=self.psd_context,
-            ).transpose(1, 2, 0)
-        elif Obs.ndim == 4:
-            if stack is True:
-                _A = Obs.shape[0]
-                Obs = morph('ACTF->A*CTF', Obs)
-                Obs = nara_wpe.wpe.wpe_v8(
-                    Obs.transpose(2, 0, 1),
-                    taps=self.taps,
-                    delay=self.delay,
-                    iterations=self.iterations,
-                    psd_context=self.psd_context,
-                ).transpose(1, 2, 0)
-                Obs = morph('A*CTF->ACTF', Obs, A=_A)
-            elif stack is False:
-                Obs = nara_wpe.wpe.wpe_v8(
-                    Obs.transpose(0, 3, 1, 2),
-                    taps=self.taps,
-                    delay=self.delay,
-                    iterations=self.iterations,
-                    psd_context=self.psd_context,
-                ).transpose(0, 2, 3, 1)
-                
-            else:
-                raise NotImplementedError(stack)
-        else:
-            raise NotImplementedError(Obs.shape)
-
-        if debug:
-            self.locals = locals()
-
-        return Obs
 
 
 @dataclass  # (hash=True)
 class Activity:
-    type: str = 'annotation'  # ['annotation', 'path', 'rttm']
     garbage_class: bool = False
-    # ali_path='/net/vol/jenkins/kaldi/2018-03-21_08-33-34_eba50e4420cfc536b68ca7144fac3cd29033adbb/egs/chime5/s5/exp/tri3_all_dev_worn_ali',
-    # activity_array_ali_path='~/net/storage/jheymann/__share/jensheit/chime5/kaldi/arrayBSS_v5/exp/tri3_u_bss_js_cleaned_dev_new_bss_beam_39_ali',
-    database_path: str = str(JSON_PATH / 'chime6.json')
-    path: str = None
+    rttm: str = None
 
     @cached_property
-    def db(self):
-        if 'rttm' in str(self.database_path):  # not optimal, but should work
-            from pb_chime5.database.chime5.rttm import Chime6RTTMDatabase
-            from padercontrib.io.data_dir import chime_6
-            return Chime6RTTMDatabase(self.database_path, chime6_dir=chime_6 / 'CHiME6')
-        else:
-            from pb_chime5.database.chime5 import Chime5
-            return Chime5(self.database_path)
-
-    @staticmethod
-    @functools.lru_cache(1)
-    def _getitem(
-            session_id,
-            type,
-            db,
-            garbage_class,
-    ):
-        from pb_chime5.activity import get_activity_chime6
-
-        assert type in ['annotation'], type
-
-        return get_activity_chime6(
-            iterator=db.get_datasets(session_id),
-            garbage_class=garbage_class,
-            dtype=np.bool,
-            non_sil_alignment_fn=None,
-            debug=False,
-            use_ArrayIntervall=True,
-        )[session_id]
-
-    def __getitem__(self, session_id):
-        if self.type in ['annotation']:
-            return self._getitem(
-                session_id,
-                type=self.type,
-                db=self.db,
-                garbage_class=self.garbage_class,
-            )
-        elif self.type == 'path':
-            import pickle
-
-            with open(Path(self.path) / f'{session_id}.pkl', 'rb') as fd:
-                return pickle.load(fd)
-        elif self.type == 'rttm':
-            # todo: garbage class
-            from paderbox.array import intervall as array_intervall
-            data = array_intervall.from_rttm(self.path)
-
-            original_keys = tuple(data.keys())
-            # The default scripts have a strange convention and add some postfixes
-            # that have to be removed. e.g.:
-            # S02_U06.ENH or S02_U06
-
-            data = {
-                k.replace('_U06', '').replace('.ENH', ''): v
-                for k, v in data.items()
-            }
-            assert len(data.keys()) == len(original_keys), (data.keys(), original_keys)
-
-            data = data[session_id]
-
-            if self.garbage_class is False:
-                data['Noise'] = array_intervall.zeros()
-            elif self.garbage_class is True:
-                v: array_intervall.ArrayIntervall
-
-                # length: This value should be large enough. Use 5 hours.
-                # max([v.intervals[-1][-1] for v in data.values()])
-                # length = 5 * 60 * 60 * 16000
-                #        hours minutes seconds samples
-
-                data['Noise'] = array_intervall.ones()
-                # data['Noise'][:] = 1
-            elif self.garbage_class is None:
-                pass
-            else:
-                raise ValueError(self.garbage_class)
-        else:
-            raise ValueError(type)
+    def _data(self):
+        from paderbox.array import intervall as array_intervall
+        data = array_intervall.from_rttm(self.rttm)
         return data
 
+    def __getitem__(self, session_id):
+        from paderbox.array import intervall as array_intervall
+        # todo: garbage class
+        data = self._data
 
-@dataclass
-class GSS:
-    iterations: int
-    iterations_post: int
+        original_keys = tuple(data.keys())
+        # The default scripts have a strange convention and add some postfixes
+        # that have to be removed. e.g.:
+        # S02_U06.ENH or S02_U06
 
-    verbose: bool = True
+        data = {
+            k.replace('_U06', '').replace('.ENH', ''): v
+            for k, v in data.items()
+        }
+        assert len(data.keys()) == len(original_keys), (data.keys(), original_keys)
 
-    # use_pinv: bool = False
-    # stable: bool = True
+        data = data[session_id]
 
-    mm: str = 'cACGMM'
-
-    def __call__(self, Obs, acitivity_freq, debug=False):
-
-        initialization = np.asarray(acitivity_freq, dtype=np.float64)
-        initialization = np.where(initialization == 0, 1e-10, initialization)
-        initialization = initialization / np.sum(initialization, keepdims=True,
-                                                axis=0)
-        initialization = np.repeat(initialization[None, ...], 513, axis=0)
-
-        source_active_mask = np.asarray(acitivity_freq, dtype=np.bool)
-        source_active_mask = np.repeat(source_active_mask[None, ...], 513, axis=0)
-
-        if self.mm == 'cACGMM':
-            cacGMM = CACGMMTrainer()
-        elif self.mm == 'NoisyGammacACGMM':
-            cacGMM = NoisyGammaCACGMMTrainer()
-        else:
-            raise ValueError(self.mm)
-
-        if debug:
-            learned = []
-        all_affiliations = []
-        F = Obs.shape[-1]
-        T = Obs.T.shape[-2]
-        for f in range(F):
-            if self.verbose:
-                if f % 50 == 0:
-                    print(f'{f}/{F}')
-
-            # T: Consider end of signal.
-            # This should not be nessesary, but activity is for inear and not for
-            # array.
-            cur = cacGMM.fit(
-                y=Obs.T[f, ...],
-                initialization=initialization[f, ..., :T],
-                iterations=self.iterations,
-                source_activity_mask=source_active_mask[f, ..., :T],
-                # return_affiliation=True,
-            )
-
-            if self.iterations_post != 0:
-                if self.iterations_post != 1:
-                    cur = cacGMM.fit(
-                        y=Obs.T[f, ...],
-                        initialization=cur,
-                        iterations=self.iterations_post - 1,
-                    )
-                affiliation = cur.predict(
-                    Obs.T[f, ...],
-                )
-            else:
-               affiliation = cur.predict(
-                   Obs.T[f, ...],
-                   source_activity_mask=source_active_mask[f, ..., :T]
-               )
-
-            if debug:
-                learned.append(cur)
-            all_affiliations.append(affiliation)
-
-        posterior = np.array(all_affiliations).transpose(1, 2, 0)
-
-        if debug:
-            learned = stack_parameters(learned)
-            self.locals = locals()
-
-        return posterior
-
-
-def start_end_context_frames(ex, stft_size, stft_shift, stft_fading):
-    start_context_samples = ex['start_orig'] - ex['start']
-    end_context_samples = ex['end'] - ex['end_orig']
-
-    assert start_context_samples >= 0, (start_context_samples, ex)
-    assert end_context_samples >= 0, (end_context_samples, ex)
-
-    from nara_wpe.utils import _samples_to_stft_frames
-
-    start_context_frames = _samples_to_stft_frames(
-        start_context_samples,
-        size=stft_size,
-        shift=stft_shift,
-        fading=stft_fading,
-    )
-    end_context_frames = _samples_to_stft_frames(
-        end_context_samples,
-        size=stft_size,
-        shift=stft_shift,
-        fading=stft_fading,
-    )
-    return start_context_frames, end_context_frames
-
-
-@dataclass
-class Beamformer:
-    type: str
-    postfilter: str
-
-    def __call__(self, Obs, target_mask, distortion_mask, debug=False):
-        bf = self.type
-
-        if bf == 'mvdrSouden_ban':
-            from pb_chime5.speech_enhancement.beamforming_wrapper import (
-                beamform_mvdr_souden_from_masks
-            )
-            X_hat = beamform_mvdr_souden_from_masks(
-                Y=Obs,
-                X_mask=target_mask,
-                N_mask=distortion_mask,
-                ban=True,
-            )
-        elif bf == 'ch2':
-            X_hat = Obs[2]
-        elif bf == 'sum':
-            X_hat = np.sum(Obs, axis=0)
-        # elif bf is None:
-        #     X_hat = Obs
-        else:
-            raise NotImplementedError(bf)
-
-        if self.postfilter is None:
+        if self.garbage_class is False:
+            data['Noise'] = array_intervall.zeros()
+        elif self.garbage_class is True:
+            data['Noise'] = array_intervall.ones()
+        elif self.garbage_class is None:
             pass
-        elif self.postfilter == 'mask_mul':
-            X_hat = X_hat * target_mask
         else:
-            raise NotImplementedError(self.postfilter)
+            raise ValueError(self.garbage_class)
 
-        if debug:
-            self.locals = locals()
-
-        return X_hat
+        return data
 
 
 @dataclass
@@ -342,14 +99,11 @@ class Enhancer:
     # equal_start_context: bool
 
     context_samples: int  # e.g. 240000
-    multiarray: bool
 
-    @property
-    def db(self):
-        return self.activity.db
+    db: 'RTTMDatabase'
 
     def stft(self, x):
-        from nara_wpe.utils import stft
+        from paderbox.transform.module_stft import stft
         return stft(
             x,
             size=self.stft_size,
@@ -358,7 +112,7 @@ class Enhancer:
         )
 
     def istft(self, X):
-        from nara_wpe.utils import istft
+        from paderbox.transform.module_stft import istft
         return istft(
             X,
             size=self.stft_size,
@@ -366,12 +120,12 @@ class Enhancer:
             fading=self.stft_fading,
         )
 
-    def get_iterator(self, session_id):
-        return self.db.get_iterator_for_session(
+    def get_dataset(self, session_id):
+        return self.db.get_dataset_for_session(
             session_id,
-            audio_read=False,
+            audio_read=True,
             adjust_times=False,  # not nessesary for chime6
-            drop_unknown_target_speaker=True,
+            # drop_unknown_target_speaker=True,
             context_samples=self.context_samples,
             equal_start_context=False,  # not nessesary for chime6
         )
@@ -404,7 +158,7 @@ class Enhancer:
 
         audio_dir = Path(audio_dir)
 
-        it = self.get_iterator(session_ids)
+        it = self.get_dataset(session_ids)
 
         if dlp_mpi.IS_MASTER:
             audio_dir.mkdir(exist_ok=audio_dir_exist_ok)
@@ -460,73 +214,7 @@ class Enhancer:
             for k, arr in self.activity[session_id].items()
         }
 
-        if self.multiarray is True:
-            # ToDo: multiarray in ['except_wpe', 'only_wpe', ...]
-
-            def concaternate_arrays(arrays):
-                # The context does not consider the end of an utterance.
-                # It can happen that some utterances are longer than others.
-                # values = list(arrays.values())
-                assert {v.ndim for v in arrays} == {2}, [v.shape for v in arrays]
-                lengths = [v.shape[-1] for v in arrays]
-                time_length = min(lengths)
-                assert time_length > max(lengths) // 2, (time_length, lengths, ex['example_id'])
-                values = [v[..., :time_length] for v in arrays]
-                return np.array(values)
-
-            obs = morph('ACN->A*CN', concaternate_arrays([
-                load_audio(
-                    ex['audio_path']['observation'][array],
-                    start=ex['start'],
-                    stop=ex['end'],
-                )
-                for array in sorted(ex['audio_path']['observation'].keys())
-            ]))
-        elif self.multiarray == 'outer_array_mics':
-            def concaternate_arrays(arrays):
-                # The context does not consider the end of an utterance.
-                # It can happen that some utterances are longer than others.
-                # values = list(arrays.values())
-                assert {v.ndim for v in arrays} == {2}, [v.shape for v in arrays]
-                time_length = min([v.shape[-1] for v in arrays])
-                values = [v[(0, -1), :time_length] for v in arrays]
-                return np.array(values)
-
-            obs = morph('ACN->A*CN', concaternate_arrays([
-                load_audio(
-                    ex['audio_path']['observation'][array],
-                    start=ex['start'],
-                    stop=ex['end'],
-                )
-                for array in sorted(ex['audio_path']['observation'].keys())
-            ]))
-        elif self.multiarray == 'first_array_mics':
-            def concaternate_arrays(arrays):
-                # The context does not consider the end of an utterance.
-                # It can happen that some utterances are longer than others.
-                # values = list(arrays.values())
-                assert {v.ndim for v in arrays} == {2}, [v.shape for v in arrays]
-                time_length = min([v.shape[-1] for v in arrays])
-                values = [v[(0,), :time_length] for v in arrays]
-                return np.array(values)
-
-            obs = morph('ACN->A*CN', concaternate_arrays([
-                load_audio(
-                    ex['audio_path']['observation'][array],
-                    start=ex['start'],
-                    stop=ex['end'],
-                )
-                for array in sorted(ex['audio_path']['observation'].keys())
-            ]))
-        elif self.multiarray is False:
-            reference_array = ex['reference_array']
-            obs = load_audio(
-                ex['audio_path']['observation'][reference_array],
-                start=ex['start'],
-                stop=ex['end'],
-            )
-        else:
-            raise ValueError(self.multiarray)
+        obs = ex['audio_data']
 
         x_hat = self.enhance_observation(
             obs,
@@ -595,9 +283,6 @@ class Enhancer:
             axis=0,
         )
 
-
-
-
         X_hat = self.bf_block(
             Obs,
             target_mask=target_mask,
@@ -615,23 +300,84 @@ class Enhancer:
 
 from pb_chime5.database.chime5.rttm import RTTMDatabase, get_chime6_files, groupby
 
-def get_database():
-    chime6_dir = Path('/net/fastdb/chime6/CHiME6')
-    chime6_rttm = Path(
-        '/net/vol/boeddeker/chime6/kaldi/egs/chime6/chime6_rttm')
 
-    rttm = sorted(chime6_rttm.glob('*_rttm'))
+def get_database(
+    chime6_dir,
+    rttm,
+    multiarray,
+):
+    """
+    >>> from paderbox.notebook import pprint
+    >>> chime6_dir = Path('/net/fastdb/chime6/CHiME6')
+    >>> rttm = Path('/net/vol/boeddeker/chime6/kaldi/egs/chime6/chime6_rttm')
+    >>> rttm = sorted(rttm.glob('*_rttm'))
+    >>> db = get_database(chime6_dir, rttm, 'first_array_mics')
+    >>> pprint(db.get_dataset_for_session('S02', audio_read=True, context_samples=16000)[-1])
+    {'example_id': 'S02_U06.-P05-142186400_142202560',
+     'start': 142170400,
+     'end': 142218560,
+     'num_samples': 48160,
+     'session_id': 'S02',
+     'speaker_id': 'P05',
+     'audio_path': ['/net/fastdb/chime6/CHiME6/audio/dev/S02_U01.CH1.wav',
+      '/net/fastdb/chime6/CHiME6/audio/dev/S02_U02.CH1.wav',
+      '/net/fastdb/chime6/CHiME6/audio/dev/S02_U03.CH1.wav',
+      '/net/fastdb/chime6/CHiME6/audio/dev/S02_U04.CH1.wav',
+      '/net/fastdb/chime6/CHiME6/audio/dev/S02_U05.CH1.wav',
+      '/net/fastdb/chime6/CHiME6/audio/dev/S02_U06.CH1.wav'],
+     'dataset': 'S02',
+     'start_orig': 142186400,
+     'end_orig': 142202560,
+     'num_samples_orig': 16160,
+     'audio_data': array(shape=(6, 48160), dtype=float64)}
+    """
+    chime6_dir = Path(chime6_dir)
 
-    audio_paths = get_chime6_files(chime6_dir, worn=False, flat=True)
-    audio_paths = {k: [p for p in paths if 'CH1' in p] for k, paths in
-                        audio_paths.items()}
+    if multiarray is True:
+        audio_paths = get_chime6_files(chime6_dir, worn=False, flat=True)
+    elif multiarray == 'outer_array_mics':
+        audio_paths = get_chime6_files(chime6_dir, worn=False, flat=False)
+        audio_paths = {
+            session_id: [
+                file
+                for array_id, array_files in session_files.items()
+                for file in [array_files[0], array_files[-1]]
+            ]
+            for session_id, session_files in audio_paths.items()
+        }
+    elif multiarray == 'first_array_mics':
+        audio_paths = get_chime6_files(chime6_dir, worn=False, flat=False)
+        audio_paths = {
+            session_id: [
+                array_files[0]
+                for array_id, array_files in session_files.items()
+            ]
+            for session_id, session_files in audio_paths.items()
+        }
+    # elif multiarray.startswith('U'):
+    #     # e.g. U01, U02, U03, U04, U05, U06
+    #     audio_paths = get_chime6_files(chime6_dir, worn=False, flat=False)
+    #     audio_paths = {
+    #         session_id: session_files[multiarray]
+    #         for session_id, session_files in audio_paths.items()
+    #     }
+    else:
+        raise ValueError(multiarray)
+
     alias = chime6_dir.glob('transcriptions/*/*.json')
     alias = groupby(sorted(alias), lambda p: p.parts[-2],
                          lambda p: p.with_suffix('').name)
 
+    return RTTMDatabase(
+        rttm, audio_paths, alias=alias
+    )
+
 
 def get_enhancer(
-    multiarray=False,
+    database_rttm,
+    activity_rttm,
+    chime6_dir='/net/fastdb/chime6/CHiME6',
+    multiarray='outer_array_mics',
     context_samples=240000,
 
     wpe=True,
@@ -640,8 +386,6 @@ def get_enhancer(
     wpe_iterations=3,
     wpe_psd_context=0,
 
-    activity_type='annotation',  # ['annotation', 'path', 'non_sil_alignment']
-    activity_path=None,
     activity_garbage_class=True,
 
     stft_size=1024,
@@ -650,22 +394,23 @@ def get_enhancer(
 
     bss_iterations=20,
     bss_iterations_post=1,
-    bss_mm='cACGMM',
 
     bf_drop_context=True,
 
     bf='mvdrSouden_ban',
     postfilter=None,
-
-    database_path=str(JSON_PATH / 'chime6.json'),
 ):
 
     assert wpe is True or wpe is False, wpe
 
-    assert activity_path is None or activity_type in ['path', 'rttm'], (activity_path, activity_type)
+    db = get_database(
+        chime6_dir,
+        database_rttm,
+        multiarray,
+    )
 
     return Enhancer(
-        multiarray=multiarray,
+        db=db,
         context_samples=context_samples,
         wpe_block=WPE(
             taps=wpe_tabs,
@@ -674,15 +419,12 @@ def get_enhancer(
             psd_context=wpe_psd_context,
         ) if wpe else None,
         activity=Activity(
-            type=activity_type,
             garbage_class=activity_garbage_class,
-            path=activity_path,
-            database_path=database_path,
+            rttm=activity_rttm,
         ),
         gss_block=GSS(
             iterations=bss_iterations,
             iterations_post=bss_iterations_post,
-            mm=bss_mm,
             verbose=False,
         ),
         bf_drop_context=bf_drop_context,
