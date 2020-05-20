@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # internal script for jenkins
-
+set -e
 renice -n 20 $$
 source /net/software/python/2018_12/anaconda/bin/activate
 
@@ -17,7 +17,7 @@ trap 'echo -e "${green}$ $BASH_COMMAND ${NC}"' DEBUG
 mkdir -p venv
 export PYTHONUSERBASE=$(readlink -m venv)
 
-git clone git@ntgit.upb.de:python/toolbox internal_toolbox
+git clone git@ntgit.upb.de:python/toolbox/padercontrib internal_toolbox
 source internal_toolbox/bash/cuda.bash
 source internal_toolbox/bash/kaldi.bash
 
@@ -43,6 +43,16 @@ make cache/chime6.json
 python -m pb_chime5.scripts.run test_run with session_id=dev database_path=cache/chime6.json chime6=True
 mkdir kaldi_run_storage_dir_chime6
 python -m pb_chime5.scripts.kaldi_run with storage_dir=kaldi_run_storage_dir_chime6 session_id=dev job_id=1 number_of_jobs=2000 database_path=cache/chime6.json chime6=True
+
+mkdir kaldi_run_storage_dir_chime6_rttm
+python -m pb_chime5.scripts.kaldi_run_rttm with \
+  storage_dir=kaldi_run_storage_dir_chime6 \
+  database_rttm="https://raw.githubusercontent.com/nateanl/chime6_rttm/master/dev_rttm" \
+  session_id=dev \
+  job_id=1 \
+  number_of_jobs=6000 \
+  context_samples=16000 \
+  multiarray='first_array_mics'
 
 ls
 echo `pwd`

@@ -142,6 +142,7 @@ setup(
         'nara_wpe>=0.0.6',
     	'lazy_dataset',
         'dlp_mpi>=0.0.2',
+        'paderbox @ git+http://github.com/fgnt/paderbox'
     ],  # Optional
 
     # List additional groups of dependencies here (e.g. development

@@ -59,6 +59,16 @@ An Investigation into the Effectiveness of Enhancement in ASR Training and Test 
 }
 ```
 
+Towards a speaker diarization system for the CHiME 2020 dinner party transcription ([pdf](https://chimechallenge.github.io/chime2020-workshop/abstracts/CHiME_2020_abstract_boeddeker.pdf), [slides](https://chimechallenge.github.io/chime2020-workshop/presentations/CHiME_2020_slides_boeddeker.pdf), [video](https://www.youtube.com/watch?v=tQhrqhVtsQI&feature=youtu.be))
+```
+@inproceedings{Boeddeker2018CHiME6,
+  author    = {Boeddeker, Christoph and Cord-Landwehr, Tobias and Heitkaemper, Jens and Zoril\u{a}, C\u{a}t\u{a}lin and Hayakawa, Daichi and Li, Mohan and Liu, Min and Doddipatla, Rama and Haeb-Umbach, Reinhold},
+  title     = {{Towards a speaker diarization system for the CHiME 2020 dinner party transcription}},
+  year      = {2020},
+  booktitle = {CHiME-6 Workshop},
+}
+```
+
 ## Installation
 
 Does not work with Windows.
@@ -101,6 +111,42 @@ $ mpiexec -np 9 python -m pb_chime5.scripts.run with session_id=dev
 ```
 You can replace `mpiexec -np 9` with your HPC command to start a MPI program.
 It scalles up very well and is tested with 600 distributed cores.
+
+# CHiME-6 Track2: RTTM files
+
+In Track 2 of CHiME-6 it is not allowed to use the human annotations for
+utterance starts and ends.
+Instead they must be estimated. As format they used RTTM files
+(For a description see https://github.com/nryant/dscore#rttm).
+Here an example line for such a file:
+```
+SPEAKER S09 1 65.58 1.75 <NA> <NA> P25 <NA> <NA>
+```
+
+Once you have an estmate for the utterance starts and ends, you can enhance the
+data with the following code:
+
+```bash
+python -m pb_chime5.scripts.kaldi_run_rttm with \
+  storage_dir=path/to/save/enhanced/data \
+  chime6_dir='/net/fastdb/chime6/CHiME6' \
+  database_rttm="https://raw.githubusercontent.com/nateanl/chime6_rttm/master/dev_rttm" \
+  activity_rttm="https://raw.githubusercontent.com/nateanl/chime6_rttm/master/dev_rttm" \
+  session_id=dev \
+  job_id=1 \
+  number_of_jobs=1 \
+  context_samples=160000 \
+  bss_iterations=5 \
+  multiarray='outer_array_mics'
+```
+ - `storage_dir`: Path where to store the enhanced data (`<storage_dir>/audio/<dataset>/*.wav`)
+   - The enhanced data will be written to `<storage_dir>/audio/<dataset>`.
+ - `chime6_dir`: Path to the CHiME-6 folder.
+ - `session_id` dataset/session to enhance, e.g. `dev`, `eval`, `train`, `S02`, ...
+ - `database_rttm` must contain the utterance starts and ends for the selected `session_id`. These starts and ends are used to write the audio files that can be used for ASR.
+ - `activity_rttm`: Default is the same as `database_rttm`. May have more silence than `database_rttm`. e.g. `activity_rttm` has word start and end, while `database_rttm` has sentence start and end.
+ - `job_id` and `number_of_jobs`: Control the subset you want to calculate. This option is intended for kaldi (e.g. `run.pl`). Alternatively, you could use `mpiexec -np $number_of_jobs` in front of the call to parallelize the enhancement. This should be slightly faster than kaldi.
+
 
 # FAQ
 

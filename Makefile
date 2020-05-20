@@ -1,7 +1,7 @@
 
 
 # uses environment variable CHIME5_DIR if it is defined, otherwise falls back to default /net/fastdb/chime5/CHiME5
-CHIME5_DIR ?= /net/fastdb/chime5/CHiME5
+CHIME5_DIR ?= /net/db/chime5/CHiME5
 CHIME6_DIR ?= cache/CHiME6
 
 cache:
