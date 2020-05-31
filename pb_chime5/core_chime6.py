@@ -397,7 +397,6 @@ class Enhancer:
             debug=False,
     ):
         session_id = ex['session_id']
-        reference_array = ex['reference_array']
         speaker_id = ex['speaker_id']
 
         array_start = ex['start']
@@ -465,6 +464,20 @@ class Enhancer:
                 for array in sorted(ex['audio_path']['observation'].keys())
             ]))
         elif self.multiarray is False:
+            reference_array = self.reference_array
+            if reference_array is None:
+                try:
+                    reference_array = ex['reference_array']
+                except KeyError:
+                    raise RuntimeError(
+                        'Failed to get the "reference_array" from the example.\n'
+                        'Probably you tried to enhance the "train" dataset.\n'
+                        'Train has no "reference_array".\n'
+                        'You can set a "reference_array" from the commandline with\n'
+                        '\tpython -m ... with ... reference_array=U06\n'
+                        'In case of multiarray, the reference array is used for the'
+                        'projection of the human annotations.'
+                    ) from None
             obs = load_audio(
                 ex['audio_path']['observation'][reference_array],
                 start=ex['start'],
@@ -601,7 +614,7 @@ def get_enhancer(
             type=activity_type,
             garbage_class=activity_garbage_class,
             path=activity_path,
-            database_path=str(database_path),
+            database_path=database_path,
         ),
         gss_block=GSS(
             iterations=bss_iterations,
