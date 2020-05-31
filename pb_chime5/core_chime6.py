@@ -295,6 +295,7 @@ class Enhancer:
 
     context_samples: int  # e.g. 240000
     multiarray: bool
+    reference_array: [None, str]
 
     @property
     def db(self):
