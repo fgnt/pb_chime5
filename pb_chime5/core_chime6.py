@@ -604,6 +604,7 @@ def get_enhancer(
 
     return Enhancer(
         multiarray=multiarray,
+        reference_array=reference_array,
         context_samples=context_samples,
         wpe_block=WPE(
             taps=wpe_tabs,
