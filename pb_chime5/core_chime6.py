@@ -572,6 +572,7 @@ class Enhancer:
 def get_enhancer(
     multiarray=False,
     context_samples=240000,
+    reference_array=None,
 
     wpe=True,
     wpe_tabs=10,
