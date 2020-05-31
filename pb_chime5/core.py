@@ -296,6 +296,7 @@ class Enhancer:
 
     context_samples: int  # e.g. 240000
     multiarray: bool
+    reference_array: [None, str]
 
     @property
     def db(self):
@@ -334,7 +335,7 @@ class Enhancer:
             session_ids,
             audio_dir,
             dataset_slice=False,
-            audio_dir_exist_ok=False
+            audio_dir_exist_ok=False,
     ):
         """
 
@@ -398,7 +399,21 @@ class Enhancer:
             debug=False,
     ):
         session_id = ex['session_id']
-        reference_array = ex['reference_array']
+
+        reference_array = self.reference_array
+        if reference_array is None:
+            try:
+                reference_array = ex['reference_array']
+            except KeyError:
+                raise RuntimeError(
+                    'Failed to get the "reference_array" from the example.\n'
+                    'Probably you tried to enhance the "train" dataset.\n'
+                    'Train has no "reference_array".\n'
+                    'You can set a "reference_array" from the commandline with\n'
+                    '\tpython -m ... with ... reference_array=U06\n'
+                    'In case of multiarray, the reference array is used for the'
+                    'projection of the human annotations.'
+                ) from None
         speaker_id = ex['speaker_id']
 
         array_start = ex['start']['observation'][reference_array]
@@ -558,6 +573,7 @@ class Enhancer:
 
 def get_enhancer(
     multiarray=False,
+    reference_array=None,
     context_samples=240000,
 
     wpe=True,
@@ -581,6 +597,8 @@ def get_enhancer(
 
     bf='mvdrSouden_ban',
     postfilter=None,
+
+    database_path=str(JSON_PATH / 'chime5.json'),
 ):
 
     assert wpe is True or wpe is False, wpe
@@ -589,6 +607,7 @@ def get_enhancer(
 
     return Enhancer(
         multiarray=multiarray,
+        reference_array=reference_array,
         context_samples=context_samples,
         wpe_block=WPE(
             taps=wpe_tabs,
@@ -600,7 +619,7 @@ def get_enhancer(
             type=activity_type,
             garbage_class=activity_garbage_class,
             path=activity_path,
-            database_path=str(JSON_PATH / 'chime5.json'),
+            database_path=database_path,
         ),
         gss_block=GSS(
             iterations=bss_iterations,
