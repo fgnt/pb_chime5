@@ -1,7 +1,10 @@
 import io
+from distutils.command.config import config
+
 import numpy as np
 import threading
 from pathlib import Path
+import contextlib
 
 import soundfile
 from scipy.io.wavfile import write as wav_write
@@ -22,6 +25,7 @@ def dump_audio(
         start=None,
         normalize=True,
         format=None,
+        mkdir=False,
 ):
     """
     If normalize is False and the dytpe is float, the values of obj should be in
@@ -200,7 +204,16 @@ def dump_audio(
 
     # soundfile.write()
 
-    with soundfile.SoundFile(path, **sf_args) as f:
+    with contextlib.ExitStack() as exit_stack:
+        try:
+            f = exit_stack.enter_context(soundfile.SoundFile(path, **sf_args))
+        except RuntimeError:
+            # Not sure, why this is a RuntimeError. Maybe a bug in SoundFile.
+            if mkdir:
+                Path(path).parent.mkdir(exist_ok=True, parents=True)
+                f = exit_stack.enter_context(soundfile.SoundFile(path, **sf_args))
+            else:
+                raise 
         if start is not None:
             f.seek(start)
         f.write(obj.T)
