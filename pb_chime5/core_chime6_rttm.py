@@ -122,7 +122,8 @@ class Enhancer:
             session_ids,
             audio_dir,
             dataset_slice=False,
-            audio_dir_exist_ok=False
+            audio_dir_exist_ok=False,
+            is_chime=True,
     ):
         """
 
@@ -133,7 +134,9 @@ class Enhancer:
             audio_dir_exist_ok:
                 When True: It is ok, when the audio dir exists and the files
                 insinde may be overwritten.
-
+            is_chime:
+                If true, map the session_id to the dataset name for the folder
+                naming. Otherwise keep the session_id for the folder name.
         Returns:
 
 
@@ -149,9 +152,8 @@ class Enhancer:
 
         if dlp_mpi.IS_MASTER:
             audio_dir.mkdir(exist_ok=audio_dir_exist_ok)
-
-            for dataset in set(mapping.session_to_dataset.values()):
-                (audio_dir / dataset).mkdir(exist_ok=audio_dir_exist_ok)
+            # for dataset in self.db.data['alias']:
+            #     (audio_dir / dataset).mkdir(exist_ok=audio_dir_exist_ok)
 
         dlp_mpi.barrier()
 
@@ -170,13 +172,17 @@ class Enhancer:
                 x_hat = self.enhance_example(ex)
                 example_id = ex["example_id"]
                 session_id = ex["session_id"]
-                dataset = mapping.session_to_dataset[session_id]
+                if is_chime:
+                    dataset = mapping.session_to_dataset[session_id]
+                else:
+                    dataset = session_id
 
                 if x_hat.ndim == 1:
                     save_path = audio_dir / f'{dataset}' / f'{example_id}.wav'
                     dump_audio(
                         x_hat,
                         save_path,
+                        mkdir=True
                     )
                 else:
                     raise NotImplementedError(x_hat.shape)
