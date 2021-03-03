@@ -401,6 +401,7 @@ class RTTMDatabase(Database):
         """
         super().__init__()
         self._rttm_path = rttm_path
+        assert isinstance(audio_paths, dict), audio_paths
         self._audio_paths = audio_paths
         if alias is None:
             alias = []
@@ -476,6 +477,12 @@ class RTTMDatabase(Database):
                             f'{session_id!r},\nit has only: '
                             f'{list(self._audio_paths.keys())}'
                         )
+                    except Exception as e:
+                        raise AssertionError(
+                            'Something went wrong.\n'
+                            f'session_id: {session_id}\n'
+                            f'self._audio_paths == {self._audio_paths!r}'
+                        ) from e
 
                     datasets[session_id][example_id] = {
                         'example_id': example_id,
