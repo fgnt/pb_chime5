@@ -401,7 +401,10 @@ class RTTMDatabase(Database):
         """
         super().__init__()
         self._rttm_path = rttm_path
+        assert isinstance(audio_paths, dict), audio_paths
         self._audio_paths = audio_paths
+        if alias is None:
+            alias = []
         self._alias = alias
 
     @cached_property
@@ -465,6 +468,22 @@ class RTTMDatabase(Database):
             for speaker_id, speaker in session.items():
                 for start, end in speaker.intervals:
                     example_id = self.example_id(session_id, speaker_id, start, end)
+
+                    try:
+                        audio_path = self._audio_paths[session_id]
+                    except KeyError as e:
+                        raise ValueError(
+                            'self._audio_paths does not contain the session_id'
+                            f'{session_id!r},\nit has only: '
+                            f'{list(self._audio_paths.keys())}'
+                        )
+                    except Exception as e:
+                        raise AssertionError(
+                            'Something went wrong.\n'
+                            f'session_id: {session_id}\n'
+                            f'self._audio_paths == {self._audio_paths!r}'
+                        ) from e
+
                     datasets[session_id][example_id] = {
                         'example_id': example_id,
                         'start': start,
@@ -472,7 +491,7 @@ class RTTMDatabase(Database):
                         'num_samples': end - start,
                         'session_id': session_id,
                         'speaker_id': speaker_id,
-                        'audio_path': self._audio_paths[session_id]
+                        'audio_path': audio_path,
                     }
         return {
             'datasets': datasets,
