@@ -135,7 +135,9 @@ def get_enhancer(
     elif isinstance(session_to_audio_paths, str):
         import paderbox as pb
         # Load file, load detects yaml, json, ... (pkl is not allowed -> unsafe)
-        session_to_audio_paths = pb.io.load(session_to_audio_paths)
+        file = session_to_audio_paths
+        session_to_audio_paths = pb.io.load(file)
+        assert isinstance(session_to_audio_paths, dict), (file, session_to_audio_paths)
     elif isinstance(session_to_audio_paths, dict):
         session_to_audio_paths = session_to_audio_paths
     else:
