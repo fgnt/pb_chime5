@@ -1,4 +1,4 @@
-# pb_chime5: Front-End Processing for the CHiME-5 Dinner Party Scenario [\[pdf\]](http://spandh.dcs.shef.ac.uk/chime_workshop/papers/CHiME_2018_paper_boeddecker.pdf)
+# pb_chime5: Front-End Processing for the CHiME-5 Dinner Party Scenario [[DOI](https://doi.org/10.21437/CHiME.2018-8), [PDF](https://www.isca-archive.org/chime_2018/boeddecker18_chime.pdf), [<img src="https://ris.uni-paderborn.de/images/brand_logo.png" alt="RIS" height=30>](https://groups.uni-paderborn.de/nt/pubs/2018/INTERSPEECH_2018_Heitkaemper_Paper.pdf)]
 
 This repository includes all components of the CHiME-5 front-end presented by Paderborn University on the CHiME-5 workshop [PB2018CHiME5].
 Using the baseline backend provided by the challenge organizers on the data enhanced with this multi-array front-end using the default parameters which differ slightly from the original paper a WER of 60.89 % was achieved on the development set.
